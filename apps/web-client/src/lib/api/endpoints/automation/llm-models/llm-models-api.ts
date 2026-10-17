@@ -27,6 +27,10 @@ export interface LlmModel {
   outputPricePer1m: string;
   contextWindow: number;
   recommendedMaxTokens: number;
+  /** Si acepta `temperature` (los modelos de razonamiento rechazan valores ≠ default). */
+  supportsTemperature: boolean;
+  /** `model_params` aceptados: `{ param: [valores] }`, lista vacía = cualquier valor. */
+  allowedParams: Record<string, string[]>;
   effectiveFrom: string;
   effectiveTo: string | null;
   isActive: boolean;
@@ -59,6 +63,8 @@ export interface CreateLlmModelInput {
   outputPricePer1m: number;
   contextWindow: number;
   recommendedMaxTokens: number;
+  supportsTemperature?: boolean;
+  allowedParams?: Record<string, string[]>;
   currency?: string;
   notes?: string;
 }

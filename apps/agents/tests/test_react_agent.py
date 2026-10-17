@@ -18,6 +18,7 @@ sys.path.insert(0, str(src_path))
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from core.context import TenantContext
+from core.llm_errors import LLM_CALL_FAILED, LLMCallError
 from graphs.react_agent import (
     increment_iteration,
     should_continue,
@@ -212,18 +213,19 @@ class TestCallModel:
         assert call_args[0].type == "system"
         assert "SYSTEM DYNAMIC CONTEXT" in call_args[0].content
 
-    def test_returns_error_message_on_llm_exception(self):
+    def test_llm_exception_raises_instead_of_answering_with_the_error(self):
+        # Antes el error se devolvía como mensaje del agente y le llegaba al cliente.
         ctx = make_ctx()
         state = {"messages": [HumanMessage(content="Hola")], "iteration_count": 0}
 
         llm = Mock()
         llm.invoke.side_effect = Exception("LLM no disponible")
 
-        result = call_model(state, ctx, llm)
+        with pytest.raises(LLMCallError) as exc:
+            call_model(state, ctx, llm)
 
-        assert "messages" in result
-        content = result["messages"][0].content.lower()
-        assert "error" in content or "lo siento" in content
+        assert str(exc.value).startswith(LLM_CALL_FAILED)
+        assert "LLM no disponible" in str(exc.value)
 
     def test_unknown_timezone_falls_back_to_utc(self):
         ctx = make_ctx(timezone="Zona/Invalida")

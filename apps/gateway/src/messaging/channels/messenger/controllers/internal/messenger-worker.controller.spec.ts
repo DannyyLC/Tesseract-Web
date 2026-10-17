@@ -1,4 +1,6 @@
+import { HttpStatus } from '@nestjs/common';
 import { MessengerConnectionStatus } from '@tesseract/database';
+import { AgentLlmFailedException } from '@/platform/common/exceptions';
 import { MessengerWorkerController } from './messenger-worker.controller';
 
 /**
@@ -181,6 +183,21 @@ describe('MessengerWorkerController', () => {
       '[Ubicación]',
       { source: 'unprocessed_media' },
     );
+  });
+
+  it('si el modelo no respondió confirma la ventana sin reintentar y no le manda nada al cliente', async () => {
+    withPresence(true);
+    mockWorkflowsService.execute.mockRejectedValue(
+      new AgentLlmFailedException("LLM_CALL_FAILED: agente 'default': boom"),
+    );
+    const res = buildResponse();
+
+    await controller.processWindow(body, res);
+
+    expect(mockQueueService.commitWindow).toHaveBeenCalledWith('proc-1');
+    expect(mockMessengerConfigService.sendTextMessage).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
+    expect(res.send).toHaveBeenCalledWith({ processed: false, reason: 'llm-failed' });
   });
 
   it('marca como leído y muestra escribiendo por defecto', async () => {

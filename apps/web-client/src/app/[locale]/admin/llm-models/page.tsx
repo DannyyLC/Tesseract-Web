@@ -46,6 +46,100 @@ function fmtPrice(v: string) {
   return Number.isFinite(n) ? `$${n.toFixed(2)}` : v;
 }
 
+/** `allowedParams` → texto editable: una línea `parametro: valor1, valor2` por parámetro. */
+function formatAllowedParams(params: Record<string, string[]> | undefined): string {
+  return Object.entries(params ?? {})
+    .map(([name, values]) => (values.length ? `${name}: ${values.join(', ')}` : `${name}:`))
+    .join('\n');
+}
+
+const PARAM_NAME = /^[a-z][a-z0-9_]{0,63}$/;
+
+/**
+ * Texto del formulario → `allowedParams`. Misma forma que valida el gateway
+ * (`IsAllowedParams`): nombres en snake_case y valores sin vacíos. Devuelve la línea
+ * (1-based) del primer error para señalarla en el formulario.
+ */
+function parseAllowedParams(
+  text: string,
+): { ok: true; value: Record<string, string[]> } | { ok: false; line: number } {
+  const value: Record<string, string[]> = {};
+  const lines = text.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i].trim();
+    if (!raw) continue;
+    const colon = raw.indexOf(':');
+    const name = (colon === -1 ? raw : raw.slice(0, colon)).trim();
+    if (!PARAM_NAME.test(name)) return { ok: false, line: i + 1 };
+    const values =
+      colon === -1
+        ? []
+        : raw
+            .slice(colon + 1)
+            .split(',')
+            .map((v) => v.trim())
+            .filter(Boolean);
+    value[name] = values;
+  }
+  return { ok: true, value };
+}
+
+/** Resumen en texto plano de las capacidades, para la tabla. */
+function capabilitiesSummary(m: LlmModel, noTemperatureLabel: string): string {
+  const parts: string[] = [];
+  if (m.supportsTemperature === false) parts.push(noTemperatureLabel);
+  parts.push(...Object.keys(m.allowedParams ?? {}));
+  return parts.join(' · ');
+}
+
+/** Campos de capacidades compartidos por los formularios de crear y editar. */
+function CapabilitiesFields({
+  supportsTemperature,
+  allowedParamsText,
+  invalidLine,
+  onChange,
+}: {
+  supportsTemperature: boolean;
+  allowedParamsText: string;
+  invalidLine: number | null;
+  onChange: (patch: { supportsTemperature?: boolean; allowedParamsText?: string }) => void;
+}) {
+  const tt = useTranslations('Admin.LlmModels');
+  return (
+    <div className="space-y-3 rounded-xl border border-border p-3">
+      <label className="flex items-start gap-2 text-sm text-text-primary">
+        <input
+          type="checkbox"
+          className="mt-0.5"
+          checked={supportsTemperature}
+          onChange={(e) => onChange({ supportsTemperature: e.target.checked })}
+        />
+        <span>
+          {tt('supportsTemperatureLabel')}
+          <span className="block text-xs text-text-secondary">{tt('supportsTemperatureHint')}</span>
+        </span>
+      </label>
+      <div>
+        <label className={labelClass}>{tt('allowedParamsLabel')}</label>
+        <textarea
+          className={`${inputClass} min-h-[72px] font-mono text-xs`}
+          value={allowedParamsText}
+          onChange={(e) => onChange({ allowedParamsText: e.target.value })}
+          placeholder="reasoning_effort: none, low, medium, high"
+          spellCheck={false}
+        />
+        {invalidLine !== null ? (
+          <p className="mt-1 text-xs text-danger-500">
+            {tt('allowedParamsInvalid', { line: invalidLine })}
+          </p>
+        ) : (
+          <p className="mt-1 text-xs text-text-secondary">{tt('allowedParamsHint')}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function LlmModelsAdminPage() {
   const tt = useTranslations('Admin.LlmModels');
   const getApiErrorMessage = useApiErrorMessage();
@@ -192,7 +286,14 @@ export default function LlmModelsAdminPage() {
                     className="border-b border-border transition-colors last:border-0 hover:bg-surface-panel"
                   >
                     <td className="px-4 py-3 text-text-primary">{m.provider}</td>
-                    <td className="px-4 py-3 font-medium text-text-primary">{m.modelName}</td>
+                    <td className="px-4 py-3 font-medium text-text-primary">
+                      {m.modelName}
+                      {capabilitiesSummary(m, tt('capNoTemperature')) && (
+                        <span className="block text-xs font-normal text-text-secondary">
+                          {capabilitiesSummary(m, tt('capNoTemperature'))}
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-text-secondary">{m.tier}</td>
                     <td className="px-4 py-3 text-text-secondary">{m.llmCategory?.name ?? '—'}</td>
                     <td className="px-4 py-3 text-text-secondary">{fmtPrice(m.inputPricePer1m)}</td>
@@ -442,10 +543,18 @@ function CreateForm({
     recommendedMaxTokens: '',
     currency: 'USD',
     notes: '',
+    supportsTemperature: true,
+    allowedParamsText: '',
   });
+  const [invalidLine, setInvalidLine] = useState<number | null>(null);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
+    const allowedParams = parseAllowedParams(f.allowedParamsText);
+    if (!allowedParams.ok) {
+      setInvalidLine(allowedParams.line);
+      return;
+    }
     onSubmit({
       provider: f.provider.trim(),
       modelName: f.modelName.trim(),
@@ -457,6 +566,8 @@ function CreateForm({
       recommendedMaxTokens: Number(f.recommendedMaxTokens),
       currency: f.currency.trim() || 'USD',
       notes: f.notes.trim() || undefined,
+      supportsTemperature: f.supportsTemperature,
+      allowedParams: allowedParams.value,
     });
   };
 
@@ -561,6 +672,15 @@ function CreateForm({
           />
         </div>
       </div>
+      <CapabilitiesFields
+        supportsTemperature={f.supportsTemperature}
+        allowedParamsText={f.allowedParamsText}
+        invalidLine={invalidLine}
+        onChange={(patch) => {
+          setF({ ...f, ...patch });
+          if (patch.allowedParamsText !== undefined) setInvalidLine(null);
+        }}
+      />
       <div>
         <label className={labelClass}>{tt('notesOptionalLabel')}</label>
         <input
@@ -613,6 +733,8 @@ function EditForm({
     recommendedMaxTokens?: number;
     notes?: string;
     isActive?: boolean;
+    supportsTemperature?: boolean;
+    allowedParams?: Record<string, string[]>;
   }) => void;
   onCancel: () => void;
   pending: boolean;
@@ -625,10 +747,18 @@ function EditForm({
     recommendedMaxTokens: String(model.recommendedMaxTokens),
     notes: model.notes ?? '',
     isActive: model.isActive,
+    supportsTemperature: model.supportsTemperature !== false,
+    allowedParamsText: formatAllowedParams(model.allowedParams),
   });
+  const [invalidLine, setInvalidLine] = useState<number | null>(null);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
+    const allowedParams = parseAllowedParams(f.allowedParamsText);
+    if (!allowedParams.ok) {
+      setInvalidLine(allowedParams.line);
+      return;
+    }
     onSubmit({
       tier: f.tier,
       llmCategoryId: f.llmCategoryId || undefined,
@@ -636,6 +766,8 @@ function EditForm({
       recommendedMaxTokens: Number(f.recommendedMaxTokens),
       notes: f.notes.trim() || undefined,
       isActive: f.isActive,
+      supportsTemperature: f.supportsTemperature,
+      allowedParams: allowedParams.value,
     });
   };
 
@@ -697,6 +829,15 @@ function EditForm({
           />
         </div>
       </div>
+      <CapabilitiesFields
+        supportsTemperature={f.supportsTemperature}
+        allowedParamsText={f.allowedParamsText}
+        invalidLine={invalidLine}
+        onChange={(patch) => {
+          setF({ ...f, ...patch });
+          if (patch.allowedParamsText !== undefined) setInvalidLine(null);
+        }}
+      />
       <div>
         <label className={labelClass}>{tt('notesLabel')}</label>
         <input

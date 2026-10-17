@@ -123,3 +123,26 @@ export class MaxRetriesExceededException extends AppException {
     );
   }
 }
+
+/**
+ * Excepción: el modelo no respondió
+ *
+ * El motor la reporta (gRPC FAILED_PRECONDITION, mensaje `LLM_CALL_FAILED: …`) cuando el
+ * modelo principal y sus fallbacks fallaron. No es transitoria en el sentido de Cloud
+ * Tasks: un reintento repetiría las tools y avisos que el turno ya ejecutó, y lo normal es
+ * que vuelva a fallar igual (p.ej. un parámetro que el proveedor rechaza). Los workers de
+ * canal la confirman sin reintento y el equipo recibe aviso de seguimiento.
+ */
+export class AgentLlmFailedException extends AppException {
+  /** Prefijo con el que el motor marca la falla, también en el evento `error` del stream. */
+  static readonly PREFIX = 'LLM_CALL_FAILED';
+
+  constructor(reason: string) {
+    super(
+      ErrorCode.AGENT_LLM_FAILED,
+      `The agent's model did not respond: ${reason}`,
+      HttpStatus.BAD_GATEWAY,
+      { reason },
+    );
+  }
+}

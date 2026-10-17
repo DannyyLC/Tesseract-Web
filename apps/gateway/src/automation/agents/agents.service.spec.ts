@@ -8,6 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import * as grpc from '@grpc/grpc-js';
 import { AgentsService } from './agents.service';
+import { AgentLlmFailedException } from '@/platform/common/exceptions';
 import { AgentExecutionRequestDto } from './dto';
 
 const mockGetIdTokenClient = jest.fn();
@@ -112,6 +113,21 @@ describe('AgentsService', () => {
       await expect(service.execute(mockRequest)).rejects.toBeInstanceOf(
         InternalServerErrorException,
       );
+    });
+
+    it('maps FAILED_PRECONDITION (model did not respond) to AgentLlmFailedException without retrying', async () => {
+      const error = {
+        code: grpc.status.FAILED_PRECONDITION,
+        details: "LLM_CALL_FAILED: nodo 'router' (agente 'router'): RuntimeError: boom",
+        message: '9 FAILED_PRECONDITION: LLM_CALL_FAILED: …',
+      };
+      mockGrpcClient.execute.mockImplementation((_req, _meta, _opts, cb) => cb(error));
+
+      const rejection = service.execute(mockRequest);
+
+      await expect(rejection).rejects.toBeInstanceOf(AgentLlmFailedException);
+      await expect(rejection).rejects.toThrow(/LLM_CALL_FAILED: nodo 'router'/);
+      expect(mockGrpcClient.execute).toHaveBeenCalledTimes(1);
     });
   });
 

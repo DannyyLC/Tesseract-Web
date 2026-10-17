@@ -58,12 +58,13 @@ from typing import Annotated, Any, Dict, List
 from langgraph.graph import StateGraph, END, START
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
-from langchain_core.messages import AIMessage, SystemMessage, HumanMessage
+from langchain_core.messages import SystemMessage, HumanMessage
 from typing_extensions import TypedDict
 
 from core.context import TenantContext
 from core.prompts import build_time_context
-from tools.registry import get_llm, load_tools
+from core.llm_errors import LLMCallError
+from tools.registry import chain_fallbacks, get_llm, load_tools
 
 logger = logging.getLogger(__name__)
 
@@ -183,7 +184,9 @@ def _make_supervisor_node(supervisor_agent: str, worker_names: List[str], ctx: T
         worker_names:     Lista de nombres de workers disponibles
         ctx:              TenantContext
     """
-    llm = get_llm(ctx, supervisor_agent)
+    # El supervisor conserva su degradación a FINISH si todo falla, pero antes intenta
+    # sus fallbacks.
+    llm = chain_fallbacks(ctx, supervisor_agent, get_llm(ctx, supervisor_agent))
     agent_config = ctx.get_agent_config(supervisor_agent)
 
     logger.info(
@@ -259,7 +262,7 @@ def _make_worker_node(worker_name: str, ctx: TenantContext):
     """
     llm = get_llm(ctx, worker_name)
     tools = load_tools(ctx, worker_name)
-    llm_with_tools = llm.bind_tools(tools) if tools else llm
+    llm_with_tools = chain_fallbacks(ctx, worker_name, llm, tools)
     agent_config = ctx.get_agent_config(worker_name)
 
     logger.info(
@@ -296,7 +299,9 @@ def _make_worker_node(worker_name: str, ctx: TenantContext):
                 f"[{ctx.workflow_id}] Worker '{worker_name}' LLM error: {e}",
                 exc_info=True
             )
-            response = AIMessage(content=f"Error en worker {worker_name}: {str(e)}")
+            # Sin respuesta del modelo (ni de sus fallbacks) el error sube: antes se devolvía
+            # como mensaje del agente y le llegaba al cliente.
+            raise LLMCallError(worker_name, None, e) from e
 
         return {
             "messages": [response],

@@ -50,12 +50,13 @@ from typing import Annotated, Any, Dict, List
 
 from langgraph.graph import StateGraph, END, START
 from langgraph.graph.message import add_messages
-from langchain_core.messages import AIMessage, SystemMessage
+from langchain_core.messages import SystemMessage
 from typing_extensions import TypedDict
 
 from core.context import TenantContext
 from core.prompts import build_time_context
-from tools.registry import get_llm
+from core.llm_errors import LLMCallError
+from tools.registry import chain_fallbacks, get_llm
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +101,7 @@ def _make_step_node(step_index: int, agent_name: str, output_variable: str | Non
         output_variable: Si se especifica, guarda el content de la respuesta en variables
         ctx:             TenantContext con toda la configuración
     """
-    llm = get_llm(ctx, agent_name)
+    llm = chain_fallbacks(ctx, agent_name, get_llm(ctx, agent_name))
     agent_config = ctx.get_agent_config(agent_name)
 
     logger.info(
@@ -134,7 +135,9 @@ def _make_step_node(step_index: int, agent_name: str, output_variable: str | Non
                 f"[{ctx.workflow_id}] Step {step_index} ({agent_name}) LLM error: {e}",
                 exc_info=True
             )
-            response = AIMessage(content=f"Error en paso {step_index} ({agent_name}): {str(e)}")
+            # Sin respuesta del modelo (ni de sus fallbacks) el error sube: antes se devolvía
+            # como mensaje del agente y le llegaba al cliente.
+            raise LLMCallError(agent_name, f"step_{step_index}", e) from e
 
         updates: dict = {
             "messages": [response],

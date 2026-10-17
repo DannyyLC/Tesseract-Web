@@ -17,6 +17,7 @@ import { MediaProcessingService } from '../media-processing/media-processing.ser
 import { ConfigService } from '@nestjs/config';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import {
+  AgentLlmFailedException,
   InvalidWorkflowConfigException,
   WorkflowNotFoundException,
 } from '@/platform/common/exceptions';
@@ -734,6 +735,80 @@ describe('WorkflowsService', () => {
           true, // isInternalWorkflow congelado desde workflow.isInternal
         );
         expect(result.id).toBe('exec1');
+      });
+
+      describe('cuando el modelo no responde (AgentLlmFailedException)', () => {
+        const arrange = (isInternal: boolean) => {
+          prisma.workflow.findFirst = jest.fn().mockResolvedValue({ ...wfMock, isInternal });
+          (mockCreditsService as any).canExecuteWorkflow = jest
+            .fn()
+            .mockResolvedValue({ allowed: true });
+          (mockCreditsService as any).deductCredits = jest.fn();
+          (mockExecutionsService as any).create = jest.fn().mockResolvedValue({ id: 'exec1' });
+          (mockExecutionsService as any).linkToConversation = jest.fn();
+          (mockExecutionsService as any).updateStatus = jest.fn();
+          (mockConversationsService as any).findOrCreateConversation = jest
+            .fn()
+            .mockResolvedValue({ id: 'conv1', isHumanInTheLoop: false });
+          (mockConversationsService as any).getMessageHistory = jest.fn().mockResolvedValue([]);
+          (mockConversationsService as any).addMessage = jest.fn();
+          (mockConversationsService as any).markNeedsFollowUp = jest.fn();
+          (mockAgentsService as any).execute = jest
+            .fn()
+            .mockRejectedValue(new AgentLlmFailedException('LLM_CALL_FAILED: boom'));
+        };
+
+        it('marca la ejecución FAILED, pide seguimiento del equipo y relanza el error', async () => {
+          arrange(false);
+
+          await expect(service.execute(orgId, wfId, { message: 'Hola' })).rejects.toBeInstanceOf(
+            AgentLlmFailedException,
+          );
+
+          expect((mockExecutionsService as any).updateStatus).toHaveBeenCalledWith(
+            'exec1',
+            'FAILED',
+            expect.objectContaining({ error: expect.stringContaining('LLM_CALL_FAILED') }),
+          );
+          expect((mockConversationsService as any).markNeedsFollowUp).toHaveBeenCalledWith(
+            orgId,
+            'conv1',
+            expect.stringContaining('falla del modelo'),
+          );
+          expect((mockCreditsService as any).deductCredits).not.toHaveBeenCalled();
+        });
+
+        it('en un workflow interno (prueba de super admin) no avisa a nadie', async () => {
+          arrange(true);
+
+          await expect(
+            service.execute(
+              orgId,
+              wfId,
+              { message: 'Hola' },
+              undefined,
+              undefined,
+              undefined,
+              undefined,
+              undefined,
+              undefined,
+              true,
+            ),
+          ).rejects.toBeInstanceOf(AgentLlmFailedException);
+
+          expect((mockConversationsService as any).markNeedsFollowUp).not.toHaveBeenCalled();
+        });
+
+        it('si marcar el seguimiento falla, el error que sube sigue siendo el del modelo', async () => {
+          arrange(false);
+          (mockConversationsService as any).markNeedsFollowUp = jest
+            .fn()
+            .mockRejectedValue(new Error('DB caída'));
+
+          await expect(service.execute(orgId, wfId, { message: 'Hola' })).rejects.toBeInstanceOf(
+            AgentLlmFailedException,
+          );
+        });
       });
 
       it('rechaza un workflow interno sin allowInternal (el cliente nunca lo ejecuta)', async () => {

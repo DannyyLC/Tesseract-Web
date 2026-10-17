@@ -19,6 +19,7 @@ from core.message_utils import (
     convert_langchain_messages_to_dict,
     extract_human_handoff_from_messages,
 )
+from core.llm_errors import LLMCallError
 from core.usage import UsageAccumulator
 from graphs.pipeline import NO_STREAM_TAG, get_node_catalog
 
@@ -162,6 +163,22 @@ def _build_execution_metadata(
 
 # ── Servicer ──────────────────────────────────────────────────────────────────
 
+
+def _find_llm_error(exc: BaseException) -> LLMCallError | None:
+    """El LLMCallError que originó `exc`, si lo hay.
+
+    LangGraph puede envolver la excepción de un nodo (p.ej. en ramas paralelas), así que
+    se recorre la cadena de causas en lugar de confiar en el tipo de la de afuera.
+    """
+    seen: set[int] = set()
+    current: BaseException | None = exc
+    while current is not None and id(current) not in seen:
+        if isinstance(current, LLMCallError):
+            return current
+        seen.add(id(current))
+        current = current.__cause__ or current.__context__
+    return None
+
 class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
 
     async def GetNodeCatalog(
@@ -260,6 +277,12 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
 
         except Exception as e:
             logger.error(f"[{conversation_id}] Execute failed: {e}", exc_info=True)
+            # Falla del modelo (con reintentos y fallbacks agotados): código propio para que
+            # el gateway la distinga de un error interno — no reintenta, marca la ejecución
+            # FAILED y avisa al equipo. El mensaje ya empieza con LLM_CALL_FAILED.
+            llm_error = _find_llm_error(e)
+            if llm_error is not None:
+                await context.abort(grpc.StatusCode.FAILED_PRECONDITION, str(llm_error))
             await context.abort(grpc.StatusCode.INTERNAL, str(e))
 
     async def ExecuteStream(
@@ -383,4 +406,9 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
 
         except Exception as e:
             logger.error(f"[{conversation_id}] ExecuteStream failed: {e}", exc_info=True)
-            yield agents_pb2.AgentStreamEvent(type="error", content=str(e))
+            # Mismo contrato que Execute: el gateway reconoce la falla del modelo por el
+            # prefijo LLM_CALL_FAILED del contenido.
+            llm_error = _find_llm_error(e)
+            yield agents_pb2.AgentStreamEvent(
+                type="error", content=str(llm_error if llm_error is not None else e)
+            )

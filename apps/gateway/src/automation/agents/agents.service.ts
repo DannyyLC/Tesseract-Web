@@ -14,6 +14,7 @@ import { join } from 'path';
 import { AgentExecutionRequestDto, AgentExecutionResponseDto } from './dto';
 import { Readable } from 'stream';
 import { errorMessage } from '@/platform/common/utils/error-message';
+import { AgentLlmFailedException } from '@/platform/common/exceptions';
 
 /** Respuesta de Execute tal como la decodifica proto-loader (con `keepCase`). */
 interface WireExecutionResponse {
@@ -51,6 +52,14 @@ type AgentsGrpcClientConstructor = new (
 function grpcCodeOf(err: unknown): number | undefined {
   if (typeof err !== 'object' || err === null || !('code' in err)) return undefined;
   return typeof err.code === 'number' ? err.code : undefined;
+}
+
+/** Texto que mandó el motor en el abort (`details`), sin el prefijo "9 FAILED_PRECONDITION:". */
+function grpcDetailsOf(err: unknown): string {
+  if (typeof err === 'object' && err !== null && 'details' in err && typeof err.details === 'string') {
+    return err.details;
+  }
+  return errorMessage(err);
 }
 
 @Injectable()
@@ -189,6 +198,10 @@ export class AgentsService implements OnModuleInit {
       return new ServiceUnavailableException('Agents service is not available');
     if (code === grpc.status.DEADLINE_EXCEEDED)
       return new RequestTimeoutException('Agent execution timed out');
+    // El motor usa FAILED_PRECONDITION solo para "el modelo no respondió" (LLMCallError,
+    // con reintentos y fallbacks agotados). Tipo propio para que nadie lo reintente.
+    if (code === grpc.status.FAILED_PRECONDITION)
+      return new AgentLlmFailedException(grpcDetailsOf(err));
     return new InternalServerErrorException(errorMessage(err));
   }
 

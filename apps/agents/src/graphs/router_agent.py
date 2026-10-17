@@ -47,12 +47,13 @@ from typing import Annotated, Any, Dict, Literal
 from langgraph.graph import StateGraph, END, START
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
-from langchain_core.messages import AIMessage, SystemMessage, HumanMessage
+from langchain_core.messages import SystemMessage, HumanMessage
 from typing_extensions import TypedDict
 
 from core.context import TenantContext
 from core.prompts import build_time_context
-from tools.registry import get_llm, load_tools
+from core.llm_errors import LLMCallError
+from tools.registry import chain_fallbacks, get_llm, load_tools
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +99,9 @@ def _make_classifier_node(classifier_agent: str, valid_intents: list[str], ctx: 
         valid_intents:    Lista de etiquetas válidas (keys de routes, sin "default")
         ctx:              TenantContext con toda la configuración
     """
-    llm = get_llm(ctx, classifier_agent)
+    # El clasificador conserva su degradación a 'default' si todo falla, pero antes
+    # intenta sus fallbacks.
+    llm = chain_fallbacks(ctx, classifier_agent, get_llm(ctx, classifier_agent))
     agent_config = ctx.get_agent_config(classifier_agent)
 
     logger.info(
@@ -167,7 +170,7 @@ def _make_destination_node(agent_name: str, ctx: TenantContext):
     """
     llm = get_llm(ctx, agent_name)
     tools = load_tools(ctx, agent_name)
-    llm_with_tools = llm.bind_tools(tools) if tools else llm
+    llm_with_tools = chain_fallbacks(ctx, agent_name, llm, tools)
     agent_config = ctx.get_agent_config(agent_name)
 
     logger.info(
@@ -208,7 +211,9 @@ def _make_destination_node(agent_name: str, ctx: TenantContext):
                 f"[{ctx.workflow_id}] Destination agent '{agent_name}' LLM error: {e}",
                 exc_info=True
             )
-            response = AIMessage(content=f"Lo siento, ocurrió un error al procesar tu solicitud: {str(e)}")
+            # Sin respuesta del modelo (ni de sus fallbacks) el error sube: antes se devolvía
+            # como mensaje del agente y le llegaba al cliente.
+            raise LLMCallError(agent_name, None, e) from e
 
         return {"messages": [response]}
 

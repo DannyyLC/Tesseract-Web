@@ -1,4 +1,5 @@
 import { readExecutionResult } from '@/automation/executions/execution-result';
+import { AgentLlmFailedException } from '@/platform/common/exceptions';
 import {
   ProcessedAttachment
 } from '@/automation/media-processing/media-processing.service';
@@ -405,6 +406,19 @@ export class WhatsappWorkerController {
           reason: error.message,
         });
         return { status: HttpStatus.OK, body: { processed: false, reason: 'blocked' } };
+      }
+
+      if (error instanceof AgentLlmFailedException) {
+        // El modelo no respondió (ni sus fallbacks). Reintentar repetiría las tools y avisos
+        // que el turno ya ejecutó y casi siempre falla igual, así que la ventana se confirma
+        // y al cliente no se le manda nada. La ejecución ya quedó FAILED y la conversación
+        // marcada para seguimiento del equipo (WorkflowsService.execute).
+        await this.commit(drained.processingKey);
+        this.logger.error('El modelo no respondió, ventana confirmada sin reintento', {
+          ...logContext,
+          reason: error.message,
+        });
+        return { status: HttpStatus.OK, body: { processed: false, reason: 'llm-failed' } };
       }
 
       // La ventana NO se confirma: sigue en Redis para que el reintento la retome.

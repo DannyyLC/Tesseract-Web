@@ -1,4 +1,5 @@
 import { ForbiddenException, HttpStatus } from '@nestjs/common';
+import { AgentLlmFailedException } from '@/platform/common/exceptions';
 import { TriggerType } from '@tesseract/database';
 import {
   TURN_MAX_WAIT_SECONDS,
@@ -787,6 +788,21 @@ describe('WhatsappWorkerController · processWindow', () => {
       expect(mockQueueService.commitWindow).toHaveBeenCalledWith('proc-1');
       expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
       expect(res.send).toHaveBeenCalledWith({ processed: false, reason: 'blocked' });
+    });
+
+    it('confirma la ventana sin reintentar ni responder cuando el modelo no respondió', async () => {
+      // Reintentar repetiría tools/avisos del turno; el seguimiento lo marca execute().
+      mockWorkflowsService.execute.mockRejectedValue(
+        new AgentLlmFailedException("LLM_CALL_FAILED: nodo 'router' (agente 'router'): boom"),
+      );
+      const res = buildResponse();
+
+      await controller.processWindow(body, res);
+
+      expect(mockQueueService.commitWindow).toHaveBeenCalledWith('proc-1');
+      expect(mockWhatsappConfigService.sendTextMessage).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
+      expect(res.send).toHaveBeenCalledWith({ processed: false, reason: 'llm-failed' });
     });
 
     it('NO confirma la ventana ante un error genérico del workflow, para que Cloud Tasks reintente', async () => {

@@ -236,6 +236,11 @@ export class LlmModelsService {
           outputPricePer1m: dto.outputPricePer1m,
           contextWindow: current.contextWindow,
           recommendedMaxTokens: current.recommendedMaxTokens,
+          // Las capacidades son del modelo, no del precio: sin copiarlas, un cambio de
+          // precio dejaba al modelo con los defaults y el validador empezaba a rechazar
+          // configs que antes pasaban (o a dejar pasar temperature donde no aplica).
+          supportsTemperature: current.supportsTemperature,
+          allowedParams: current.allowedParams as Prisma.InputJsonValue,
           currency: current.currency,
           effectiveFrom: now,
           effectiveTo: null,

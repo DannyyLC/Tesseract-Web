@@ -182,7 +182,7 @@ export class WorkflowConfigValidator {
     const modelsToValidate = new Set<string>();
 
     // Forma que se espera de cada agente; la config es JSON libre y se valida aquí mismo.
-    const agents = agentsConfig as Record<string, { model?: string; fallbacks?: string[] }>;
+    const agents = agentsConfig as Record<string, RawAgentModelConfig>;
     for (const agentConfig of Object.values(agents)) {
       if (agentConfig?.model) modelsToValidate.add(agentConfig.model);
       if (Array.isArray(agentConfig?.fallbacks)) {
@@ -196,17 +196,149 @@ export class WorkflowConfigValidator {
 
     const activeModels = await this.prisma.llmModel.findMany({
       where: { isActive: true },
-      select: { modelName: true },
+      select: {
+        modelName: true,
+        effectiveTo: true,
+        supportsTemperature: true,
+        allowedParams: true,
+      },
+      orderBy: { effectiveFrom: 'desc' },
     });
     const activeModelNames = new Set(activeModels.map((m) => m.modelName));
 
     const invalidModels = Array.from(modelsToValidate).filter((m) => !activeModelNames.has(m));
-    if (invalidModels.length === 0) return [];
+    if (invalidModels.length > 0) {
+      const availableModels = Array.from(activeModelNames).slice(0, 10).join(', ');
+      return [
+        `Invalid models: ${invalidModels.join(', ')}. ` +
+          `Available models: ${availableModels}${activeModelNames.size > 10 ? '...' : ''}`,
+      ];
+    }
 
-    const availableModels = Array.from(activeModelNames).slice(0, 10).join(', ');
-    return [
-      `Invalid models: ${invalidModels.join(', ')}. ` +
-        `Available models: ${availableModels}${activeModelNames.size > 10 ? '...' : ''}`,
-    ];
+    return this.collectCapabilityErrors(agents, capabilitiesByModel(activeModels));
   }
+
+  /**
+   * Cada agente debe respetar lo que acepta su modelo (y cada fallback, que se invoca
+   * con los mismos parámetros): `temperature` solo si `supportsTemperature`, y cada
+   * llave de `model_params` declarada en `allowedParams`, con un valor permitido.
+   *
+   * Es la única barrera: el motor manda `model_params` tal cual al proveedor
+   * (`allowed_openai_params`), sin que LiteLLM los filtre. Antes nadie lo comprobaba y
+   * un parámetro que LiteLLM no reconocía rompía cada turno en producción.
+   */
+  private collectCapabilityErrors(
+    agents: Record<string, RawAgentModelConfig>,
+    capabilities: Map<string, ModelCapabilities>,
+  ): string[] {
+    const errors: string[] = [];
+
+    for (const [agentName, agentConfig] of Object.entries(agents)) {
+      if (!agentConfig || typeof agentConfig !== 'object') continue;
+
+      const rawParams = agentConfig.model_params;
+      if (rawParams !== undefined && rawParams !== null) {
+        if (typeof rawParams !== 'object' || Array.isArray(rawParams)) {
+          errors.push(`Agent "${agentName}": model_params must be an object`);
+          continue;
+        }
+      }
+      const params = (rawParams ?? {}) as Record<string, unknown>;
+      const hasTemperature =
+        agentConfig.temperature !== undefined && agentConfig.temperature !== null;
+
+      const models = [
+        agentConfig.model,
+        ...(Array.isArray(agentConfig.fallbacks) ? agentConfig.fallbacks : []),
+      ].filter((m): m is string => typeof m === 'string' && m.length > 0);
+
+      for (const model of models) {
+        const capability = capabilities.get(model);
+        if (!capability) continue;
+
+        if (hasTemperature && !capability.supportsTemperature) {
+          errors.push(
+            `Agent "${agentName}": ${model} does not accept temperature. ` +
+              'Leave it empty to use the provider default.',
+          );
+        }
+
+        for (const [param, value] of Object.entries(params)) {
+          const allowedValues = capability.allowedParams[param];
+          if (!allowedValues) {
+            const accepted = Object.keys(capability.allowedParams);
+            errors.push(
+              `Agent "${agentName}": ${model} does not accept model_params.${param}. ` +
+                (accepted.length > 0 ? `Accepted: ${accepted.join(', ')}` : 'It accepts none.'),
+            );
+          } else if (allowedValues.length > 0 && !allowedValues.includes(String(value))) {
+            errors.push(
+              `Agent "${agentName}": ${model} does not accept ${param}="${String(value)}". ` +
+                `Allowed values: ${allowedValues.join(', ')}`,
+            );
+          }
+        }
+      }
+    }
+
+    return errors;
+  }
+}
+
+/** Lo que el validador lee de cada agente (JSON libre). */
+interface RawAgentModelConfig {
+  model?: string;
+  fallbacks?: string[];
+  temperature?: unknown;
+  model_params?: unknown;
+}
+
+interface ModelCapabilities {
+  supportsTemperature: boolean;
+  allowedParams: Record<string, string[]>;
+}
+
+/**
+ * Capacidades por nombre de modelo. La tabla versiona precios (varias filas por
+ * `modelName`): se toma la fila vigente más reciente y, si ninguna lo está, la más
+ * reciente — `findMany` llega ordenado por `effectiveFrom` desc.
+ */
+function capabilitiesByModel(
+  rows: {
+    modelName: string;
+    effectiveTo?: Date | null;
+    supportsTemperature?: boolean;
+    allowedParams?: unknown;
+  }[],
+): Map<string, ModelCapabilities> {
+  const now = new Date();
+  const chosen = new Map<string, { current: boolean; capabilities: ModelCapabilities }>();
+
+  for (const row of rows) {
+    const current = !row.effectiveTo || row.effectiveTo >= now;
+    const previous = chosen.get(row.modelName);
+    if (previous && (previous.current || !current)) continue;
+
+    chosen.set(row.modelName, {
+      current,
+      capabilities: {
+        supportsTemperature: row.supportsTemperature !== false,
+        allowedParams: toAllowedParams(row.allowedParams),
+      },
+    });
+  }
+
+  return new Map(Array.from(chosen, ([name, { capabilities }]) => [name, capabilities]));
+}
+
+/** `allowedParams` viene de una columna JSON: lo que no tenga la forma esperada se ignora. */
+function toAllowedParams(raw: unknown): Record<string, string[]> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const result: Record<string, string[]> = {};
+  for (const [param, values] of Object.entries(raw)) {
+    if (Array.isArray(values)) {
+      result[param] = values.filter((v): v is string => typeof v === 'string');
+    }
+  }
+  return result;
 }

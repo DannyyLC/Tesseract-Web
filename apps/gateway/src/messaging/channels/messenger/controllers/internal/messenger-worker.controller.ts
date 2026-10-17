@@ -49,6 +49,7 @@ import {
 } from '../../messenger-message-queue.service';
 import { MESSENGER_TASK_PREFIX, MESSENGER_WORKER_PATH } from '../../messenger-worker.constants';
 import { readExecutionResult } from '@/automation/executions/execution-result';
+import { AgentLlmFailedException } from '@/platform/common/exceptions';
 
 interface ProcessWindowBody {
   organizationId: string;
@@ -367,6 +368,19 @@ export class MessengerWorkerController {
           reason: error.message,
         });
         return { status: HttpStatus.OK, body: { processed: false, reason: 'blocked' } };
+      }
+
+      if (error instanceof AgentLlmFailedException) {
+        // El modelo no respondió (ni sus fallbacks). Reintentar repetiría las tools y avisos
+        // que el turno ya ejecutó y casi siempre falla igual, así que la ventana se confirma
+        // y al cliente no se le manda nada. La ejecución ya quedó FAILED y la conversación
+        // marcada para seguimiento del equipo (WorkflowsService.execute).
+        await this.commit(drained.processingKey);
+        this.logger.error('El modelo no respondió, ventana confirmada sin reintento', {
+          ...logContext,
+          reason: error.message,
+        });
+        return { status: HttpStatus.OK, body: { processed: false, reason: 'llm-failed' } };
       }
 
       // La ventana NO se confirma: sigue en Redis para que el reintento la retome.

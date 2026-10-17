@@ -18,6 +18,7 @@ import {
 import { ConversationsService } from '@/messaging/conversations/conversations.service';
 import { InterventionTokenService } from '@/messaging/conversations/core/intervention-token.service';
 import {
+  AgentLlmFailedException,
   InvalidWorkflowConfigException,
   WorkflowNotFoundException,
   WorkflowPausedException,
@@ -1460,7 +1461,39 @@ export class WorkflowsService {
 
       this.logger.log(`Ejecución ${execution.id} marcada como fallida. Créditos NO descontados.`);
 
+      if (error instanceof AgentLlmFailedException) {
+        await this.flagModelFailure(organizationId, conversation?.id, workflow.isInternal);
+      }
+
       throw error;
+    }
+  }
+
+  /**
+   * El modelo no respondió (reintentos y fallbacks agotados): el cliente se queda sin
+   * respuesta, así que la conversación queda marcada para que alguien del equipo la
+   * retome (`markNeedsFollowUp` notifica a OWNER/ADMIN y es idempotente).
+   *
+   * Best-effort: si falla, se registra y no tapa el error real de la ejecución. Los
+   * workflows internos son pruebas de super admin: no se avisa a nadie.
+   */
+  private async flagModelFailure(
+    organizationId: string,
+    conversationId: string | undefined,
+    isInternal: boolean,
+  ): Promise<void> {
+    if (isInternal || !conversationId) return;
+    try {
+      await this.conversationsService.markNeedsFollowUp(
+        organizationId,
+        conversationId,
+        'El agente no pudo responder (falla del modelo)',
+      );
+    } catch (followUpError) {
+      this.logger.error(
+        `No se pudo marcar seguimiento en la conversación ${conversationId}: ${(followUpError as Error).message}`,
+        (followUpError as Error).stack,
+      );
     }
   }
 
@@ -1877,6 +1910,10 @@ export class WorkflowsService {
               ...(agentErrorContent ? { error: agentErrorContent } : {}),
             },
           );
+
+          if (agentErrorContent?.startsWith(AgentLlmFailedException.PREFIX)) {
+            await this.flagModelFailure(organizationId, conversation.id, workflow.isInternal);
+          }
 
           // 6. Actualizar Conversación (stats)
           // Las conversaciones de workflows internos se crean con `isInternalWorkflow: true`
@@ -2671,7 +2708,8 @@ export class WorkflowsService {
         },
         body: JSON.stringify({
           model: this.compactionModel,
-          temperature: 0,
+          // Sin temperature: los modelos de razonamiento (gpt-5+) rechazan cualquier valor
+          // distinto del default, y COMPACTION_MODEL puede apuntar a uno.
           messages: [
             {
               role: 'system',
