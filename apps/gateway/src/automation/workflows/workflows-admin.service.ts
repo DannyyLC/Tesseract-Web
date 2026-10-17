@@ -5,18 +5,16 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, WorkflowVersionSource } from '@tesseract/database';
+import { Prisma, TriggerType, WorkflowVersionSource } from '@tesseract/database';
 import { DEFAULT_PAGE_SIZE, WorkflowCategory } from '@tesseract/types';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { InvalidWorkflowConfigException } from '@/platform/common/exceptions';
 import { OrganizationsService } from '@/identity/organizations/organizations.service';
 import { AgentsService } from '../agents/agents.service';
+import { AdminAnalyticsService } from '@/billing/analytics/analytics.service';
 import { WorkflowConfigValidator } from './workflow-config.validator';
-import {
-  assertMaxTokensWithinCategory,
-  touchesCategoryCeiling,
-} from './category-token-ceiling';
+import { assertMaxTokensWithinCategory, touchesCategoryCeiling } from './category-token-ceiling';
 import { configSizeBytes, diffConfigs, hashConfig } from './workflow-config.utils';
 import {
   CloneWorkflowDto,
@@ -25,6 +23,7 @@ import {
   QueryWorkflowsAdminDto,
   UpdateWorkflowMetaDto,
 } from './dto/admin';
+import { WorkflowConfig } from './dto/create-workflow.dto';
 
 /**
  * Snapshots no-baseline que se conservan por workflow. El baseline nunca se poda.
@@ -57,6 +56,7 @@ export class WorkflowsAdminService {
     private readonly organizationsService: OrganizationsService,
     private readonly agentsService: AgentsService,
     private readonly configService: ConfigService,
+    private readonly analyticsService: AdminAnalyticsService,
   ) {
     this.versionsToKeep = Number(
       this.configService.get('WORKFLOW_VERSIONS_TO_KEEP', DEFAULT_VERSIONS_TO_KEEP),
@@ -91,7 +91,14 @@ export class WorkflowsAdminService {
 
   /** Listado de workflows. Nunca selecciona `config`: son ~100 KB por fila. */
   async findAll(query: QueryWorkflowsAdminDto) {
-    const { organizationId, search, includeDeleted, page = 1, limit = DEFAULT_PAGE_SIZE } = query;
+    const {
+      organizationId,
+      search,
+      includeDeleted,
+      segment,
+      page = 1,
+      limit = DEFAULT_PAGE_SIZE,
+    } = query;
     const skip = (page - 1) * limit;
 
     const where: Prisma.WorkflowWhereInput = {
@@ -103,6 +110,8 @@ export class WorkflowsAdminService {
           { description: { contains: search, mode: 'insensitive' as const } },
         ],
       }),
+      // Mismo criterio que las tarjetas del listado (ver `getWorkflowsOverview()`).
+      ...(segment && { AND: [await this.analyticsService.resolveWorkflowSegment(segment)] }),
     };
 
     const [data, total] = await Promise.all([
@@ -194,7 +203,7 @@ export class WorkflowsAdminService {
    */
   async updateConfig(
     workflowId: string,
-    config: Record<string, any>,
+    config: Record<string, unknown>,
     expectedVersion: number,
     actor: Actor,
     options: { note?: string; source?: WorkflowVersionSource; expectedHash?: string } = {},
@@ -305,7 +314,7 @@ export class WorkflowsAdminService {
   }
 
   /** Dry-run de validación: mismos errores que al guardar, sin escribir. */
-  async validateConfig(config: Record<string, any>) {
+  async validateConfig(config: Record<string, unknown>) {
     return this.configValidator.collect(config);
   }
 
@@ -514,7 +523,7 @@ export class WorkflowsAdminService {
 
     return this.updateConfig(
       workflowId,
-      version.config as Record<string, any>,
+      version.config as Record<string, unknown>,
       expectedVersion,
       actor,
       {
@@ -581,7 +590,7 @@ export class WorkflowsAdminService {
         timezone: rest.timezone ?? null,
         timeout: rest.timeout ?? 300,
         maxRetries: rest.maxRetries ?? 3,
-        triggerType: rest.triggerType ? [rest.triggerType.toUpperCase() as any] : undefined,
+        triggerType: rest.triggerType ? [rest.triggerType.toUpperCase() as TriggerType] : undefined,
         isInternal: rest.isInternal ?? false,
         organizationId,
       },
@@ -631,7 +640,7 @@ export class WorkflowsAdminService {
     });
     if (!source) throw new NotFoundException('Workflow origen no encontrado');
 
-    const config = source.config as Record<string, any>;
+    const config = source.config as Record<string, unknown>;
     const toolReferences = this.collectToolReferences(config);
 
     const workflow = await this.create(
@@ -641,7 +650,8 @@ export class WorkflowsAdminService {
         description: dto.description ?? source.description ?? undefined,
         category: source.category,
         maxHistoryTokens: source.maxHistoryTokens,
-        config: config as any,
+        // Se clona tal cual; create() lo vuelve a validar con el validador de config.
+        config: config as unknown as WorkflowConfig,
         // Un clon de un workflow todavía interno (en construcción) debe seguir
         // oculto: si create() cayera a su default `false`, quedaría público y
         // cobrando crédito de inmediato en la organización destino.
@@ -658,17 +668,22 @@ export class WorkflowsAdminService {
    * UUID de tool instances referenciados dentro del config, con el lugar donde
    * aparecen para que la UI pueda señalarlos.
    */
-  private collectToolReferences(config: Record<string, any>) {
+  private collectToolReferences(rawConfig: Record<string, unknown>) {
     const refs: { id: string; location: string }[] = [];
+    // Solo lo que este método lee de la config (JSON libre del workflow).
+    const config = rawConfig as {
+      agents?: Record<string, { tools?: (string | { id?: string })[] } | undefined>;
+      graph?: { nodes?: { id?: string; config?: { tool_instance?: string } }[] };
+    };
 
     for (const [agentKey, agent] of Object.entries(config?.agents ?? {})) {
-      for (const tool of (agent as any)?.tools ?? []) {
+      for (const tool of agent?.tools ?? []) {
         const id = typeof tool === 'string' ? tool : tool?.id;
         if (id) refs.push({ id, location: `agents.${agentKey}.tools` });
       }
     }
 
-    const nodes: any[] = config?.graph?.nodes ?? [];
+    const nodes = config?.graph?.nodes ?? [];
     nodes.forEach((node, index) => {
       const id = node?.config?.tool_instance;
       if (id) refs.push({ id, location: `graph.nodes[${index}] (${node.id})` });

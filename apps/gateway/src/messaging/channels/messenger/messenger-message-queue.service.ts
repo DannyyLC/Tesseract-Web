@@ -19,9 +19,7 @@ export const MESSENGER_WINDOW_SECONDS = Number(process.env.MESSENGER_WINDOW_SECO
  * acumulado; lo que llegue después arma la siguiente ventana, así que no se pierde
  * nada — solo se parte la respuesta en dos.
  */
-export const MESSENGER_MAX_WINDOW_SECONDS = Number(
-  process.env.MESSENGER_MAX_WINDOW_SECONDS ?? 40,
-);
+export const MESSENGER_MAX_WINDOW_SECONDS = Number(process.env.MESSENGER_MAX_WINDOW_SECONDS ?? 40);
 
 export type BufferedMessage = ChannelBufferedMessage<MessengerInboundEvent>;
 export type DrainedWindow = ChannelDrainedWindow<MessengerInboundEvent>;

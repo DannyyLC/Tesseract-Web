@@ -17,11 +17,12 @@ import { RolesGuard } from '@/identity/auth/guards/roles.guard';
 import { Roles } from '@/identity/auth/decorators/roles.decorator';
 import { WorkflowsService } from '@/automation/workflows/workflows.service';
 import { WhatsappConfigService } from '../../whatsapp-config.service';
+import { toPublicConfig } from '../../whatsapp-config.presenter';
 import {
-  CreateConfigDto,
+  CreateAdminConfigDto,
   CreateTemplateDto,
   UpdateTemplateDto,
-  UpdateWhatsappConfigDto,
+  UpdateAdminWhatsappConfigDto,
 } from '../../dto';
 
 /**
@@ -54,7 +55,7 @@ export class WhatsappConfigAdminController {
   /** Ownership: `configId` llega en la URL, hay que confirmar que es de esta organización. */
   private async getOwnedConfigOrThrow(organizationId: string, configId: string) {
     const config = await this.whatsappConfigService.getWhatsappConfigById(configId);
-    if (!config || config.organizationId !== organizationId) {
+    if (config?.organizationId !== organizationId) {
       throw new NotFoundException('WhatsApp config not found in this organization');
     }
     return config;
@@ -64,16 +65,18 @@ export class WhatsappConfigAdminController {
   @ApiOperation({ summary: 'Listar los números de WhatsApp de la organización' })
   async list(@Param('id') organizationId: string): Promise<ApiResponse> {
     const records = await this.whatsappConfigService.getConfigsByOrganization(organizationId);
-    return new ApiResponseBuilder().setData(records).build();
+    return new ApiResponseBuilder().setData(records.map(toPublicConfig)).build();
   }
 
   @Post()
-  @ApiOperation({ summary: 'Dar de alta un número — el workflow es opcional' })
+  @ApiOperation({ summary: 'Dar de alta un número (YCloud o Meta) ligado a un workflow' })
   async create(
     @Param('id') organizationId: string,
-    @Body() dto: CreateConfigDto,
+    @Body() dto: CreateAdminConfigDto,
   ): Promise<ApiResponse> {
-    const existing = await this.whatsappConfigService.getWhatsappConfigByPhoneNumber(dto.phoneNumber);
+    const existing = await this.whatsappConfigService.getWhatsappConfigByPhoneNumber(
+      dto.phoneNumber,
+    );
     if (existing) {
       throw new BadRequestException('A WhatsApp config with this phone number already exists');
     }
@@ -85,26 +88,56 @@ export class WhatsappConfigAdminController {
       dto.workflowId,
       dto.phoneNumber,
       { displayName: dto.displayName, description: dto.description },
+      dto.provider === 'meta'
+        ? {
+            provider: 'meta',
+            sessionData: {
+              phoneNumberId: dto.phoneNumberId!,
+              appSecret: dto.appSecret!,
+              accessToken: dto.accessToken!,
+            },
+          }
+        : undefined,
+      // Lo da de alta un super admin, que ya sabe de quién es: nace aprobado.
+      true,
     );
     if (!record) {
       throw new BadRequestException('Failed to create WhatsApp config');
     }
-    return new ApiResponseBuilder().setData(record).build();
+    return new ApiResponseBuilder().setData(toPublicConfig(record)).build();
   }
 
   @Patch(':configId')
-  @ApiOperation({ summary: 'Editar nombre/descripción o reasignar el workflow por defecto' })
+  @ApiOperation({ summary: 'Editar teléfono, nombre/descripción o reasignar el workflow por defecto' })
   async update(
     @Param('id') organizationId: string,
     @Param('configId') configId: string,
-    @Body() dto: UpdateWhatsappConfigDto,
+    @Body() dto: UpdateAdminWhatsappConfigDto,
   ): Promise<ApiResponse> {
-    await this.getOwnedConfigOrThrow(organizationId, configId);
+    const config = await this.getOwnedConfigOrThrow(organizationId, configId);
     if (dto.workflowId) {
       await this.assertWorkflowBelongsToOrg(organizationId, dto.workflowId);
     }
+    // Solo si cambia: reenviar el mismo número (la UI lo manda siempre) no es un cambio.
+    if (dto.phoneNumber && dto.phoneNumber !== config.phoneNumber) {
+      if (await this.whatsappConfigService.isPhoneNumberTaken(dto.phoneNumber, configId)) {
+        throw new BadRequestException('A WhatsApp config with this phone number already exists');
+      }
+    }
 
-    const success = await this.whatsappConfigService.updateConfig(configId, dto);
+    const { phoneNumberId, appSecret, accessToken, ...fields } = dto;
+    const credentials = Object.fromEntries(
+      Object.entries({ phoneNumberId, appSecret, accessToken }).filter(([, v]) => v !== undefined),
+    );
+    const hasCredentials = Object.keys(credentials).length > 0;
+    if (hasCredentials && config.provider !== 'meta') {
+      throw new BadRequestException('Credentials can only be set on a Meta WhatsApp config');
+    }
+
+    const success = await this.whatsappConfigService.updateConfig(configId, {
+      ...fields,
+      ...(hasCredentials && { sessionData: credentials }),
+    });
     return new ApiResponseBuilder().setData(success).build();
   }
 
@@ -128,6 +161,19 @@ export class WhatsappConfigAdminController {
   ): Promise<ApiResponse> {
     await this.getOwnedConfigOrThrow(organizationId, configId);
     const success = await this.whatsappConfigService.updateIsActive(configId, isActive);
+    return new ApiResponseBuilder().setData(success).build();
+  }
+
+  @Patch(':configId/approve')
+  @ApiOperation({
+    summary: 'Aprobar un número dado de alta por el cliente (tras integrarlo en YCloud)',
+  })
+  async approve(
+    @Param('id') organizationId: string,
+    @Param('configId') configId: string,
+  ): Promise<ApiResponse> {
+    await this.getOwnedConfigOrThrow(organizationId, configId);
+    const success = await this.whatsappConfigService.approve(configId);
     return new ApiResponseBuilder().setData(success).build();
   }
 

@@ -21,8 +21,8 @@ import { WorkflowsService } from '../../workflows.service';
 interface TestExecutePayload {
   organizationId: string;
   workflowId: string;
-  input: Record<string, any>;
-  metadata?: Record<string, any>;
+  input: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
   userId?: string;
   trigger?: TriggerType;
   executionId: string;

@@ -1,15 +1,14 @@
+import { Prisma } from '@tesseract/database';
 import { TenantToolService } from './tenant-tool.service';
 import { DEFAULT_PAGE_SIZE } from '@tesseract/types';
 import { CursorPaginatedResponseUtils } from '../../../platform/common/responses/cursor-paginated-response';
-import { NotFoundException, ConflictException } from '@nestjs/common';
+import { BadRequestException, NotFoundException, ConflictException } from '@nestjs/common';
 
 describe('TenantToolService', () => {
   let service: TenantToolService;
 
   const mockBuild = jest.fn();
-  jest
-    .spyOn(CursorPaginatedResponseUtils, 'getInstance')
-    .mockReturnValue({ build: mockBuild });
+  jest.spyOn(CursorPaginatedResponseUtils, 'getInstance').mockReturnValue({ build: mockBuild });
 
   const mockPrismaService: any = {
     tenantTool: {
@@ -22,7 +21,7 @@ describe('TenantToolService', () => {
     },
     toolCatalog: { findUnique: jest.fn(), findFirst: jest.fn() },
     whatsAppConfig: { count: jest.fn(), findMany: jest.fn(), findFirst: jest.fn() },
-    workflow: { findMany: jest.fn() },
+    workflow: { findMany: jest.fn(), count: jest.fn() },
     tenantToolCredential: { deleteMany: jest.fn() },
     $transaction: jest.fn(),
   };
@@ -37,12 +36,12 @@ describe('TenantToolService', () => {
     jest.clearAllMocks();
 
     // Implement $transaction to call the provided callback with a tx object
-    mockPrismaService.$transaction.mockImplementation(async (fn: any) => {
+    mockPrismaService.$transaction.mockImplementation((fn: any) => {
       const tx = {
         tenantToolCredential: { deleteMany: jest.fn().mockResolvedValue({}) },
         tenantTool: { update: jest.fn().mockResolvedValue({}) },
       };
-      return fn(tx);
+      return Promise.resolve(fn(tx));
     });
 
     mockToolHealthService.findScopeGap.mockReturnValue({
@@ -108,7 +107,20 @@ describe('TenantToolService', () => {
 
   describe('getDashboardData', () => {
     it('returns paginated results when tenant tools found', async () => {
-      const tools = [{ id: 't1' }];
+      // toolCatalog es una relación obligatoria: la consulta real siempre la trae.
+      const tools = [
+        {
+          id: 't1',
+          allowedFunctions: null,
+          credential: null,
+          toolCatalog: {
+            toolName: 'http',
+            displayName: 'HTTP',
+            displayNameEn: null,
+            functions: [],
+          },
+        },
+      ];
       mockPrismaService.tenantTool.findMany.mockResolvedValue(tools);
       mockBuild.mockResolvedValue({ items: tools, nextCursor: null });
 
@@ -139,10 +151,11 @@ describe('TenantToolService', () => {
           functions: [{ functionName: 'create_event', oauthScopes: ['calendar.events'] }],
         },
       };
-      mockPrismaService.tenantTool.findUnique.mockResolvedValue(tool);
-      const res = await service.getTenantToolById('tt-1');
-      expect(mockPrismaService.tenantTool.findUnique).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { id: 'tt-1' } }),
+      mockPrismaService.tenantTool.findFirst.mockResolvedValue(tool);
+      const res = await service.getTenantToolById('tt-1', 'org-1');
+      // Acotada a la organización de quien pregunta: una tool ajena se ve como inexistente.
+      expect(mockPrismaService.tenantTool.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'tt-1', organizationId: 'org-1' } }),
       );
       // Ni las credenciales ni los scopes del catálogo deben salir al front.
       expect(res).toEqual({
@@ -154,8 +167,8 @@ describe('TenantToolService', () => {
     });
 
     it('logs and returns null when prisma throws', async () => {
-      mockPrismaService.tenantTool.findUnique.mockRejectedValue(new Error('boom'));
-      const res = await service.getTenantToolById('tt-2');
+      mockPrismaService.tenantTool.findFirst.mockRejectedValue(new Error('boom'));
+      const res = await service.getTenantToolById('tt-2', 'org-1');
       expect(mockLogger.error).toHaveBeenCalled();
       expect(res).toBeNull();
     });
@@ -230,8 +243,10 @@ describe('TenantToolService', () => {
     it('re-throws ConflictException for P2002', async () => {
       mockPrismaService.toolCatalog.findUnique.mockResolvedValue({ provider: 'none' });
       mockPrismaService.tenantTool.findFirst.mockResolvedValue(null);
-      const err: any = new Error('unique');
-      err.code = 'P2002';
+      const err = new Prisma.PrismaClientKnownRequestError('unique', {
+        code: 'P2002',
+        clientVersion: 'test',
+      });
       mockPrismaService.tenantTool.create.mockRejectedValue(err);
 
       await expect(
@@ -285,6 +300,7 @@ describe('TenantToolService', () => {
         id: 't1',
         organizationId: 'org-1',
       });
+      mockPrismaService.workflow.count.mockResolvedValue(1);
       mockPrismaService.tenantTool.update.mockResolvedValue(updated);
       const res = await service.addWorkflowToTenantTool('t1', 'org-1', 'user-1', 'owner', ['w1']);
       expect(mockPrismaService.tenantTool.update).toHaveBeenCalledWith(
@@ -299,6 +315,7 @@ describe('TenantToolService', () => {
         id: 't1',
         organizationId: 'org-1',
       });
+      mockPrismaService.workflow.count.mockResolvedValue(1);
       mockPrismaService.tenantTool.update.mockResolvedValue(updated);
       const res = await service.removeWorkflowFromTenantTool('t1', 'org-1', 'user-1', 'owner', [
         'w1',
@@ -307,6 +324,93 @@ describe('TenantToolService', () => {
         expect.objectContaining({ where: { id: 't1' } }),
       );
       expect(res).toEqual(updated);
+    });
+  });
+
+  describe('config de http_request', () => {
+    const create = (config: any) =>
+      service.createTenantTool(
+        {
+          displayName: 'HTTP',
+          toolCatalogId: 'c-http',
+          allowedFunctions: [],
+          config,
+          workflowId: null,
+        },
+        'org-1',
+        'user-1',
+      );
+
+    beforeEach(() => {
+      mockPrismaService.toolCatalog.findUnique.mockResolvedValue({
+        provider: 'none',
+        toolName: 'http_request',
+      });
+      mockPrismaService.tenantTool.findFirst.mockResolvedValue(null);
+      mockPrismaService.tenantTool.create.mockResolvedValue({ id: 'new' });
+    });
+
+    it.each([
+      ['http plano', { base_url: 'http://api.x.com' }],
+      ['metadata', { base_url: 'http://169.254.169.254' }],
+      ['credenciales en la URL', { base_url: 'https://api.x.com@169.254.169.254' }],
+      ['texto que no es URL', { base_url: 'no es url' }],
+      ['header de metadata', { default_headers: { 'Metadata-Flavor': 'Google' } }],
+      ['header Host', { default_headers: { host: 'metadata.google.internal' } }],
+    ])('rechaza %s', async (_caso, config) => {
+      await expect(create(config)).rejects.toBeInstanceOf(BadRequestException);
+      expect(mockPrismaService.tenantTool.create).not.toHaveBeenCalled();
+    });
+
+    it('acepta una base_url https y headers normales', async () => {
+      await create({ base_url: 'https://api.x.com/v1', default_headers: { Accept: 'x' } });
+      expect(mockPrismaService.tenantTool.create).toHaveBeenCalled();
+    });
+
+    it('acepta la tool sin base_url (el filtro de destinos vive en agents)', async () => {
+      await create({});
+      expect(mockPrismaService.tenantTool.create).toHaveBeenCalled();
+    });
+  });
+
+  describe('workflows de otra organización', () => {
+    beforeEach(() => {
+      mockPrismaService.tenantTool.findFirst.mockResolvedValue({
+        id: 't1',
+        organizationId: 'org-1',
+      });
+      // El workflow ajeno no cuenta: count filtra por org-1.
+      mockPrismaService.workflow.count.mockResolvedValue(0);
+    });
+
+    it('no los conecta a una tool propia', async () => {
+      await expect(
+        service.addWorkflowToTenantTool('t1', 'org-1', 'user-1', 'owner', ['wf-ajeno']),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(mockPrismaService.workflow.count).toHaveBeenCalledWith({
+        where: { id: { in: ['wf-ajeno'] }, organizationId: 'org-1' },
+      });
+      expect(mockPrismaService.tenantTool.update).not.toHaveBeenCalled();
+    });
+
+    it('no crea la tool colgada de un workflow ajeno', async () => {
+      mockPrismaService.toolCatalog.findUnique.mockResolvedValue({ provider: 'none' });
+      mockPrismaService.tenantTool.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.createTenantTool(
+          {
+            displayName: 'New Tool',
+            toolCatalogId: 'c1',
+            allowedFunctions: [],
+            config: {},
+            workflowId: 'wf-ajeno',
+          } as any,
+          'org-1',
+          'user-1',
+        ),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(mockPrismaService.tenantTool.create).not.toHaveBeenCalled();
     });
   });
 
@@ -432,9 +536,9 @@ describe('TenantToolService', () => {
 
   describe('linkWhatsappOutboundWorkflows', () => {
     it('throws NotFoundException cuando no llegan workflowIds', async () => {
-      await expect(service.linkWhatsappOutboundWorkflows('org-1', 'user-1', [])).rejects.toBeInstanceOf(
-        NotFoundException,
-      );
+      await expect(
+        service.linkWhatsappOutboundWorkflows('org-1', 'user-1', []),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('throws NotFoundException cuando un workflow no pertenece a la organización', async () => {
@@ -456,7 +560,10 @@ describe('TenantToolService', () => {
 
     it('conecta los workflows a la tenant tool existente sin tocar su config', async () => {
       mockPrismaService.workflow.findMany.mockResolvedValue([{ id: 'w1' }]);
-      mockPrismaService.toolCatalog.findFirst.mockResolvedValue({ id: 'cat-1', displayName: 'WhatsApp Outbound' });
+      mockPrismaService.toolCatalog.findFirst.mockResolvedValue({
+        id: 'cat-1',
+        displayName: 'WhatsApp Outbound',
+      });
       mockPrismaService.tenantTool.findFirst.mockResolvedValue({ id: 'tt-1' });
       const updated = { id: 'tt-1' };
       mockPrismaService.tenantTool.update.mockResolvedValue(updated);
@@ -473,7 +580,10 @@ describe('TenantToolService', () => {
 
     it('crea la tenant tool con allowedFunctions y config de un solo número', async () => {
       mockPrismaService.workflow.findMany.mockResolvedValue([{ id: 'w1' }]);
-      mockPrismaService.toolCatalog.findFirst.mockResolvedValue({ id: 'cat-1', displayName: 'WhatsApp Outbound' });
+      mockPrismaService.toolCatalog.findFirst.mockResolvedValue({
+        id: 'cat-1',
+        displayName: 'WhatsApp Outbound',
+      });
       mockPrismaService.tenantTool.findFirst.mockResolvedValue(null);
       mockPrismaService.whatsAppConfig.findMany.mockResolvedValue([{ id: 'c1' }]);
       const created = { id: 'tt-new' };
@@ -498,7 +608,10 @@ describe('TenantToolService', () => {
 
     it('crea la tenant tool con config en array cuando hay 2+ números enganchados', async () => {
       mockPrismaService.workflow.findMany.mockResolvedValue([{ id: 'w1' }, { id: 'w2' }]);
-      mockPrismaService.toolCatalog.findFirst.mockResolvedValue({ id: 'cat-1', displayName: 'WhatsApp Outbound' });
+      mockPrismaService.toolCatalog.findFirst.mockResolvedValue({
+        id: 'cat-1',
+        displayName: 'WhatsApp Outbound',
+      });
       mockPrismaService.tenantTool.findFirst.mockResolvedValue(null);
       mockPrismaService.whatsAppConfig.findMany.mockResolvedValue([{ id: 'c1' }, { id: 'c2' }]);
       mockPrismaService.tenantTool.create.mockResolvedValue({ id: 'tt-new' });
@@ -514,7 +627,10 @@ describe('TenantToolService', () => {
 
     it('crea la tenant tool sin config cuando ningún WhatsAppConfig activo apunta a los workflows', async () => {
       mockPrismaService.workflow.findMany.mockResolvedValue([{ id: 'w1' }]);
-      mockPrismaService.toolCatalog.findFirst.mockResolvedValue({ id: 'cat-1', displayName: 'WhatsApp Outbound' });
+      mockPrismaService.toolCatalog.findFirst.mockResolvedValue({
+        id: 'cat-1',
+        displayName: 'WhatsApp Outbound',
+      });
       mockPrismaService.tenantTool.findFirst.mockResolvedValue(null);
       mockPrismaService.whatsAppConfig.findMany.mockResolvedValue([]);
       mockPrismaService.tenantTool.create.mockResolvedValue({ id: 'tt-new' });
@@ -528,11 +644,16 @@ describe('TenantToolService', () => {
 
     it('re-throws ConflictException para P2002 al crear', async () => {
       mockPrismaService.workflow.findMany.mockResolvedValue([{ id: 'w1' }]);
-      mockPrismaService.toolCatalog.findFirst.mockResolvedValue({ id: 'cat-1', displayName: 'WhatsApp Outbound' });
+      mockPrismaService.toolCatalog.findFirst.mockResolvedValue({
+        id: 'cat-1',
+        displayName: 'WhatsApp Outbound',
+      });
       mockPrismaService.tenantTool.findFirst.mockResolvedValue(null);
       mockPrismaService.whatsAppConfig.findMany.mockResolvedValue([]);
-      const err: any = new Error('unique');
-      err.code = 'P2002';
+      const err = new Prisma.PrismaClientKnownRequestError('unique', {
+        code: 'P2002',
+        clientVersion: 'test',
+      });
       mockPrismaService.tenantTool.create.mockRejectedValue(err);
 
       await expect(

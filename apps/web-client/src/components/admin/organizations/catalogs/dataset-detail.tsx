@@ -8,6 +8,8 @@ import { DatasetField } from '@tesseract/types';
 import { ImportCsvModal } from '@/components/datasets/import-csv-modal';
 import { RecordsGrid } from '@/components/datasets/records-grid';
 import { RecordsToolbar } from '@/components/datasets/records-toolbar';
+import { RowsSummary } from '@/components/datasets/rows-summary';
+import { useRecordFilters } from '@/components/datasets/use-record-filters';
 import { useRecordSelection } from '@/components/datasets/use-record-selection';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { PagePager } from '@/components/ui/page-pager';
@@ -25,7 +27,6 @@ import { btnGhost, btnPrimary, inputClass } from '@/app/[locale]/admin/_styles';
 import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import { ConnectedWorkflowsSection } from './connected-workflows-section';
 import { SchemaBuilder } from './schema-builder';
-
 
 interface DatasetDetailProps {
   organizationId: string;
@@ -51,10 +52,13 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const search = useDebounce(searchInput, 400);
+  const filterState = useRecordFilters(dataset?.fields);
+  // Sin debounce: el panel de cada columna solo cambia los filtros al pulsar "Aplicar".
+  const filters = filterState.serialized;
 
   useEffect(() => {
     setPage(1);
-  }, [search]);
+  }, [search, filters, filterState.sortBy]);
 
   const { data: records } = useAdminDatasetRecords(
     organizationId,
@@ -62,6 +66,7 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
     pageSize,
     (page - 1) * pageSize,
     search,
+    { filters, sortBy: filterState.sortBy },
   );
   const {
     updateFields,
@@ -75,7 +80,7 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
 
   const selection = useRecordSelection(
     (records?.items ?? []).map((record) => record.id),
-    `${page}|${pageSize}|${search}`,
+    `${page}|${pageSize}|${search}|${filters}|${filterState.sortBy}`,
   );
 
   const [isEditingSchema, setIsEditingSchema] = useState(false);
@@ -104,7 +109,9 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
   const columnsLosingManualValues = dataset.recordCount
     ? draftFields
         .filter((draft) => draft.formula)
-        .filter((draft) => dataset.fields.some((saved) => saved.key === draft.key && !saved.formula))
+        .filter((draft) =>
+          dataset.fields.some((saved) => saved.key === draft.key && !saved.formula),
+        )
         .map((draft) => draft.label || draft.key)
     : [];
 
@@ -124,7 +131,7 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
       await updateFields.mutateAsync({ organizationId, id: datasetId, fields: draftFields });
       closeSchemaEditor();
     } catch (caught) {
-      setSchemaError(getApiErrorMessage(caught as any));
+      setSchemaError(getApiErrorMessage(caught));
     }
   };
 
@@ -189,8 +196,10 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
           >
             <ArrowLeft size={14} /> {t('backToDatasets')}
           </button>
-          <h2 className="text-base font-semibold text-text-primary">{dataset.name}</h2>
-          {dataset.description && <p className="mt-1 max-w-2xl text-sm text-text-secondary">{dataset.description}</p>}
+          <h2 className="text-xl font-bold text-text-primary">{dataset.name}</h2>
+          {dataset.description && (
+            <p className="mt-1 max-w-2xl text-sm text-text-secondary">{dataset.description}</p>
+          )}
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -207,26 +216,34 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
           </button>
           <button
             onClick={() => setIsClearing(true)}
-            className="hover:bg-danger/10 flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-danger-600"
+            className="flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-medium text-danger-600 transition-colors hover:bg-[var(--danger-tint-hover)]"
           >
             <Eraser size={14} /> {t('clearData')}
           </button>
           <button
             onClick={() => setIsDeleting(true)}
-            className="hover:bg-danger/10 flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-danger-600"
+            className="flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-medium text-danger-600 transition-colors hover:bg-[var(--danger-tint-hover)]"
           >
             <Trash2 size={14} /> {t('delete')}
           </button>
         </div>
       </div>
 
-      <ConnectedWorkflowsSection organizationId={organizationId} datasetId={datasetId} workflows={dataset.workflows} />
+      <ConnectedWorkflowsSection
+        organizationId={organizationId}
+        datasetId={datasetId}
+        workflows={dataset.workflows}
+      />
 
       <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-text-primary">
-            {t('rowsHeading', { count: records?.total ?? 0 })}
-          </h3>
+        <div className="flex items-start justify-between gap-4">
+          <RowsSummary
+            count={records?.total ?? 0}
+            filtered={!!search || !!filters}
+            usage={usage}
+            blockedLabel={t('rowsBlockedBadge')}
+            headingClassName="text-sm font-semibold text-text-primary"
+          />
           <PagePager
             page={page}
             totalPages={totalPages}
@@ -241,32 +258,22 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
           />
         </div>
 
-        {usage && (
-          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-surface-elevated px-4 py-2.5 text-sm">
-            <span className="text-text-tertiary">{t('rowsUsageLabel')}</span>
-            <span className="font-medium text-text-primary">
-              {usage.rows} / {usage.maxDatasetRows === -1 ? '∞' : usage.maxDatasetRows}
-            </span>
-            {atRowLimit && (
-              <span className="rounded-lg bg-warning-500/10 px-2 py-1 text-xs font-medium text-warning-600">
-                {t('rowsBlockedBadge')}
-              </span>
-            )}
-          </div>
-        )}
-
         <RecordsToolbar
           search={searchInput}
           onSearchChange={setSearchInput}
           selectedCount={selection.selectedVisibleIds.length}
           onDeleteSelected={() => setIsDeletingSelected(true)}
           onClearSelection={selection.clear}
+          fields={dataset.fields}
+          filterState={filterState}
           canDelete
         />
 
         <RecordsGrid
           fields={dataset.fields}
           records={records?.items ?? []}
+          filterState={filterState}
+          filtered={!!search || !!filters}
           createDisabledReason={atRowLimit ? t('writesBlocked') : undefined}
           selection={selection}
           onCreate={async (data) => {
@@ -278,14 +285,23 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
         />
       </section>
 
-      <Modal isOpen={isEditingSchema} onClose={closeSchemaEditor} title={t('editColumns')} size="lg">
+      <Modal
+        isOpen={isEditingSchema}
+        onClose={closeSchemaEditor}
+        title={t('editColumns')}
+        size="lg"
+      >
         <div className="space-y-4">
           <p className="text-sm text-text-secondary">{t('schemaEditIntro')}</p>
 
-          <SchemaBuilder fields={draftFields} onChange={setDraftFields} savedFields={dataset.fields} />
+          <SchemaBuilder
+            fields={draftFields}
+            onChange={setDraftFields}
+            savedFields={dataset.fields}
+          />
 
           {overwriteConfirmed && columnsLosingManualValues.length > 0 && (
-            <div className="bg-warning/10 rounded-lg px-4 py-3 text-sm text-warning-600">
+            <div className="rounded-xl bg-[var(--badge-warning-bg-solid)] px-4 py-3 text-sm text-[var(--badge-warning-text-solid)]">
               {t('schemaOverwriteWarning', {
                 columns: columnsLosingManualValues.join(', '),
                 count: dataset.recordCount,
@@ -293,7 +309,11 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
             </div>
           )}
 
-          {schemaError && <div className="bg-danger/10 rounded-lg px-4 py-3 text-sm text-danger-600">{schemaError}</div>}
+          {schemaError && (
+            <div className="rounded-xl border border-[var(--danger-banner-border)] bg-[var(--danger-banner-bg)] px-4 py-3 text-sm text-[var(--danger-text-adaptive)]">
+              {schemaError}
+            </div>
+          )}
 
           <div className="flex justify-end gap-2">
             <button className={btnGhost} onClick={closeSchemaEditor}>
@@ -350,7 +370,7 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
             <button
               onClick={handleDelete}
               disabled={!canDelete || deleteDataset.isPending}
-              className="flex items-center gap-2 rounded-lg bg-danger-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+              className="flex items-center gap-2 rounded-xl bg-danger-600 px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
             >
               {deleteDataset.isPending && <Loader2 size={16} className="animate-spin" />}
               {deleteDataset.isPending ? t('deletingDataset') : t('delete')}
@@ -378,7 +398,7 @@ export function DatasetDetail({ organizationId, datasetId, onBack }: DatasetDeta
             <button
               onClick={handleClear}
               disabled={!canClear || clearRecords.isPending}
-              className="flex items-center gap-2 rounded-lg bg-danger-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+              className="flex items-center gap-2 rounded-xl bg-danger-600 px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
             >
               {clearRecords.isPending && <Loader2 size={16} className="animate-spin" />}
               {clearRecords.isPending ? t('clearingData') : t('clearData')}

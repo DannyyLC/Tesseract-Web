@@ -3,26 +3,26 @@ import { MediaProcessorAdapter, MediaProcessResult } from './media-processor.ada
 
 @Injectable()
 export class BasicMediaProcessorAdapter implements MediaProcessorAdapter {
-  async process(media: {
+  process(media: {
     type: 'IMAGE' | 'AUDIO';
     sourceUrl: string;
     mimeType: string;
     sha256?: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }): Promise<MediaProcessResult> {
     // MVP adapter: dejar resultado determinista y trazable.
     // El reemplazo por OCR/STT real solo requiere cambiar este adapter.
     if (!media.sourceUrl) {
-      return {
+      return Promise.resolve({
         status: 'FAILED',
         error: 'Media source URL is missing',
         processor: 'basic-media-processor',
         processorVersion: '1.0.0',
-      };
+      });
     }
 
     if (media.type === 'IMAGE') {
-      return {
+      return Promise.resolve({
         status: 'PROCESSED',
         processedText: 'Imagen recibida del usuario.',
         processor: 'basic-media-processor',
@@ -31,10 +31,10 @@ export class BasicMediaProcessorAdapter implements MediaProcessorAdapter {
           strategy: 'placeholder-ocr',
           mimeType: media.mimeType,
         },
-      };
+      });
     }
 
-    return {
+    return Promise.resolve({
       status: 'PROCESSED',
       processedText: 'Audio recibido del usuario.',
       processor: 'basic-media-processor',
@@ -43,15 +43,15 @@ export class BasicMediaProcessorAdapter implements MediaProcessorAdapter {
         strategy: 'placeholder-stt',
         mimeType: media.mimeType,
       },
-    };
+    });
   }
 
-  async transcribeBuffer(audio: {
+  transcribeBuffer(audio: {
     buffer: Buffer;
     mimeType: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }): Promise<MediaProcessResult> {
-    return {
+    return Promise.resolve({
       status: 'PROCESSED',
       processedText: 'Audio recibido del usuario.',
       processor: 'basic-media-processor',
@@ -62,6 +62,6 @@ export class BasicMediaProcessorAdapter implements MediaProcessorAdapter {
         strategy: 'placeholder-stt',
         mimeType: audio.mimeType,
       },
-    };
+    });
   }
 }

@@ -189,6 +189,12 @@ export enum ErrorCode {
    */
   MAX_RETRIES_EXCEEDED = 'EXECUTION_3008',
 
+  /**
+   * El modelo no respondió (reintentos y fallbacks agotados). No se reintenta.
+   * HTTP Status: 502 Bad Gateway
+   */
+  AGENT_LLM_FAILED = 'EXECUTION_3009',
+
   // ============================================
   // 4000-4999: VALIDACIÓN DE DATOS
   // ============================================

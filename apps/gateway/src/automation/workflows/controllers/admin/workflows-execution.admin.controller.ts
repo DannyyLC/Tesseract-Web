@@ -100,7 +100,7 @@ export class WorkflowsExecutionAdminController {
       true, // allowInternal: ya se validó arriba que el workflow SÍ es interno
     );
 
-    return new StreamableFile(stream as any);
+    return new StreamableFile(stream);
   }
 
   @Post(':id/test-execute/async')

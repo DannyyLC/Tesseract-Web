@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { Loader2, Eye, EyeOff, Building2, ArrowRight } from 'lucide-react';
 import Image from 'next/image';
 import { LogoLoader } from '@/components/ui/logo-loader';
+import { toApiError } from '@/lib/api/api-error';
 
 function AcceptInvitationForm() {
   const t = useTranslations('AcceptInvitation');
@@ -25,17 +26,20 @@ function AcceptInvitationForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  // El enlace del correo trae el código y el correo invitado; el código solo vale con ambos.
+  const hasInvitation = Boolean(code && email);
+
   useEffect(() => {
-    if (!code) {
+    if (!hasInvitation) {
       toast.error(t('invalidCodeToast'));
       // Redirigir o mostrar estado de error
     }
-  }, [code]);
+  }, [hasInvitation, t]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!code) {
+    if (!code || !email) {
       toast.error(t('noCodeToast'));
       return;
     }
@@ -54,16 +58,18 @@ function AcceptInvitationForm() {
       await acceptInvitation.mutateAsync({
         user: fullName,
         password,
+        email,
         verificationCode: code,
       });
       toast.success(t('successToast'));
       router.push('/login?welcome=true');
-    } catch (error: any) {
+    } catch (caught) {
+      const error = toApiError(caught);
       toast.error(error.message || t('errorToast'));
     }
   };
 
-  if (!code) {
+  if (!hasInvitation) {
     return (
       <div className="flex flex-col items-center justify-center space-y-4 text-center">
         <div

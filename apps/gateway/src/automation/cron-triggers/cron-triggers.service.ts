@@ -243,13 +243,13 @@ export class CronTriggersService implements OnModuleInit {
   }
 
   private calcNextRunAt(cronExpression: string, timezone: string): Date {
-    const job = new CronJob(cronExpression, () => {}, null, false, timezone);
+    const job = new CronJob(cronExpression, () => undefined, null, false, timezone);
     return job.nextDate().toJSDate();
   }
 
   private validateCronExpression(expr: string): void {
     try {
-      new CronJob(expr, () => {});
+      new CronJob(expr, () => undefined);
     } catch {
       throw new Error(`Invalid cron expression: "${expr}"`);
     }

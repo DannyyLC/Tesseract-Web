@@ -2,12 +2,23 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ChevronDown, Search } from 'lucide-react';
+import { ChevronDown, Search, X } from 'lucide-react';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useAdminOrganizations } from '@/hooks/identity/use-admin-organizations';
 import { OrganizationSummary } from '@/components/admin/organizations/organization-summary';
-import { inputClass } from '../_styles';
+import { OrganizationsOverviewCards } from '@/components/admin/organizations/organizations-overview-cards';
+import type { AdminOrganizationSegment } from '@/lib/api/endpoints/identity/organizations/organizations-admin-api';
+import {
+  emptyClass,
+  pageSubtitleClass,
+  pageTitleClass,
+  rowClass,
+  searchClass,
+  searchIconClass,
+  segmentedItemClass,
+  segmentedTrackClass,
+} from '../_styles';
 import { PagePager } from '@/components/ui/page-pager';
 import { usePageSize } from '@/hooks/shared/use-page-size';
 
@@ -23,50 +34,59 @@ export default function AdminOrganizationsPage() {
   const { pageSize, setPageSize } = usePageSize('admin-organizations');
   const [page, setPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [segment, setSegment] = useState<AdminOrganizationSegment | null>(null);
 
   const search = useDebounce(searchInput, 400);
 
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter]);
+  }, [search, statusFilter, segment]);
 
   const { data, isLoading, error } = useAdminOrganizations({
     search: search || undefined,
     isActive: statusFilter === '' ? undefined : statusFilter === 'true',
+    segment: segment ?? undefined,
     page,
     limit: pageSize,
   });
 
   return (
-    <div className="w-full">
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-text-primary">{t('title')}</h1>
-        <p className="mt-1 text-sm text-text-secondary">{t('subtitle')}</p>
+    <div className="w-full space-y-6">
+      <div>
+        <h1 className={pageTitleClass}>{t('title')}</h1>
+        <p className={pageSubtitleClass}>{t('subtitle')}</p>
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-3">
-        <div className="relative min-w-[240px] flex-1">
-          <Search
-            size={16}
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary"
-          />
+      <OrganizationsOverviewCards segment={segment} onSegmentChange={setSegment} />
+
+      {segment && (
+        <p className="flex flex-wrap items-center gap-2 text-sm text-text-secondary">
+          {t('filteringBy', { segment: t(`Overview.segments.${segment}`) })}
+          <button
+            onClick={() => setSegment(null)}
+            className="inline-flex items-center gap-1 text-text-primary underline-offset-2 hover:underline"
+          >
+            <X size={14} /> {t('clearSegment')}
+          </button>
+        </p>
+      )}
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative flex-1">
+          <Search size={16} className={searchIconClass} />
           <input
-            className={`${inputClass} pl-9`}
+            className={searchClass}
             placeholder={t('searchPlaceholder')}
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
           />
         </div>
-        <div className="flex gap-1 rounded-lg border border-border p-1">
+        <div className={segmentedTrackClass}>
           {STATUS_FILTERS.map((f) => (
             <button
               key={f.value}
               onClick={() => setStatusFilter(f.value)}
-              className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
-                statusFilter === f.value
-                  ? 'bg-surface-secondary font-medium text-text-primary'
-                  : 'text-text-secondary hover:text-text-primary'
-              }`}
+              className={segmentedItemClass(statusFilter === f.value)}
             >
               {f.label}
             </button>
@@ -74,45 +94,51 @@ export default function AdminOrganizationsPage() {
         </div>
       </div>
 
-      <section className="rounded-xl border border-border bg-surface">
+      <section>
         {isLoading ? (
           <div className="flex justify-center py-16">
             <LogoLoader text={t('loading')} />
           </div>
         ) : error ? (
-          <p className="px-4 py-10 text-center text-sm text-danger">{t('loadError')}</p>
+          <p className={`${emptyClass} text-danger`}>{t('loadError')}</p>
         ) : !data?.data.length ? (
-          <p className="px-4 py-10 text-center text-sm text-text-secondary">{t('empty')}</p>
+          <p className={emptyClass}>{t('empty')}</p>
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="space-y-1">
             {data.data.map((org) => {
               const isExpanded = expandedId === org.id;
               return (
-                <li key={org.id}>
+                // Expandida se queda enmarcada solo con borde (sin el fondo gris de
+                // `rowActiveClass`) para que el resumen, que ya tiene sus propias tarjetas,
+                // no quede sobre un panel de otro tono.
+                <li
+                  key={org.id}
+                  className={isExpanded ? 'rounded-xl border border-border' : rowClass}
+                >
                   <button
                     onClick={() => setExpandedId(isExpanded ? null : org.id)}
                     aria-expanded={isExpanded}
-                    className="flex w-full items-center gap-4 px-4 py-3 text-left transition-colors hover:bg-surface-secondary"
+                    className="flex w-full items-center gap-4 px-4 py-3.5 text-left"
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="truncate font-medium text-text-primary">{org.name}</span>
+                        <span className="truncate font-semibold text-text-primary">{org.name}</span>
                         {!org.isActive && (
                           <span className="text-xs text-danger">{t('inactiveBadge')}</span>
                         )}
                       </div>
-                      <p className="mt-0.5 text-xs text-text-secondary">{org.slug}</p>
+                      <p className="mt-0.5 text-sm text-text-secondary">{org.slug}</p>
                     </div>
                     <ChevronDown
                       size={16}
-                      className={`shrink-0 text-text-secondary transition-transform ${
+                      className={`shrink-0 text-text-tertiary transition-transform ${
                         isExpanded ? 'rotate-180' : ''
                       }`}
                     />
                   </button>
 
                   {isExpanded && (
-                    <div className="border-t border-border px-4">
+                    <div className="mx-4 border-t border-[var(--border-subtle)]">
                       <OrganizationSummary organizationId={org.id} />
                     </div>
                   )}
@@ -138,7 +164,6 @@ export default function AdminOrganizationsPage() {
             totalPages: data.meta.totalPages,
             total: data.meta.total,
           })}
-          className="mt-4"
         />
       )}
     </div>

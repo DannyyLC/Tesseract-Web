@@ -9,6 +9,7 @@ import { useTranslations } from 'next-intl';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { toApiError } from '@/lib/api/api-error';
 
 /**
  * Los cuatro campos comparten estilo. El foco usa `border-focus`, el token del sistema que
@@ -64,7 +65,8 @@ export default function WorkflowMessengerPage() {
       setDescription('');
       setAppSecret('');
       setPageAccessToken('');
-    } catch (error: any) {
+    } catch (caught) {
+      const error = toApiError(caught);
       const backendMessage =
         (typeof error?.response?.data?.message === 'string' &&
           error.response.data.message.trim()) ||
@@ -77,7 +79,7 @@ export default function WorkflowMessengerPage() {
   };
 
   return (
-    <PermissionGuard permissions="workflows:update" redirect={true} fallbackRoute="/workflows">
+    <PermissionGuard permissions="channels:manage" redirect={true} fallbackRoute="/workflows">
       <div className="flex h-full flex-col overflow-y-auto">
         <div className="w-full space-y-8 px-6 py-8">
           <div className="flex flex-col gap-8">

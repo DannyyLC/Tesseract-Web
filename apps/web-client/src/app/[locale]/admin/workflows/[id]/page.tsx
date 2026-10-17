@@ -7,6 +7,7 @@ import { usePathname, useRouter } from '@/i18n/routing';
 import { toast } from 'sonner';
 import { AnimatePresence } from 'framer-motion';
 import {
+  BarChart3,
   Bot,
   Boxes,
   CheckCircle2,
@@ -44,13 +45,35 @@ import { RawJsonTab } from '@/components/admin/workflows/raw-json-tab';
 import { HistoryTab } from '@/components/admin/workflows/history-tab';
 import { SettingsTab } from '@/components/admin/workflows/settings-tab';
 import { TestTab } from '@/components/admin/workflows/test-tab';
+import { MetricsTab } from '@/components/admin/workflows/metrics/metrics-tab';
 import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
-import { btnGhost, btnPrimary, inputClass, labelClass } from '../../_styles';
+import {
+  btnDangerGhost,
+  btnGhost,
+  btnPrimary,
+  codeBlockClass,
+  dangerBannerClass,
+  inputClass,
+  labelClass,
+  stickyHeaderClass,
+  tabItemClass,
+  tabsTrackClass,
+} from '../../_styles';
+import { isToastHandled, toApiError } from '@/lib/api/api-error';
 
-type TabId = 'agents' | 'nodes' | 'graph' | 'media' | 'json' | 'test' | 'settings' | 'history';
+type TabId =
+  | 'agents'
+  | 'nodes'
+  | 'graph'
+  | 'media'
+  | 'json'
+  | 'test'
+  | 'settings'
+  | 'history'
+  | 'metrics';
 
 /** Pestañas que no tocan `draft` (ver `showConfigFooter` más abajo). */
-const NON_DRAFT_TABS: TabId[] = ['settings', 'history', 'test'];
+const NON_DRAFT_TABS: TabId[] = ['settings', 'history', 'test', 'metrics'];
 
 const draftKey = (id: string, version: number) => `wf-draft:${id}:${version}`;
 
@@ -106,6 +129,7 @@ function WorkflowEditor() {
     { id: 'test', label: t('tabs.test'), icon: FlaskConical },
     { id: 'settings', label: t('tabs.settings'), icon: SlidersHorizontal },
     { id: 'history', label: t('tabs.history'), icon: History },
+    { id: 'metrics', label: t('tabs.metrics'), icon: BarChart3 },
   ];
 
   const { data: workflow, isLoading, error } = useAdminWorkflow(workflowId);
@@ -172,6 +196,8 @@ function WorkflowEditor() {
       }
     }
     setDraft(structuredClone(workflow.config));
+    // Sin `t`: cambiar de idioma no debe recargar el borrador y pisar lo editado en pantalla.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workflow, loadedVersion, workflowId]);
 
   const isDirty = useMemo(
@@ -195,7 +221,13 @@ function WorkflowEditor() {
   const tLint = useTranslations('Admin.LintConfig');
   const lintIssues = useMemo(
     () =>
-      draft ? lintConfig(draft, (workflow?.tenantTools ?? []).map((tool) => tool.id), tLint) : [],
+      draft
+        ? lintConfig(
+            draft,
+            (workflow?.tenantTools ?? []).map((tool) => tool.id),
+            tLint,
+          )
+        : [],
     [draft, workflow, tLint],
   );
   const lintErrors = lintIssues.filter((i) => i.severity === 'error');
@@ -240,7 +272,7 @@ function WorkflowEditor() {
           if (result.valid) toast.success(t('configValid'));
           else toast.error(t('validationIssues', { count: result.errors.length }));
         },
-        onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+        onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
       },
     );
   };
@@ -252,14 +284,14 @@ function WorkflowEditor() {
         id: workflowId,
         input: {
           config: draft,
-          expectedVersion: loadedVersion!,
+          expectedVersion: loadedVersion,
           expectedHash: loadedHash ?? undefined,
           note: note.trim() || undefined,
         },
       },
       {
         onSuccess: (result) => {
-          localStorage.removeItem(draftKey(workflowId, loadedVersion!));
+          localStorage.removeItem(draftKey(workflowId, loadedVersion));
           setSaveOpen(false);
           setNote('');
 
@@ -276,9 +308,10 @@ function WorkflowEditor() {
             toast.info(t('nothingToSave'));
           }
         },
-        onError: (e: any) => {
-          if (e?.toastHandled) return;
-          const status = e?.response?.status ?? e?.statusCode;
+        onError: (e) => {
+          const error = toApiError(e);
+          if (error.toastHandled) return;
+          const status = error.response?.status;
           if (status === 409) {
             toast.error(t('conflictError'), { duration: 10000 });
             return;
@@ -309,11 +342,11 @@ function WorkflowEditor() {
         que las pestañas sigan a mano en un documento largo. En móvil arranca bajo el
         header del layout (h-14); en escritorio no hay header, así que va a top-0.
       */}
-      <div className="sticky top-14 z-20 -mx-4 -mt-4 mb-4 border-b border-border bg-surface/95 backdrop-blur md:-mx-6 md:-mt-6 lg:top-0 lg:-mx-8 lg:-mt-8">
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 pt-3 md:px-6 lg:px-8">
-          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-            <h1 className="text-base font-semibold text-text-primary">{workflow.name}</h1>
-            <p className="flex flex-wrap items-center gap-x-3 text-xs text-text-secondary">
+      <div className={stickyHeaderClass}>
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 pt-4 md:px-6 lg:px-8">
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <h1 className="text-xl font-bold text-text-primary">{workflow.name}</h1>
+            <p className="flex flex-wrap items-center gap-x-3 text-sm text-text-secondary">
               <span>{workflow.organization.name}</span>
               <span>v{loadedVersion ?? workflow.version}</span>
               <span>{workflow.category}</span>
@@ -329,38 +362,36 @@ function WorkflowEditor() {
           {/* Solo informativo — las acciones (Guardar/Descartar/Validar/Ver cambios)
               viven todas juntas abajo, en la barra sticky. Un solo lugar. */}
           {isDirty && (
-            <span className="rounded-full bg-accent/15 px-2.5 py-1 text-xs text-accent">
+            <span className="rounded-full bg-[var(--badge-warning-bg-solid)] px-3 py-1 text-xs font-medium text-[var(--badge-warning-text-solid)]">
               {t('unsavedChanges', { count: changes.length })}
             </span>
           )}
         </div>
 
-        <nav className="flex flex-wrap gap-1 px-4 md:px-6 lg:px-8">
-          {TABS.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              onClick={() => setTab(id)}
-              aria-current={tab === id ? 'page' : undefined}
-              className={`-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-sm transition-colors ${
-                tab === id
-                  ? 'border-accent font-medium text-text-primary'
-                  : 'border-transparent text-text-secondary hover:text-text-primary'
-              }`}
-            >
-              <Icon size={14} />
-              {label}
-            </button>
-          ))}
-        </nav>
+        <div className="px-4 pb-3 pt-3 md:px-6 lg:px-8">
+          <nav className={tabsTrackClass}>
+            {TABS.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                onClick={() => setTab(id)}
+                aria-current={tab === id ? 'page' : undefined}
+                className={tabItemClass(tab === id)}
+              >
+                <Icon size={15} />
+                {label}
+              </button>
+            ))}
+          </nav>
+        </div>
       </div>
 
       {lintErrors.length > 0 && (
-        <div className="mb-4 space-y-1 rounded-lg border border-danger/40 p-3">
-          <p className="flex items-center gap-1 text-xs font-medium text-danger">
+        <div className={`${dangerBannerClass} mb-6 space-y-1`}>
+          <p className="flex items-center gap-1.5 text-xs font-medium">
             <AlertTriangle size={13} /> {t('brokenReferences', { count: lintErrors.length })}
           </p>
           {lintErrors.slice(0, 5).map((issue, i) => (
-            <p key={i} className="text-[11px] text-danger">
+            <p key={i} className="text-[11px]">
               · {issue.message} {issue.location && `(${issue.location})`}
             </p>
           ))}
@@ -398,14 +429,15 @@ function WorkflowEditor() {
           hasUnsavedChanges={isDirty}
         />
       )}
+      {tab === 'metrics' && <MetricsTab workflowId={workflowId} />}
 
       {showConfigFooter && validation && !validation.valid && (
-        <div className="mt-4 space-y-1 rounded-lg border border-danger/40 p-3">
-          <p className="text-xs font-medium text-danger">
+        <div className={`${dangerBannerClass} mt-6 space-y-1`}>
+          <p className="text-xs font-medium">
             {t('serverValidationIssues', { count: validation.errors.length })}
           </p>
           {validation.errors.map((e, i) => (
-            <p key={i} className="text-[11px] text-danger">
+            <p key={i} className="text-[11px]">
               · {e}
             </p>
           ))}
@@ -426,7 +458,7 @@ function WorkflowEditor() {
         solo confundían.
       */}
       {showConfigFooter && (
-        <div className="fixed inset-x-0 bottom-0 z-20 h-16 border-t border-border bg-surface/95 px-4 backdrop-blur transition-[left] duration-300 md:px-6 lg:left-[var(--admin-sidebar-w)] lg:px-8">
+        <div className="bg-surface/80 fixed inset-x-0 bottom-0 z-20 h-16 border-t border-border px-4 backdrop-blur-xl transition-[left] duration-300 md:px-6 lg:left-[var(--admin-sidebar-w)] lg:px-8">
           {/*
             `flex-nowrap` + `overflow-x-auto` y no `flex-wrap`: con varios botones, en
             cuanto el ancho disponible bajaba un poco (aparece la scrollbar, se achica la
@@ -436,7 +468,7 @@ function WorkflowEditor() {
           */}
           <div className="flex h-full flex-nowrap items-center justify-end gap-2 overflow-x-auto">
             {validation?.valid && (
-              <span className="mr-auto inline-flex shrink-0 items-center gap-1 text-xs whitespace-nowrap text-success-500">
+              <span className="mr-auto inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-xs font-medium text-[var(--success-text-adaptive)]">
                 <CheckCircle2 size={13} /> {t('configValid')}
               </span>
             )}
@@ -460,7 +492,7 @@ function WorkflowEditor() {
               {t('viewChanges', { count: changes.length })}
             </button>
             <button
-              className={`${btnGhost} shrink-0 whitespace-nowrap text-danger hover:bg-danger/10`}
+              className={`${btnDangerGhost} shrink-0 whitespace-nowrap`}
               onClick={() => setDiscardOpen(true)}
               disabled={!isDirty}
             >
@@ -485,17 +517,23 @@ function WorkflowEditor() {
             ) : (
               <div className="space-y-3">
                 {changes.map((entry, i) => (
-                  <div key={i} className="rounded-lg border border-border p-2">
+                  <div key={i} className="rounded-xl border border-border p-3">
                     <p className="font-mono text-[11px] text-text-primary">{entry.path}</p>
                     <p className="text-[10px] uppercase text-text-secondary">{entry.op}</p>
                     {entry.op !== 'added' && (
-                      <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap rounded bg-surface-secondary p-2 font-mono text-[11px] text-text-secondary">
-                        − {typeof entry.before === 'string' ? entry.before : JSON.stringify(entry.before)}
+                      <pre className={`${codeBlockClass} mt-1 max-h-32 text-text-secondary`}>
+                        −{' '}
+                        {typeof entry.before === 'string'
+                          ? entry.before
+                          : JSON.stringify(entry.before)}
                       </pre>
                     )}
                     {entry.op !== 'removed' && (
-                      <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap rounded bg-surface-secondary p-2 font-mono text-[11px] text-text-primary">
-                        + {typeof entry.after === 'string' ? entry.after : JSON.stringify(entry.after)}
+                      <pre className={`${codeBlockClass} mt-1 max-h-32 text-text-primary`}>
+                        +{' '}
+                        {typeof entry.after === 'string'
+                          ? entry.after
+                          : JSON.stringify(entry.after)}
                       </pre>
                     )}
                   </div>
@@ -512,7 +550,7 @@ function WorkflowEditor() {
                 {t('saveChangesHint', { count: changes.length })}
               </p>
               {lintErrors.length > 0 && (
-                <p className="rounded-lg border border-danger/40 px-3 py-2 text-xs text-danger">
+                <p className={`${dangerBannerClass} text-xs`}>
                   {t('brokenReferencesWarning', { count: lintErrors.length })}
                 </p>
               )}

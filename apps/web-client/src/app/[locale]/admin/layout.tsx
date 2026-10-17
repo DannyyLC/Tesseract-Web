@@ -8,7 +8,20 @@ import { Link, usePathname, useRouter } from '@/i18n/routing';
 import { useAuth, useLogout } from '@/hooks/identity/use-auth';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { LocaleSwitcher } from '@/components/locale';
-import { Blocks, Building2, Cpu, LayoutDashboard, Megaphone, MessageSquareText, Settings, LogOut, Menu, PanelLeftClose, PanelLeftOpen, User as UserIcon, Workflow } from 'lucide-react';
+import {
+  Blocks,
+  Building2,
+  ChevronLeft,
+  Cpu,
+  LayoutDashboard,
+  Megaphone,
+  MessageSquareText,
+  Settings,
+  LogOut,
+  Menu,
+  User as UserIcon,
+  Workflow,
+} from 'lucide-react';
 
 /**
  * Área de super admin: layout propio y mínimo, separado del panel de inquilino.
@@ -33,7 +46,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
-  
+
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
@@ -71,8 +84,33 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   const sidebar = (
-    <div className={`flex h-full flex-col border-r border-border bg-surface transition-all duration-300 ${isCollapsed ? 'w-[72px]' : 'w-[240px]'}`}>
-      <div className="flex h-14 shrink-0 items-center border-b border-border px-3">
+    <div
+      className={`flex h-full flex-col border-r border-border bg-surface transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-[280px] lg:w-[260px]'}`}
+    >
+      {/* Mismo header que el sidebar del panel de usuario: logo a la izquierda y el control de
+          plegado a la derecha. */}
+      <div
+        className={`flex h-16 shrink-0 items-center justify-between border-b border-border ${
+          isCollapsed ? 'px-2' : 'px-4'
+        }`}
+      >
+        <Link href="/admin/dashboard" className="flex min-w-0 items-center gap-3 overflow-hidden">
+          <div className="relative h-9 w-9 flex-shrink-0">
+            <Image
+              src="/favicon.svg"
+              alt="Tesseract"
+              fill
+              loading="eager"
+              className="object-contain [filter:var(--logo-filter)]"
+            />
+          </div>
+          {!isCollapsed && (
+            <span className="truncate whitespace-nowrap text-lg font-bold text-text-primary">
+              {t('brandName')}
+            </span>
+          )}
+        </Link>
+
         <button
           onClick={() => {
             if (window.innerWidth < 1024) {
@@ -81,54 +119,47 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               setIsCollapsed(!isCollapsed);
             }
           }}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
+          className={`flex-shrink-0 rounded-lg text-text-tertiary transition-all hover:bg-surface-secondary hover:text-text-primary ${
+            isCollapsed ? 'p-1' : 'p-1.5'
+          }`}
           title={isCollapsed ? t('expandMenu') : t('collapseMenu')}
+          aria-label={isCollapsed ? t('expandMenu') : t('collapseMenu')}
         >
-          {isCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
+          <ChevronLeft size={isCollapsed ? 16 : 18} className={isCollapsed ? 'rotate-180' : ''} />
         </button>
-
-        {!isCollapsed && (
-          <div className="ml-2 flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
-            <div className="relative h-6 w-6 shrink-0">
-              <Image
-                src="/favicon.svg"
-                alt="Tesseract"
-                fill
-                loading="eager"
-                className="object-contain [filter:var(--logo-filter)]"
-              />
-            </div>
-            <span className="truncate text-sm font-semibold text-text-primary">
-              {t('brandName')}
-            </span>
-          </div>
-        )}
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-        {ADMIN_NAV.map((item) => {
-          const active = pathname.startsWith(item.href);
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              title={isCollapsed ? item.label : undefined}
-              className={`flex items-center gap-3 rounded-lg p-2 text-sm transition-colors ${
-                active
-                  ? 'bg-surface-secondary font-medium text-text-primary'
-                  : 'text-text-secondary hover:bg-surface-secondary hover:text-text-primary'
-              } ${isCollapsed ? 'justify-center' : ''}`}
-            >
-              <Icon size={18} className="shrink-0" />
-              {!isCollapsed && <span className="truncate">{item.label}</span>}
-            </Link>
-          );
-        })}
+      <nav className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-4">
+        <ul className="space-y-1">
+          {ADMIN_NAV.map((item) => {
+            const active = pathname.startsWith(item.href);
+            const Icon = item.icon;
+            return (
+              <li key={item.href}>
+                <Link
+                  href={item.href}
+                  title={isCollapsed ? item.label : undefined}
+                  className={`flex items-center gap-3 rounded-xl px-3 py-2 transition-all ${
+                    active
+                      ? 'bg-accent text-text-inverse'
+                      : 'text-text-secondary hover:bg-surface-secondary hover:text-text-primary'
+                  } ${isCollapsed ? 'justify-center' : ''}`}
+                >
+                  <Icon size={20} className="shrink-0" />
+                  {!isCollapsed && (
+                    <span className="overflow-hidden whitespace-nowrap font-medium">
+                      {item.label}
+                    </span>
+                  )}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
       </nav>
 
       {/* Perfil de usuario al fondo */}
-      <div className="relative shrink-0 border-t border-border p-3" ref={profileMenuRef}>
+      <div className="relative shrink-0 border-t border-border p-2" ref={profileMenuRef}>
         <AnimatePresence>
           {showProfileMenu && (
             <motion.div
@@ -136,9 +167,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
               transition={{ duration: 0.15 }}
-              className={`absolute bottom-full mb-2 rounded-xl border border-border bg-surface-elevated py-1 shadow-lg ${
-                isCollapsed ? 'left-3 right-3' : 'left-3 right-3'
-              }`}
+              className="absolute bottom-full left-2 right-2 mb-2 overflow-hidden rounded-2xl border border-border bg-surface py-1 shadow-md"
             >
               {!isCollapsed && (
                 <div className="flex items-center justify-between gap-2 px-4 py-2">
@@ -158,11 +187,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         <button
           onClick={() => setShowProfileMenu(!showProfileMenu)}
-          className={`flex w-full items-center rounded-lg p-2 transition-colors hover:bg-surface-secondary ${
+          className={`flex w-full items-center rounded-xl px-3 py-2 transition-colors hover:bg-surface-secondary ${
             isCollapsed ? 'justify-center' : 'gap-3'
           }`}
         >
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--surface-tint)] text-text-primary">
             <UserIcon size={16} />
           </div>
           {!isCollapsed && (
@@ -170,9 +199,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <span className="truncate text-sm font-medium text-text-primary">
                 {user?.name || t('userFallback')}
               </span>
-              <span className="truncate text-xs text-text-secondary">
-                {user?.email || ''}
-              </span>
+              <span className="truncate text-xs text-text-secondary">{user?.email || ''}</span>
             </div>
           )}
         </button>
@@ -187,15 +214,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       // páginas hijas (como la barra de guardar del editor de workflows) para no
       // quedar tapados por el sidebar ni tener que hardcodear su ancho — con
       // `isCollapsed` viviendo solo acá, no hay otra forma de que se enteren.
-      style={{ '--admin-sidebar-w': isCollapsed ? '72px' : '240px' } as React.CSSProperties}
+      style={{ '--admin-sidebar-w': isCollapsed ? '80px' : '260px' } as React.CSSProperties}
     >
       {/* Sidebar fijo (desktop) */}
-      <aside className={`fixed left-0 top-0 z-40 hidden h-screen transition-all duration-300 lg:block ${isCollapsed ? 'w-[72px]' : 'w-[240px]'}`}>
+      <aside
+        className={`fixed left-0 top-0 z-40 hidden h-screen transition-all duration-300 lg:block ${isCollapsed ? 'w-20' : 'w-[260px]'}`}
+      >
         {sidebar}
       </aside>
 
       {/* Top bar con hamburguesa (solo móvil) */}
-      <header className="fixed inset-x-0 top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-surface px-4 lg:hidden">
+      <header className="bg-surface/80 fixed inset-x-0 top-0 z-30 flex h-14 items-center gap-3 border-b border-border px-4 backdrop-blur-xl lg:hidden">
         <button
           aria-label={t('openMenu')}
           onClick={() => setMobileOpen(true)}
@@ -226,7 +255,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden"
+              className="bg-overlay fixed inset-0 z-40 backdrop-blur-sm lg:hidden"
               onClick={() => setMobileOpen(false)}
             />
             <motion.div
@@ -243,7 +272,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </AnimatePresence>
 
       {/* Contenido */}
-      <main className={`min-h-screen pt-14 transition-all duration-300 lg:pt-0 ${isCollapsed ? 'lg:pl-[72px]' : 'lg:pl-[240px]'}`}>
+      <main
+        className={`min-h-screen pt-14 transition-all duration-300 lg:pt-0 ${isCollapsed ? 'lg:pl-20' : 'lg:pl-[260px]'}`}
+      >
         <div className="p-4 md:p-6 lg:p-8">{children}</div>
       </main>
     </div>

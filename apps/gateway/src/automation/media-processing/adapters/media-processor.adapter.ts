@@ -23,16 +23,18 @@ export interface MediaProcessResult {
   processorVersion: string;
   /** Tamaño real del archivo descargado, para poder guardarlo y medir después. */
   sizeBytes?: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface MediaProcessorAdapter {
   process(media: {
     type: MediaType;
     sourceUrl: string;
+    /** Headers de la descarga de `sourceUrl`, si no es pública. */
+    sourceHeaders?: Record<string, string>;
     mimeType: string;
     sha256?: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
     customOcrPrompt?: string;
     /** Tope de tamaño. Se comprueba antes de descargar cuando el servidor lo declara. */
     maxBytes?: number;
@@ -47,6 +49,6 @@ export interface MediaProcessorAdapter {
   transcribeBuffer(audio: {
     buffer: Buffer;
     mimeType: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }): Promise<MediaProcessResult>;
 }

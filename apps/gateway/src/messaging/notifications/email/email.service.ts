@@ -3,6 +3,7 @@ import * as nodemailer from 'nodemailer';
 import * as handlebars from 'handlebars';
 import * as fs from 'fs';
 import * as path from 'path';
+import { randomInt } from 'crypto';
 import { StartVerificationFlowDto } from '@/identity/auth/dto/start-verification-flow.dto';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
@@ -31,6 +32,7 @@ export class EmailService {
   private emailInvitationTemplate: BilingualTemplate;
   private emailPasswordResetTemplate: BilingualTemplate;
   private emailOrganizationExistsTemplate: BilingualTemplate;
+  private emailAccountExistsTemplate: BilingualTemplate;
   private emailServiceRequestTemplate: handlebars.TemplateDelegate;
   // Alerta interna de un cron, sin request-context de locale, específica del régimen
   // fiscal mexicano (CFDI/SAT) — se deja en español a propósito, no es contenido bilingüe.
@@ -73,6 +75,10 @@ export class EmailService {
     this.emailOrganizationExistsTemplate = new BilingualTemplate(
       this.loadTemplate('email_organization_exists.hbs'),
       this.loadTemplate('email_organization_exists_en.hbs'),
+    );
+    this.emailAccountExistsTemplate = new BilingualTemplate(
+      this.loadTemplate('email_account_exists.hbs'),
+      this.loadTemplate('email_account_exists_en.hbs'),
     );
     this.emailServiceRequestTemplate = this.loadTemplate('request_services_info.hbs');
     this.cfdiFailuresAlertTemplate = this.loadTemplate('cfdi_failures_alert.hbs');
@@ -152,7 +158,9 @@ export class EmailService {
     let verificationCode;
     let isVerificationCodeDuplicate;
     do {
-      verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      // `randomInt` y no `Math.random`: el código es una credencial y necesita un generador
+      // criptográfico, no uno cuya secuencia se puede reconstruir a partir de salidas previas.
+      verificationCode = randomInt(100000, 1000000).toString();
       isVerificationCodeDuplicate = await this.prisma.userVerification.findFirst({
         where: { verificationCode },
       });
@@ -172,7 +180,8 @@ export class EmailService {
     try {
       sentMessageInfo = await this.transporter.sendMail({
         to: email,
-        subject: locale === 'en' ? 'Password reset code' : 'Código de restablecimiento de contraseña',
+        subject:
+          locale === 'en' ? 'Password reset code' : 'Código de restablecimiento de contraseña',
         html: this.emailPasswordResetTemplate.render(locale, {
           verificationCode,
         }),
@@ -207,6 +216,34 @@ export class EmailService {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(
         `sendOrganizationExistsEmail >> Error enviando email a ${email}: ${errorMessage}`,
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Aviso para quien intenta registrarse con un correo que ya tiene cuenta. Sustituye al
+   * código de verificación: la pantalla del signup responde igual exista o no la cuenta,
+   * y solo el dueño del correo se entera de que ya está registrado.
+   */
+  async sendAccountExistsEmail(
+    email: string,
+    locale: SupportedLocale = DEFAULT_LOCALE,
+  ): Promise<unknown> {
+    const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3001';
+    try {
+      return await this.transporter.sendMail({
+        to: email,
+        subject: locale === 'en' ? 'You already have an account' : 'Ya tienes una cuenta',
+        html: this.emailAccountExistsTemplate.render(locale, {
+          loginUrl: `${frontendUrl}/${locale}/login`,
+          forgotPasswordUrl: `${frontendUrl}/${locale}/forgot-password`,
+        }),
+      });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(
+        `sendAccountExistsEmail >> Error enviando email a ${email}: ${errorMessage}`,
       );
       return null;
     }

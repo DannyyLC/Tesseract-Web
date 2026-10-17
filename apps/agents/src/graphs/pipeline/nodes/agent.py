@@ -11,6 +11,7 @@ from typing import Any, Dict, List
 from langchain_core.messages import AIMessage, ToolMessage
 
 from core.context import TenantContext
+from core.llm_errors import LLMCallError
 from core.prompts import apply_system_prompt, build_time_context
 from tools import registry
 from graphs.pipeline.conditions import evaluate_condition
@@ -87,12 +88,17 @@ def make_agent_node(node_id: str, agent_name: str, output_variable: str | None, 
                                 ejecución (p.ej. "{{variables.handoff_notice_text}}"). Un template
                                 que resuelve a vacío no agrega nada.
     """
-    llm = registry.get_llm(ctx, agent_name)
+    # chain_fallbacks encadena los fallbacks del agente (si los hay) detrás del modelo
+    # principal; sin fallbacks es el LLM tal cual.
+    primary_llm = registry.get_llm(ctx, agent_name)
+    llm = registry.chain_fallbacks(ctx, agent_name, primary_llm)
     pattern = re.compile(classification_pattern) if classification_pattern else None
 
     # Modo agéntico: cargar tools una sola vez al construir el grafo
     agent_tools = registry.load_tools(ctx, agent_name) if max_iterations > 0 else []
-    llm_with_tools = llm.bind_tools(agent_tools) if agent_tools else llm
+    llm_with_tools = (
+        registry.chain_fallbacks(ctx, agent_name, primary_llm, agent_tools) if agent_tools else llm
+    )
     tools_by_name = {t.name: t for t in agent_tools}
     is_agentic = bool(agent_tools)
 
@@ -180,7 +186,11 @@ def make_agent_node(node_id: str, agent_name: str, output_variable: str | None, 
                         )
                     else:
                         active_tools.append(t)
-                runtime_llm = llm.bind_tools(active_tools) if active_tools else llm
+                runtime_llm = (
+                    registry.chain_fallbacks(ctx, agent_name, primary_llm, active_tools)
+                    if active_tools
+                    else llm
+                )
             else:
                 runtime_llm = llm_with_tools
 
@@ -193,8 +203,11 @@ def make_agent_node(node_id: str, agent_name: str, output_variable: str | None, 
                 try:
                     response = invoke_llm(runtime_llm, current_messages)
                 except Exception as e:
+                    # Sin respuesta del modelo (ni de sus fallbacks) no hay turno: el error
+                    # sube para que la ejecución quede FAILED, en vez de convertirse en el
+                    # mensaje que lee el cliente o en el texto que clasifica el router.
                     logger.error(f"[{ctx.workflow_id}] Node '{node_id}' LLM error: {e}", exc_info=True)
-                    response = AIMessage(content=f"Error en nodo {node_id}: {str(e)}")
+                    raise LLMCallError(agent_name, node_id, e) from e
 
                 if not getattr(response, "tool_calls", None):
                     # Respuesta final de texto — salir del loop
@@ -278,8 +291,7 @@ def make_agent_node(node_id: str, agent_name: str, output_variable: str | None, 
                     logger.error(
                         f"[{ctx.workflow_id}] Node '{node_id}' final LLM error: {e}", exc_info=True
                     )
-                    final_response = AIMessage(content=f"Error en nodo {node_id}: {str(e)}")
-                    content = final_response.content
+                    raise LLMCallError(agent_name, node_id, e) from e
 
         else:
             # Single-call
@@ -291,7 +303,7 @@ def make_agent_node(node_id: str, agent_name: str, output_variable: str | None, 
                 final_response = invoke_llm(llm, messages)
             except Exception as e:
                 logger.error(f"[{ctx.workflow_id}] Node '{node_id}' LLM error: {e}", exc_info=True)
-                final_response = AIMessage(content=f"Error en nodo {node_id}: {str(e)}")
+                raise LLMCallError(agent_name, node_id, e) from e
 
             content = final_response.content
 

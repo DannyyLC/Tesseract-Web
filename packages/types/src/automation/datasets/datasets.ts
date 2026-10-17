@@ -181,7 +181,7 @@ export interface DatasetSearchRequest {
   /** `{ precio: { min: 200000, max: 300000 } }`. */
   range?: Record<string, DatasetRangeFilter>;
   /**
-   * Texto libre. Barre **todas** las columnas de texto a la vez, en vez de exponer un parámetro
+   * Texto libre. Barre **todas** las columnas de texto y `select` a la vez, en vez de exponer un parámetro
    * por columna: el modelo no sabe si la frase está en el nombre o en la descripción, y obligarlo
    * a elegir lo hace fallar en silencio.
    */

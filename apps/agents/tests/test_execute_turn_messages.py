@@ -20,8 +20,6 @@ sys.path.insert(0, str(src_path))
 import pytest  # noqa: E402
 from langchain_core.messages import AIMessage  # noqa: E402
 
-SECRET = "un-secreto-de-prueba"
-
 HISTORY = [
     {"role": "user", "content": "Hola"},
     {"role": "assistant", "content": "Respuesta vieja del turno anterior"},
@@ -33,7 +31,7 @@ class FakeGrpcContext:
         self.aborted_with = None
 
     def invocation_metadata(self):
-        return [("x-internal-token", SECRET)]
+        return []
 
     async def abort(self, code, details):
         self.aborted_with = code
@@ -54,7 +52,6 @@ async def _execute(monkeypatch, new_messages):
     import grpc_servicer
     from agents.v1 import agents_pb2
 
-    monkeypatch.setenv("AGENTS_INTERNAL_SECRET", SECRET)
     monkeypatch.setattr(grpc_servicer, "_proto_to_pydantic_request", lambda req: req)
     monkeypatch.setattr(
         grpc_servicer,

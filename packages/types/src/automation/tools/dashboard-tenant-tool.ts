@@ -12,7 +12,7 @@ export interface DashboardTenantToolDto {
     category: string | null;
     provider: string | null;
   };
-  allowedFunctions?: any;
+  allowedFunctions?: unknown;
   /**
    * Funciones habilitadas cuyo scope el usuario no otorgó en la pantalla de
    * consentimiento. Se calcula al leer (no se persiste) para que no envejezca

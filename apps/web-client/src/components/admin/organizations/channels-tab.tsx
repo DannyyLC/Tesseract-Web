@@ -3,15 +3,34 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
-import { Loader2, MessageSquareText, Pencil, Plus, Power, PowerOff, Trash2 } from 'lucide-react';
+import {
+  BadgeCheck,
+  Loader2,
+  MessageSquareText,
+  Pencil,
+  Plus,
+  Power,
+  PowerOff,
+  Trash2,
+} from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { useAdminWorkflows } from '@/hooks/automation/use-admin-workflows';
-import { useAdminWhatsappMutations, useAdminWhatsappNumbers } from '@/hooks/messaging/use-admin-whatsapp-config';
+import {
+  useAdminWhatsappMutations,
+  useAdminWhatsappNumbers,
+} from '@/hooks/messaging/use-admin-whatsapp-config';
 import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import type { WhatsAppConfig } from '@tesseract/types';
 import { btnGhost, btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
 import { WhatsappTemplatesAdminModal } from './whatsapp-templates-admin-modal';
+import {
+  EMPTY_PROVIDER_VALUE,
+  WhatsappProviderFields,
+  isProviderValueComplete,
+  toProviderPayload,
+} from './whatsapp-provider-fields';
+import { isToastHandled } from '@/lib/api/api-error';
 
 interface Props {
   organizationId: string;
@@ -38,7 +57,8 @@ export function ChannelsTab({ organizationId }: Props) {
   const getApiErrorMessage = useApiErrorMessage();
   const { data: configs, isLoading } = useAdminWhatsappNumbers(organizationId);
   const { data: workflowsPage } = useAdminWorkflows({ organizationId, limit: 100 });
-  const { createConfig, updateConfig, deleteConfig, setActive } = useAdminWhatsappMutations(organizationId);
+  const { createConfig, updateConfig, deleteConfig, setActive, approve } =
+    useAdminWhatsappMutations(organizationId);
 
   // Un número no puede rutear a un workflow interno del super admin — el backend ya lo
   // rechaza, esto es solo para no ofrecerlo en el selector.
@@ -46,7 +66,10 @@ export function ChannelsTab({ organizationId }: Props) {
     () => (workflowsPage?.data ?? []).filter((w) => !w.isInternal),
     [workflowsPage],
   );
-  const workflowNameById = useMemo(() => new Map(workflows.map((w) => [w.id, w.name])), [workflows]);
+  const workflowNameById = useMemo(
+    () => new Map(workflows.map((w) => [w.id, w.name])),
+    [workflows],
+  );
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -56,8 +79,15 @@ export function ChannelsTab({ organizationId }: Props) {
   // workflow es obligatorio (ver create-config.dto.ts); UNASSIGNED solo tiene sentido
   // al editar, para desasignar uno que ya existía.
   const [createWorkflowId, setCreateWorkflowId] = useState('');
+  const [createProvider, setCreateProvider] = useState(EMPTY_PROVIDER_VALUE);
 
   const [editTarget, setEditTarget] = useState<WhatsAppConfig | null>(null);
+  const [editPhoneNumber, setEditPhoneNumber] = useState('');
+  // Credenciales de Meta. Los secretos arrancan vacíos a propósito: la API no los devuelve, y
+  // vacío significa "conservar el actual".
+  const [editPhoneNumberId, setEditPhoneNumberId] = useState('');
+  const [editAppSecret, setEditAppSecret] = useState('');
+  const [editAccessToken, setEditAccessToken] = useState('');
   const [editDisplayName, setEditDisplayName] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editWorkflowId, setEditWorkflowId] = useState(UNASSIGNED);
@@ -65,7 +95,23 @@ export function ChannelsTab({ organizationId }: Props) {
   const [templatesTarget, setTemplatesTarget] = useState<WhatsAppConfig | null>(null);
 
   const isPhoneValid = WHATSAPP_PHONE_REGEX.test(phoneNumber);
-  const canCreate = isPhoneValid && createWorkflowId !== '';
+  const canCreate =
+    isPhoneValid && createWorkflowId !== '' && isProviderValueComplete(createProvider);
+
+  const isEditPhoneChanged = !!editTarget && editPhoneNumber !== editTarget.phoneNumber;
+  // Solo se valida si cambió: una fila guardada antes con otro formato (sin `+`, por ejemplo)
+  // no debe bloquear editar su nombre o su workflow.
+  const isEditPhoneValid = !isEditPhoneChanged || WHATSAPP_PHONE_REGEX.test(editPhoneNumber);
+
+  const isEditMeta = editTarget?.provider === 'meta';
+  const editPhoneNumberIdTrimmed = editPhoneNumberId.trim();
+  const isEditPhoneNumberIdChanged =
+    isEditMeta &&
+    editPhoneNumberIdTrimmed !== '' &&
+    editPhoneNumberIdTrimmed !== (editTarget?.credentials?.phoneNumberId ?? '');
+  // Un Phone number ID guardado no se puede dejar en blanco: sin él no se puede enviar nada.
+  const isEditPhoneNumberIdInvalid =
+    isEditMeta && !!editTarget?.credentials?.phoneNumberId && editPhoneNumberIdTrimmed === '';
 
   const closeCreate = () => {
     setIsCreateOpen(false);
@@ -73,10 +119,15 @@ export function ChannelsTab({ organizationId }: Props) {
     setCreateDisplayName('');
     setCreateDescription('');
     setCreateWorkflowId('');
+    setCreateProvider(EMPTY_PROVIDER_VALUE);
   };
 
   const openEdit = (config: WhatsAppConfig) => {
     setEditTarget(config);
+    setEditPhoneNumber(config.phoneNumber);
+    setEditPhoneNumberId(config.credentials?.phoneNumberId ?? '');
+    setEditAppSecret('');
+    setEditAccessToken('');
     setEditDisplayName(config.displayName ?? '');
     setEditDescription(config.description ?? '');
     setEditWorkflowId(config.defaultWorkflowId ?? UNASSIGNED);
@@ -90,23 +141,29 @@ export function ChannelsTab({ organizationId }: Props) {
         workflowId: createWorkflowId,
         displayName: createDisplayName.trim() || undefined,
         description: createDescription.trim() || undefined,
+        ...toProviderPayload(createProvider),
       },
       {
         onSuccess: () => {
           toast.success(t('createdSuccess'));
           closeCreate();
         },
-        onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+        onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
       },
     );
   };
 
   const handleSaveEdit = () => {
-    if (!editTarget) return;
+    if (!editTarget || !isEditPhoneValid || isEditPhoneNumberIdInvalid) return;
     updateConfig.mutate(
       {
         id: editTarget.id,
         data: {
+          // Solo si cambió: el número es la llave del webhook, no se reescribe de gratis.
+          ...(isEditPhoneChanged && { phoneNumber: editPhoneNumber }),
+          ...(isEditPhoneNumberIdChanged && { phoneNumberId: editPhoneNumberIdTrimmed }),
+          ...(isEditMeta && editAppSecret.trim() && { appSecret: editAppSecret.trim() }),
+          ...(isEditMeta && editAccessToken.trim() && { accessToken: editAccessToken.trim() }),
           displayName: editDisplayName,
           description: editDescription,
           workflowId: editWorkflowId === UNASSIGNED ? null : editWorkflowId,
@@ -117,7 +174,7 @@ export function ChannelsTab({ organizationId }: Props) {
           toast.success(t('savedSuccess'));
           setEditTarget(null);
         },
-        onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+        onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
       },
     );
   };
@@ -125,23 +182,30 @@ export function ChannelsTab({ organizationId }: Props) {
   const handleDelete = (config: WhatsAppConfig) => {
     deleteConfig.mutate(config.id, {
       onSuccess: () => toast.success(t('deletedSuccess')),
-      onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+      onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
+    });
+  };
+
+  const handleApprove = (config: WhatsAppConfig) => {
+    approve.mutate(config.id, {
+      onSuccess: () => toast.success(t('approvedSuccess')),
+      onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
     });
   };
 
   const handleToggleActive = (config: WhatsAppConfig) => {
     setActive.mutate(
       { id: config.id, isActive: !config.isActive },
-      { onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)) },
+      { onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)) },
     );
   };
 
   return (
     <div className="w-full space-y-6">
-      <section className="rounded-xl border border-border bg-surface p-4">
+      <section className="rounded-2xl border border-border p-6">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-sm font-semibold text-text-primary">{t('title')}</h2>
+            <h2 className="text-base font-semibold text-text-primary">{t('title')}</h2>
             <p className="mt-1 text-xs text-text-secondary">{t('subtitle')}</p>
           </div>
           <button className={btnPrimary} onClick={() => setIsCreateOpen(true)}>
@@ -156,13 +220,16 @@ export function ChannelsTab({ organizationId }: Props) {
         ) : !configs?.length ? (
           <p className="px-2 py-8 text-center text-sm text-text-secondary">{t('empty')}</p>
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="-mx-3 space-y-1">
             {configs.map((config) => {
               const workflowName = config.defaultWorkflowId
                 ? (workflowNameById.get(config.defaultWorkflowId) ?? t('deletedWorkflow'))
                 : null;
               return (
-                <li key={config.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                <li
+                  key={config.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-transparent px-3 py-3 transition-all duration-200 hover:border-border hover:bg-surface-panel hover:shadow-sm"
+                >
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="truncate font-medium text-text-primary">
@@ -171,46 +238,68 @@ export function ChannelsTab({ organizationId }: Props) {
                       {config.displayName && (
                         <span className="text-xs text-text-secondary">{config.phoneNumber}</span>
                       )}
+                      {!config.approvedAt && (
+                        <span className="text-xs font-medium text-warning-500">
+                          {t('pendingBadge')}
+                        </span>
+                      )}
                       {!config.isActive && (
                         <span className="text-xs text-danger">{t('inactiveBadge')}</span>
                       )}
                     </div>
                     <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-secondary">
-                      <span className={CONNECTION_STYLE[config.connectionStatus] ?? 'text-text-tertiary'}>
+                      <span
+                        className={
+                          CONNECTION_STYLE[config.connectionStatus] ?? 'text-text-tertiary'
+                        }
+                      >
                         {config.connectionStatus}
                       </span>
+                      <span>{t(config.provider === 'meta' ? 'providerMeta' : 'providerYcloud')}</span>
                       <span>
-                        {workflowName ? t('routesTo', { workflow: workflowName }) : t('noWorkflowAssigned')}
+                        {workflowName
+                          ? t('routesTo', { workflow: workflowName })
+                          : t('noWorkflowAssigned')}
                       </span>
                     </p>
                   </div>
 
                   <div className="flex shrink-0 items-center gap-1">
+                    {!config.approvedAt && (
+                      <button
+                        onClick={() => handleApprove(config)}
+                        disabled={approve.isPending}
+                        title={t('approveTitle')}
+                        className="rounded-xl p-2 text-[var(--success-text-adaptive)] transition-colors hover:bg-[var(--surface-tint)] disabled:opacity-50"
+                      >
+                        <BadgeCheck size={16} />
+                      </button>
+                    )}
                     <button
                       onClick={() => setTemplatesTarget(config)}
                       title={t('templatesTitle')}
-                      className="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary"
+                      className="rounded-xl p-2 text-text-secondary transition-colors hover:bg-[var(--surface-tint)] hover:text-text-primary"
                     >
                       <MessageSquareText size={16} />
                     </button>
                     <button
                       onClick={() => openEdit(config)}
                       title={t('editTitle')}
-                      className="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary"
+                      className="rounded-xl p-2 text-text-secondary transition-colors hover:bg-[var(--surface-tint)] hover:text-text-primary"
                     >
                       <Pencil size={16} />
                     </button>
                     <button
                       onClick={() => handleToggleActive(config)}
                       title={config.isActive ? t('deactivateTitle') : t('activateTitle')}
-                      className="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary"
+                      className="rounded-xl p-2 text-text-secondary transition-colors hover:bg-[var(--surface-tint)] hover:text-text-primary"
                     >
                       {config.isActive ? <PowerOff size={16} /> : <Power size={16} />}
                     </button>
                     <button
                       onClick={() => handleDelete(config)}
                       title={t('deleteTitle')}
-                      className="hover:bg-danger/10 rounded-lg p-2 text-danger transition-colors"
+                      className="rounded-xl p-2 text-danger transition-colors hover:bg-[var(--danger-tint-hover)]"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -225,6 +314,8 @@ export function ChannelsTab({ organizationId }: Props) {
       {/* Crear */}
       <Modal isOpen={isCreateOpen} onClose={closeCreate} title={t('createModalTitle')}>
         <div className="space-y-4">
+          <WhatsappProviderFields value={createProvider} onChange={setCreateProvider} />
+
           <div>
             <label className={labelClass}>{t('phoneNumberLabel')}</label>
             <input
@@ -301,6 +392,26 @@ export function ChannelsTab({ organizationId }: Props) {
         {editTarget && (
           <div className="space-y-4">
             <div>
+              <label className={labelClass}>{t('phoneNumberLabel')}</label>
+              <input
+                className={inputClass}
+                value={editPhoneNumber}
+                onChange={(e) =>
+                  setEditPhoneNumber(e.target.value.replace(/(?!^)\+/g, '').replace(/[^+\d]/g, ''))
+                }
+                placeholder="+52234567890"
+                inputMode="tel"
+                maxLength={16}
+              />
+              {!isEditPhoneValid ? (
+                <p className="mt-1 text-xs text-danger">{t('phoneInvalid')}</p>
+              ) : (
+                isEditPhoneChanged && (
+                  <p className="mt-1 text-xs text-warning-600">{t('editPhoneChangeWarning')}</p>
+                )
+              )}
+            </div>
+            <div>
               <label className={labelClass}>{t('editDisplayNameLabel')}</label>
               <input
                 className={inputClass}
@@ -333,11 +444,60 @@ export function ChannelsTab({ organizationId }: Props) {
               <p className="mt-1 text-xs text-text-tertiary">{t('editWorkflowHint')}</p>
             </div>
 
+            {isEditMeta && (
+              <div className="space-y-4 rounded-lg border border-border p-3">
+                <p className="text-xs text-text-secondary">{t('editMetaCredentialsHint')}</p>
+                <div>
+                  <label className={labelClass}>{t('metaPhoneNumberIdLabel')}</label>
+                  <input
+                    className={inputClass}
+                    value={editPhoneNumberId}
+                    onChange={(e) => setEditPhoneNumberId(e.target.value.replace(/\D/g, ''))}
+                    inputMode="numeric"
+                    autoComplete="off"
+                  />
+                  {isEditPhoneNumberIdInvalid && (
+                    <p className="mt-1 text-xs text-danger">{t('phoneNumberIdRequired')}</p>
+                  )}
+                </div>
+                <div>
+                  <label className={labelClass}>{t('metaAppSecretLabel')}</label>
+                  <input
+                    className={inputClass}
+                    type="password"
+                    value={editAppSecret}
+                    onChange={(e) => setEditAppSecret(e.target.value)}
+                    placeholder={
+                      editTarget.credentials?.hasAppSecret ? t('secretKeepPlaceholder') : t('secretNotSet')
+                    }
+                    autoComplete="new-password"
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>{t('metaAccessTokenLabel')}</label>
+                  <input
+                    className={inputClass}
+                    type="password"
+                    value={editAccessToken}
+                    onChange={(e) => setEditAccessToken(e.target.value)}
+                    placeholder={
+                      editTarget.credentials?.hasAccessToken ? t('secretKeepPlaceholder') : t('secretNotSet')
+                    }
+                    autoComplete="new-password"
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="flex justify-end gap-2">
               <button className={btnGhost} onClick={() => setEditTarget(null)}>
                 {t('cancel')}
               </button>
-              <button className={btnPrimary} onClick={handleSaveEdit} disabled={updateConfig.isPending}>
+              <button
+                className={btnPrimary}
+                onClick={handleSaveEdit}
+                disabled={!isEditPhoneValid || isEditPhoneNumberIdInvalid || updateConfig.isPending}
+              >
                 {updateConfig.isPending && <Loader2 size={14} className="animate-spin" />}
                 {t('save')}
               </button>

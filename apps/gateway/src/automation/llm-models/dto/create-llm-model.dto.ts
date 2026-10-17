@@ -11,6 +11,7 @@ import {
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ModelTier } from '@tesseract/database';
+import { IsAllowedParams } from './allowed-params.validator';
 
 export class CreateLlmModelDto {
   @ApiProperty({
@@ -77,6 +78,29 @@ export class CreateLlmModelDto {
   @IsNumber()
   @Min(1)
   recommendedMaxTokens: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Si el modelo acepta `temperature`. Los modelos de razonamiento (gpt-5+, Claude 5.5) ' +
+      'rechazan valores distintos al default: con false, el validador de workflows no deja ' +
+      'guardar un agente que la defina.',
+    example: true,
+    default: true,
+  })
+  @IsBoolean()
+  @IsOptional()
+  supportsTemperature?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      'Parámetros extra que acepta el modelo en `model_params`, con sus valores permitidos ' +
+      '(lista vacía = cualquier valor).',
+    example: { reasoning_effort: ['none', 'low', 'medium', 'high'] },
+    default: {},
+  })
+  @IsAllowedParams()
+  @IsOptional()
+  allowedParams?: Record<string, string[]>;
 
   @ApiPropertyOptional({
     description: 'Fecha desde la cual aplica este precio',

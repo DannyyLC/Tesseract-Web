@@ -8,6 +8,17 @@ import {
   PaginatedResponse,
 } from '@tesseract/types';
 
+/** `GET /executions/response-time`. Duraciones en milisegundos; días locales `YYYY-MM-DD`. */
+export interface ResponseTimeData {
+  period: string;
+  timezone: string;
+  p50: number | null;
+  p90: number | null;
+  count: number;
+  daily: { date: string; p50: number | null; count: number }[];
+  byWorkflow: { workflowId: string; name: string; p50: number; count: number }[];
+}
+
 class ExecutionsApi {
   public apiRequestManager: ApiRequestManager;
   public static BASE_URL = '/executions';
@@ -84,6 +95,19 @@ class ExecutionsApi {
   ): Promise<HourlyDistributionDto | null> {
     const result = await this.apiRequestManager.get<ApiResponse<HourlyDistributionDto>>(
       `${ExecutionsApi.BASE_URL}/hourly-distribution?period=${period}`,
+    );
+    return result.data.data ?? null;
+  }
+
+  /**
+   * Tiempo que tarda el bot en generar sus respuestas.
+   * Endpoint: GET /executions/response-time
+   */
+  public async getResponseTime(
+    period: '24h' | '7d' | '30d' | '90d' | 'all' = '30d',
+  ): Promise<ResponseTimeData | null> {
+    const result = await this.apiRequestManager.get<ApiResponse<ResponseTimeData>>(
+      `${ExecutionsApi.BASE_URL}/response-time?period=${period}`,
     );
     return result.data.data ?? null;
   }

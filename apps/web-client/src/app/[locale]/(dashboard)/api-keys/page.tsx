@@ -18,7 +18,6 @@ import {
   EditApiKeyModal,
 } from '@/components/api-keys';
 
-
 export default function ApiKeysPage() {
   const t = useTranslations('ApiKeys');
 

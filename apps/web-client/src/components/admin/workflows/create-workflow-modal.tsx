@@ -14,7 +14,14 @@ import {
 } from '@/hooks/automation/use-admin-workflows';
 import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import type { AdminOrganization } from '@/lib/api/endpoints/identity/organizations/organizations-admin-api';
-import { btnGhost, btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
+import {
+  btnGhost,
+  btnPrimary,
+  inputClass,
+  labelClass,
+  selectTriggerClass,
+} from '@/app/[locale]/admin/_styles';
+import { isToastHandled } from '@/lib/api/api-error';
 
 type Mode = 'clone' | 'blank';
 
@@ -101,7 +108,7 @@ export function CreateWorkflowModal({ organizations, onClose, onCreated }: Props
             }
             onCreated(result.workflow.id, t('workflowCloned'));
           },
-          onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+          onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
         },
       );
       return;
@@ -122,7 +129,7 @@ export function CreateWorkflowModal({ organizations, onClose, onCreated }: Props
       },
       {
         onSuccess: (workflow) => onCreated(workflow.id, t('workflowCreated')),
-        onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+        onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
       },
     );
   };
@@ -141,10 +148,10 @@ export function CreateWorkflowModal({ organizations, onClose, onCreated }: Props
               key={value}
               type="button"
               onClick={() => setMode(value)}
-              className={`rounded-lg border p-3 text-left transition-colors ${
+              className={`rounded-xl border p-4 text-left transition-all duration-200 ${
                 mode === value
-                  ? 'border-accent bg-surface-secondary'
-                  : 'border-border hover:bg-surface-secondary'
+                  ? 'border-accent shadow-sm'
+                  : 'border-border hover:border-border-hover hover:shadow-sm'
               }`}
             >
               <span className="flex items-center gap-2 text-sm font-medium text-text-primary">
@@ -157,10 +164,11 @@ export function CreateWorkflowModal({ organizations, onClose, onCreated }: Props
         </div>
 
         {mode === 'clone' && (
-          <div className="space-y-3 rounded-lg border border-border p-3">
+          <div className="space-y-3 rounded-xl border border-border p-4">
             <div>
               <label className={labelClass}>{t('sourceOrgLabel')}</label>
               <InfiniteSelect
+                triggerClassName={selectTriggerClass}
                 value={sourceOrgId}
                 onChange={(v) => {
                   setSourceOrgId(v);
@@ -173,6 +181,7 @@ export function CreateWorkflowModal({ organizations, onClose, onCreated }: Props
             <div>
               <label className={labelClass}>{t('sourceWorkflowLabel')}</label>
               <InfiniteSelect
+                triggerClassName={selectTriggerClass}
                 value={sourceWorkflowId}
                 onChange={setSourceWorkflowId}
                 options={workflowOptions}
@@ -190,6 +199,7 @@ export function CreateWorkflowModal({ organizations, onClose, onCreated }: Props
         <div>
           <label className={labelClass}>{t('targetOrgLabel')}</label>
           <InfiniteSelect
+            triggerClassName={selectTriggerClass}
             value={targetOrgId}
             onChange={setTargetOrgId}
             options={orgOptions}
@@ -232,7 +242,7 @@ export function CreateWorkflowModal({ organizations, onClose, onCreated }: Props
                 onChange={(e) => setMaxTokens(Number(e.target.value))}
               />
             </div>
-            <div className="col-span-2 rounded-lg border border-border p-3">
+            <div className="col-span-2 rounded-xl border border-border p-4">
               <Switch
                 checked={isInternal}
                 onChange={setIsInternal}

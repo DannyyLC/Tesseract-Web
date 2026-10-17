@@ -1,4 +1,13 @@
-import { Controller, DefaultValuePipe, Get, ParseIntPipe, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  DefaultValuePipe,
+  Get,
+  Param,
+  ParseIntPipe,
+  ParseUUIDPipe,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiResponse, ApiResponseBuilder, UserRole } from '@tesseract/types';
 import { JwtAuthGuard } from '@/identity/auth/guards/jwt-auth.guard';
@@ -54,9 +63,55 @@ export class AnalyticsAdminController {
     @Query('period', new DefaultValuePipe('30d')) period: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
-    @Query('sortBy', new DefaultValuePipe('marginPct')) sortBy: 'marginPct' | 'costUSD' | 'executions',
+    @Query('sortBy', new DefaultValuePipe('marginPct'))
+    sortBy: 'marginPct' | 'costUSD' | 'executions',
   ): Promise<ApiResponse> {
     const result = await this.analyticsService.getOrganizationsMargin(period, page, limit, sortBy);
+    return new ApiResponseBuilder().setData(result).build();
+  }
+
+  @Get('organizations-overview')
+  @ApiOperation({
+    summary:
+      'Números del listado de organizaciones: activas, MRR, atención requerida e inactividad',
+  })
+  async organizationsOverview(): Promise<ApiResponse> {
+    const result = await this.analyticsService.getOrganizationsOverview();
+    return new ApiResponseBuilder().setData(result).build();
+  }
+
+  @Get('workflows-overview')
+  @ApiOperation({
+    summary: 'Números del listado de workflows: activos, con fallas, margen negativo e inactivos',
+  })
+  async workflowsOverview(): Promise<ApiResponse> {
+    const result = await this.analyticsService.getWorkflowsOverview();
+    return new ApiResponseBuilder().setData(result).build();
+  }
+
+  @Get('whatsapp-overview')
+  @ApiOperation({ summary: 'Panorama de WhatsApp: números, plantillas y conversaciones' })
+  async whatsappOverview(): Promise<ApiResponse> {
+    const result = await this.analyticsService.getWhatsappOverview();
+    return new ApiResponseBuilder().setData(result).build();
+  }
+
+  @Get('llm-models-overview')
+  @ApiOperation({ summary: 'Panorama de modelos LLM: activos, en uso y en cuál se va el gasto' })
+  async llmModelsOverview(): Promise<ApiResponse> {
+    const result = await this.analyticsService.getLlmModelsOverview();
+    return new ApiResponseBuilder().setData(result).build();
+  }
+
+  @Get('workflows/:id')
+  @ApiOperation({
+    summary: 'Detalle de un workflow: costo y tokens por ejecución, modelos, serie diaria y margen',
+  })
+  async workflow(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('period', new DefaultValuePipe('30d')) period: string,
+  ): Promise<ApiResponse> {
+    const result = await this.analyticsService.getWorkflowAnalytics(id, period);
     return new ApiResponseBuilder().setData(result).build();
   }
 }

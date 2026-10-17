@@ -4,6 +4,7 @@ import { WorkflowConfigValidator } from './workflow-config.validator';
 import { DatasetTokenService } from '../datasets/core/dataset-token.service';
 import { InterventionTokenService } from '@/messaging/conversations/core/intervention-token.service';
 import { EndUsersService } from '@/identity/end-users/end-users.service';
+import { SecretFieldsCipher } from '@/automation/tools/core/secret-fields-cipher.service';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { ExecutionsService } from '@/automation/executions/executions.service';
 import { OrganizationsService } from '@/identity/organizations/organizations.service';
@@ -15,7 +16,11 @@ import { ToolsService } from '../tools/core/tools.service';
 import { MediaProcessingService } from '../media-processing/media-processing.service';
 import { ConfigService } from '@nestjs/config';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
-import { InvalidWorkflowConfigException, WorkflowNotFoundException } from '@/platform/common/exceptions';
+import {
+  AgentLlmFailedException,
+  InvalidWorkflowConfigException,
+  WorkflowNotFoundException,
+} from '@/platform/common/exceptions';
 import { WorkflowCategory } from '@tesseract/types';
 
 describe('WorkflowsService', () => {
@@ -134,6 +139,10 @@ describe('WorkflowsService', () => {
         { provide: DatasetTokenService, useValue: mockDatasetTokenService },
         { provide: InterventionTokenService, useValue: mockInterventionTokenService },
         { provide: EndUsersService, useValue: mockEndUsersService },
+        {
+          provide: SecretFieldsCipher,
+          useValue: { decryptFields: jest.fn(async (data: unknown) => data) },
+        },
         // El validador real, no un mock: los tests de config de abajo existen para
         // ejercer esa lógica, y mockearla los dejaría sin verificar nada.
         WorkflowConfigValidator,
@@ -566,12 +575,7 @@ describe('WorkflowsService', () => {
           },
         ];
 
-        await service.execute(
-          orgId,
-          wfId,
-          { message: 'nota de voz' },
-          { preProcessedAttachments },
-        );
+        await service.execute(orgId, wfId, { message: 'nota de voz' }, { preProcessedAttachments });
 
         const triggerDataArg = (mockExecutionsService as any).create.mock.calls[0][2];
         expect(triggerDataArg.metadata.preProcessedAttachments[0]).not.toHaveProperty('sourceUrl');
@@ -613,6 +617,78 @@ describe('WorkflowsService', () => {
             result: expect.objectContaining({ messages: [], skipped: 'hitl' }),
           }),
         );
+      });
+
+      describe('intervención durante la generación', () => {
+        const arrange = (intervenedAfterGenerating: boolean) => {
+          prisma.workflow.findFirst = jest.fn().mockResolvedValue(wfMock);
+          (mockCreditsService as any).canExecuteWorkflow = jest
+            .fn()
+            .mockResolvedValue({ allowed: true });
+          (mockCreditsService as any).deductCredits = jest.fn();
+          (mockExecutionsService as any).create = jest.fn().mockResolvedValue({ id: 'exec1' });
+          (mockExecutionsService as any).linkToConversation = jest.fn();
+          (mockExecutionsService as any).getByIdFull = jest.fn().mockResolvedValue({ id: 'exec1' });
+          (mockExecutionsService as any).updateStatus = jest.fn();
+          (mockConversationsService as any).findOrCreateConversation = jest.fn().mockResolvedValue({
+            id: 'conv1',
+            isHumanInTheLoop: false,
+            endUserId: 'end-user-1',
+          });
+          (mockConversationsService as any).getMessageHistory = jest.fn().mockResolvedValue([]);
+          (mockConversationsService as any).addMessage = jest.fn();
+          (mockConversationsService as any).update = jest.fn();
+          (mockAgentsService as any).execute = jest.fn().mockResolvedValue({
+            messages: [{ role: 'assistant', content: 'Respuesta del bot' }],
+            metadata: { total_tokens: 15, usage_by_model: { 'gpt-4o': 15 } },
+          });
+          // Relectura de la bandera después de generar: ahí es donde se nota el echo.
+          (prisma as any).conversation = {
+            findUnique: jest.fn().mockResolvedValue({ isHumanInTheLoop: intervenedAfterGenerating }),
+          };
+        };
+
+        it('descarta la respuesta pero cobra y completa la ejecución', async () => {
+          arrange(true);
+
+          await service.execute(orgId, wfId, { message: 'Hola' });
+
+          const addMessage = (mockConversationsService as any).addMessage;
+          expect(addMessage).toHaveBeenCalledTimes(1);
+          expect(addMessage).toHaveBeenCalledWith('conv1', 'USER', 'Hola', undefined, expect.anything());
+          expect((mockExecutionsService as any).updateStatus).toHaveBeenCalledWith(
+            'exec1',
+            'COMPLETED',
+            expect.objectContaining({
+              result: expect.objectContaining({
+                messages: [],
+                skipped: 'hitl',
+                suppressedMessages: [{ role: 'assistant', content: 'Respuesta del bot' }],
+              }),
+            }),
+          );
+          expect((mockCreditsService as any).deductCredits).toHaveBeenCalled();
+          expect((mockConversationsService as any).update).toHaveBeenCalledWith(
+            orgId,
+            'conv1',
+            expect.objectContaining({ messageCount: { increment: 1 } }),
+          );
+        });
+
+        it('sin intervención, guarda la respuesta como siempre', async () => {
+          arrange(false);
+
+          await service.execute(orgId, wfId, { message: 'Hola' });
+
+          expect((mockConversationsService as any).addMessage).toHaveBeenCalledWith(
+            'conv1',
+            'ASSISTANT',
+            'Respuesta del bot',
+          );
+          const { result } = (mockExecutionsService as any).updateStatus.mock.calls[0][2];
+          expect(result.skipped).toBeUndefined();
+          expect(result.messages).toEqual([{ role: 'assistant', content: 'Respuesta del bot' }]);
+        });
       });
 
       it('salta el chequeo y el descuento de créditos para un workflow interno (allowInternal:true)', async () => {
@@ -659,6 +735,80 @@ describe('WorkflowsService', () => {
           true, // isInternalWorkflow congelado desde workflow.isInternal
         );
         expect(result.id).toBe('exec1');
+      });
+
+      describe('cuando el modelo no responde (AgentLlmFailedException)', () => {
+        const arrange = (isInternal: boolean) => {
+          prisma.workflow.findFirst = jest.fn().mockResolvedValue({ ...wfMock, isInternal });
+          (mockCreditsService as any).canExecuteWorkflow = jest
+            .fn()
+            .mockResolvedValue({ allowed: true });
+          (mockCreditsService as any).deductCredits = jest.fn();
+          (mockExecutionsService as any).create = jest.fn().mockResolvedValue({ id: 'exec1' });
+          (mockExecutionsService as any).linkToConversation = jest.fn();
+          (mockExecutionsService as any).updateStatus = jest.fn();
+          (mockConversationsService as any).findOrCreateConversation = jest
+            .fn()
+            .mockResolvedValue({ id: 'conv1', isHumanInTheLoop: false });
+          (mockConversationsService as any).getMessageHistory = jest.fn().mockResolvedValue([]);
+          (mockConversationsService as any).addMessage = jest.fn();
+          (mockConversationsService as any).markNeedsFollowUp = jest.fn();
+          (mockAgentsService as any).execute = jest
+            .fn()
+            .mockRejectedValue(new AgentLlmFailedException('LLM_CALL_FAILED: boom'));
+        };
+
+        it('marca la ejecución FAILED, pide seguimiento del equipo y relanza el error', async () => {
+          arrange(false);
+
+          await expect(service.execute(orgId, wfId, { message: 'Hola' })).rejects.toBeInstanceOf(
+            AgentLlmFailedException,
+          );
+
+          expect((mockExecutionsService as any).updateStatus).toHaveBeenCalledWith(
+            'exec1',
+            'FAILED',
+            expect.objectContaining({ error: expect.stringContaining('LLM_CALL_FAILED') }),
+          );
+          expect((mockConversationsService as any).markNeedsFollowUp).toHaveBeenCalledWith(
+            orgId,
+            'conv1',
+            expect.stringContaining('falla del modelo'),
+          );
+          expect((mockCreditsService as any).deductCredits).not.toHaveBeenCalled();
+        });
+
+        it('en un workflow interno (prueba de super admin) no avisa a nadie', async () => {
+          arrange(true);
+
+          await expect(
+            service.execute(
+              orgId,
+              wfId,
+              { message: 'Hola' },
+              undefined,
+              undefined,
+              undefined,
+              undefined,
+              undefined,
+              undefined,
+              true,
+            ),
+          ).rejects.toBeInstanceOf(AgentLlmFailedException);
+
+          expect((mockConversationsService as any).markNeedsFollowUp).not.toHaveBeenCalled();
+        });
+
+        it('si marcar el seguimiento falla, el error que sube sigue siendo el del modelo', async () => {
+          arrange(false);
+          (mockConversationsService as any).markNeedsFollowUp = jest
+            .fn()
+            .mockRejectedValue(new Error('DB caída'));
+
+          await expect(service.execute(orgId, wfId, { message: 'Hola' })).rejects.toBeInstanceOf(
+            AgentLlmFailedException,
+          );
+        });
       });
 
       it('rechaza un workflow interno sin allowInternal (el cliente nunca lo ejecuta)', async () => {

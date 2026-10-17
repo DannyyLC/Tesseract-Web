@@ -21,8 +21,19 @@ import { QueryTenantToolsAdminDto } from '../../dto/query-tenant-tools-admin.dto
 export class TenantToolAdminController {
   constructor(private readonly tenantToolService: TenantToolService) {}
 
+  @Get('overview')
+  @ApiOperation({
+    summary: 'Números del listado: conectadas, con problema, sin workflow, la más usada',
+  })
+  async overview(): Promise<ApiResponse> {
+    const result = await this.tenantToolService.getAdminOverview();
+    return new ApiResponseBuilder().setData(result).build();
+  }
+
   @Get()
-  @ApiOperation({ summary: 'Listar tenant tools de todas las organizaciones (búsqueda + paginado)' })
+  @ApiOperation({
+    summary: 'Listar tenant tools de todas las organizaciones (búsqueda + paginado)',
+  })
   async findAll(@Query() query: QueryTenantToolsAdminDto): Promise<ApiResponse> {
     const result = await this.tenantToolService.findAllForAdmin(query);
     return new ApiResponseBuilder().setData(result).build();

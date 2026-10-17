@@ -4,6 +4,7 @@ import {
   ChannelDrainedWindow,
   ChannelMessageQueueService,
 } from '../shared/channel-message-queue.service';
+import { MetaWebhookPayload } from './dto/meta-webhook-payload.dto';
 import { WhatsAppInboundEvent } from './dto/whatsapp-inbound-event.dto';
 
 /**
@@ -19,21 +20,26 @@ export const WHATSAPP_WINDOW_SECONDS = Number(process.env.WHATSAPP_WINDOW_SECOND
  * acumulado; lo que llegue después arma la siguiente ventana, así que no se pierde
  * nada — solo se parte la respuesta en dos.
  */
-export const WHATSAPP_MAX_WINDOW_SECONDS = Number(
-  process.env.WHATSAPP_MAX_WINDOW_SECONDS ?? 40,
-);
-
-export type BufferedMessage = ChannelBufferedMessage<WhatsAppInboundEvent>;
-export type DrainedWindow = ChannelDrainedWindow<WhatsAppInboundEvent>;
+export const WHATSAPP_MAX_WINDOW_SECONDS = Number(process.env.WHATSAPP_MAX_WINDOW_SECONDS ?? 40);
 
 /**
- * Buffer de mensajes entrantes de WhatsApp.
+ * Lo que se guarda por mensaje: el body crudo del webhook, con la forma del proveedor que lo
+ * mandó (YCloud o la Cloud API de Meta). No se normaliza al encolar; quien lo lea decide cómo
+ * interpretarlo, de preferencia con el `IWBPayloadConsumer` del proveedor.
+ */
+export type WhatsAppBufferedEvent = WhatsAppInboundEvent | MetaWebhookPayload;
+
+export type BufferedMessage = ChannelBufferedMessage<WhatsAppBufferedEvent>;
+export type DrainedWindow = ChannelDrainedWindow<WhatsAppBufferedEvent>;
+
+/**
+ * Buffer de mensajes entrantes de WhatsApp, de cualquiera de sus proveedores.
  *
  * Toda la mecánica vive en {@link ChannelMessageQueueService}; aquí solo se fija el
  * namespace de las claves y el largo de la ventana de este canal.
  */
 @Injectable()
-export class WhatsappMessageQueueService extends ChannelMessageQueueService<WhatsAppInboundEvent> {
+export class WhatsappMessageQueueService extends ChannelMessageQueueService<WhatsAppBufferedEvent> {
   protected readonly keyPrefix = 'wa';
   protected readonly windowSeconds = WHATSAPP_WINDOW_SECONDS;
 }

@@ -1,3 +1,4 @@
+import { unwrapData } from '@/lib/api/unwrap-data';
 import ApiRequestManager from '@/lib/api/api-request-manager';
 import type { ApiResponse } from '@tesseract/types';
 
@@ -18,9 +19,25 @@ export interface AdminTenantTool {
   _count: { workflows: number };
 }
 
+/** Segmentos de las tarjetas del listado (ver `admin-tenant-tool-segments.ts` del gateway). */
+export type AdminTenantToolSegment = 'connected' | 'problem' | 'unattached';
+
+export interface AdminTenantToolsOverview {
+  total: number;
+  connected: number;
+  connectedOrganizations: number;
+  problem: number;
+  expiredAuth: number;
+  error: number;
+  unattached: number;
+  catalogsInUse: number;
+  mostUsed: { name: string; count: number } | null;
+}
+
 export interface AdminTenantToolsQuery {
   search?: string;
   organizationId?: string;
+  segment?: AdminTenantToolSegment;
   page?: number;
   limit?: number;
 }
@@ -47,6 +64,7 @@ class TenantToolsAdminApi {
     const params = new URLSearchParams();
     if (query.search) params.append('search', query.search);
     if (query.organizationId) params.append('organizationId', query.organizationId);
+    if (query.segment) params.append('segment', query.segment);
     if (query.page) params.append('page', String(query.page));
     if (query.limit) params.append('limit', String(query.limit));
 
@@ -54,7 +72,14 @@ class TenantToolsAdminApi {
     const result = await this.apiRequestManager.get<ApiResponse<AdminTenantToolsResult>>(
       `${TenantToolsAdminApi.BASE_URL}${qs ? `?${qs}` : ''}`,
     );
-    return result.data.data!;
+    return unwrapData(result);
+  }
+
+  public async getOverview(): Promise<AdminTenantToolsOverview> {
+    const result = await this.apiRequestManager.get<ApiResponse<AdminTenantToolsOverview>>(
+      `${TenantToolsAdminApi.BASE_URL}/overview`,
+    );
+    return unwrapData(result);
   }
 }
 

@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { calendar_v3 } from 'googleapis';
 import { zonedDayKey, zonedTimeToUtc } from '@/platform/common/utils/zoned-dates';
@@ -47,7 +52,11 @@ export class BookingService {
     }
 
     const calendar = await this.calendarClient.getClient();
-    const busy = await this.queryBusy(calendar, window.start.toISOString(), window.end.toISOString());
+    const busy = await this.queryBusy(
+      calendar,
+      window.start.toISOString(),
+      window.end.toISOString(),
+    );
 
     return this.slotsInWindow(eventType, window, busy, now);
   }
@@ -92,7 +101,13 @@ export class BookingService {
       return null;
     }
 
-    const start = zonedTimeToUtc(year, month, day, BOOKING_BUSINESS_HOURS.startHour, BOOKING_TIMEZONE);
+    const start = zonedTimeToUtc(
+      year,
+      month,
+      day,
+      BOOKING_BUSINESS_HOURS.startHour,
+      BOOKING_TIMEZONE,
+    );
     const end = zonedTimeToUtc(year, month, day, BOOKING_BUSINESS_HOURS.endHour, BOOKING_TIMEZONE);
 
     const earliestBookable = now + BOOKING_MIN_NOTICE_HOURS * 60 * 60 * 1000;
@@ -186,10 +201,13 @@ export class BookingService {
       },
     });
 
+    // Sin id no se puede cancelar ni reagendar después: mejor fallar aquí que guardar la cita.
+    if (!event.id) throw new Error('Google Calendar no devolvió el id del evento creado');
+
     return {
-      eventId: event.id!,
+      eventId: event.id,
       meetLink: event.hangoutLink ?? null,
-      htmlLink: event.htmlLink!,
+      htmlLink: event.htmlLink ?? '',
       startTime: startTime.toISOString(),
       endTime: endTime.toISOString(),
       eventTypeId: eventType.id,
@@ -244,8 +262,12 @@ export class BookingService {
     // ofrecer el día entero como libre es peor que devolver un error. Un miembro suelto del
     // grupo sin permisos, en cambio, no debe tumbar la agenda.
     if (targetFailed || allFailed) {
-      this.logger.error(`Free/busy falló para el calendario destino: ${JSON.stringify(data.calendars)}`);
-      throw new ServiceUnavailableException('No se pudo consultar la disponibilidad del calendario.');
+      this.logger.error(
+        `Free/busy falló para el calendario destino: ${JSON.stringify(data.calendars)}`,
+      );
+      throw new ServiceUnavailableException(
+        'No se pudo consultar la disponibilidad del calendario.',
+      );
     }
 
     const busy: BusyPeriod[] = [];
@@ -255,9 +277,11 @@ export class BookingService {
         continue;
       }
       for (const period of entry.busy ?? []) {
+        // Sin límites el intervalo sería NaN y no bloquearía nada: se omite explícitamente.
+        if (!period.start || !period.end) continue;
         busy.push({
-          start: new Date(period.start!).getTime(),
-          end: new Date(period.end!).getTime(),
+          start: new Date(period.start).getTime(),
+          end: new Date(period.end).getTime(),
         });
       }
     }

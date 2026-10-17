@@ -1,14 +1,5 @@
 import { useTranslations } from 'next-intl';
-
-/**
- * Forma del error que arma el interceptor de axios (`api-request-manager.ts`) a partir de
- * la respuesta del `GlobalExceptionFilter` del gateway.
- */
-interface ApiErrorLike {
-  errorCode?: string;
-  errors?: Array<{ field: string; constraints: string[] }>;
-  message?: string;
-}
+import { isFieldError, toApiError } from '@/lib/api/api-error';
 
 /**
  * Resuelve el texto visible de un error de la API por `errorCode` (namespace `Errors` de
@@ -23,9 +14,10 @@ export function useApiErrorMessage() {
   const tErrors = useTranslations('Errors');
   const tValidation = useTranslations('Validation');
 
-  return (error: ApiErrorLike | null | undefined): string => {
+  return (caught: unknown): string => {
+    const error = caught == null ? undefined : toApiError(caught);
     const firstFieldError = error?.errors?.[0];
-    if (firstFieldError) {
+    if (isFieldError(firstFieldError)) {
       const constraint = firstFieldError.constraints[0] ?? 'generic';
       try {
         return tValidation(constraint);

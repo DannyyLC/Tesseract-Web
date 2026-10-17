@@ -7,6 +7,7 @@ import { CheckCircle2, FileText, Loader2 } from 'lucide-react';
 import { CFDI_USES, DEFAULT_CFDI_USE, TAX_REGIMES, normalizeRfc } from '@tesseract/types';
 import { useFiscalProfile, useInvoiceMutations } from '@/hooks/billing/use-invoices';
 import PermissionGuard from '@/components/auth/permission-guard';
+import { toApiError } from '@/lib/api/api-error';
 
 const inputClass =
   'border-input placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50';
@@ -56,13 +57,15 @@ export default function FiscalProfileCard() {
         email,
       });
       toast.success(t('fiscalSaved'));
-    } catch (error: any) {
+    } catch (caught) {
+      const error = toApiError(caught);
       // El gateway devuelve el detalle del PAC en `details.errors` cuando el SAT rechaza.
       const details = error?.response?.data?.details?.errors;
       if (Array.isArray(details) && details.length > 0) {
         setFieldErrors(details.map((detail: { message: string }) => detail.message));
       }
-      toast.error(error?.response?.data?.message ?? t('fiscalError'));
+      const serverMessage = error.response?.data?.message;
+      toast.error(typeof serverMessage === 'string' ? serverMessage : t('fiscalError'));
     }
   };
 
@@ -76,7 +79,7 @@ export default function FiscalProfileCard() {
     <section className="space-y-6 rounded-2xl border border-border bg-surface p-6">
       <div className="flex items-start justify-between gap-4 border-b border-border pb-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10">
+          <div className="bg-accent/10 flex h-10 w-10 items-center justify-center rounded-lg">
             <FileText className="h-5 w-5 text-accent" />
           </div>
           <div>
@@ -86,7 +89,7 @@ export default function FiscalProfileCard() {
         </div>
 
         {isValidated && (
-          <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-success-500/10 px-3 py-1 text-xs font-medium text-success-500">
+          <span className="bg-success-500/10 flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium text-success-500">
             <CheckCircle2 size={14} />
             {t('fiscalValidated')}
           </span>
@@ -94,13 +97,13 @@ export default function FiscalProfileCard() {
       </div>
 
       {!isValidated && (
-        <p className="rounded-xl border border-warning-500/30 bg-warning-500/10 px-4 py-3 text-sm text-text-primary">
+        <p className="border-warning-500/30 bg-warning-500/10 rounded-xl border px-4 py-3 text-sm text-text-primary">
           {t('fiscalMissingWarning')}
         </p>
       )}
 
       {fieldErrors.length > 0 && (
-        <div className="space-y-1 rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm">
+        <div className="border-danger/30 bg-danger/10 space-y-1 rounded-xl border px-4 py-3 text-sm">
           <p className="font-medium text-text-primary">{t('fiscalRejected')}</p>
           <ul className="list-inside list-disc text-text-secondary">
             {fieldErrors.map((message) => (

@@ -52,7 +52,12 @@ describe('AnnouncementsReadService', () => {
           titleSnapshotEn: null,
           messageSnapshotEn: null,
           createdAt: new Date('2026-01-01'),
-          notification: { announcementTemplate: 'NEWS', ctaLabel: null, ctaLabelEn: null, ctaUrl: null },
+          notification: {
+            announcementTemplate: 'NEWS',
+            ctaLabel: null,
+            ctaLabelEn: null,
+            ctaUrl: null,
+          },
         },
       ]);
 
@@ -71,7 +76,12 @@ describe('AnnouncementsReadService', () => {
           titleSnapshotEn: 'Hello',
           messageSnapshotEn: 'Body',
           createdAt: new Date('2026-01-01'),
-          notification: { announcementTemplate: 'NEWS', ctaLabel: null, ctaLabelEn: null, ctaUrl: null },
+          notification: {
+            announcementTemplate: 'NEWS',
+            ctaLabel: null,
+            ctaLabelEn: null,
+            ctaUrl: null,
+          },
         },
       ]);
 

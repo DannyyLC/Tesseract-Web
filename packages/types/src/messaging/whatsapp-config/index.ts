@@ -6,6 +6,18 @@ export interface CreateConfigDto {
   description?: string;
 }
 
+/**
+ * Lo único que la API dice de las credenciales del proveedor. Los secretos (`appSecret`,
+ * `accessToken`) nunca salen del gateway: solo se informa si están cargados, para que la UI
+ * pueda mostrar "configurado" y dejar que se reemplacen sin verlos.
+ */
+export interface WhatsAppCredentialsStatus {
+  /** No es secreto: es un identificador. `null` si no hay (YCloud, o Meta sin cargar). */
+  phoneNumberId: string | null;
+  hasAppSecret: boolean;
+  hasAccessToken: boolean;
+}
+
 export interface WhatsAppConfig {
   id: string;
   phoneNumber: string;
@@ -20,8 +32,10 @@ export interface WhatsAppConfig {
   connectionError: string | null;
   qrCode: string | null;
   qrCodeExpiry: Date | null;
-  sessionData: unknown;
+  credentials: WhatsAppCredentialsStatus;
   isActive: boolean;
+  /** Cuándo un super admin lo aprobó. `null` = pendiente: no recibe ni envía mensajes. */
+  approvedAt: Date | null;
   defaultWorkflowId: string | null;
   /**
    * Solo importa cuando el workflow tiene más de un número: cuál usa `send_bulk_whatsapp` como

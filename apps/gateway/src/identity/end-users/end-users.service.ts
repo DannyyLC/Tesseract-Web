@@ -336,7 +336,7 @@ export class EndUsersService {
       // cadenas y booleanos— mientras que el DTO promete un objeto. Lo que guardamos siempre es
       // un objeto; el filtro está para que un valor suelto no viaje con una forma que el cliente
       // no espera.
-      metadata: metadata !== null && typeof metadata === 'object' ? (metadata as object) : null,
+      metadata: metadata !== null && typeof metadata === 'object' ? metadata : null,
       blockedByName: blockedBy?.name ?? null,
     };
   }

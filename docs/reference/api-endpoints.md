@@ -30,26 +30,26 @@ Formato de respuesta estandar:
 
 Base path: `/auth`
 
-| Metodo | Endpoint                       | Descripcion                                    | Auth      |
-| ------ | ------------------------------ | ---------------------------------------------- | --------- |
-| GET    | `/auth/google`                 | Inicia flujo OAuth con Google                  | No        |
-| GET    | `/auth/google/callback`        | Callback de Google OAuth                       | No        |
-| POST   | `/auth/login`                  | Login con email y password                     | No        |
-| POST   | `/auth/signup/step-1`          | Registro paso 1: enviar codigo de verificacion | No        |
-| POST   | `/auth/signup/step-2`          | Registro paso 2: verificar codigo              | No        |
-| POST   | `/auth/signup/step-3`          | Registro paso 3: crear usuario y organizacion  | No        |
-| POST   | `/auth/refresh`                | Renovar access token con refresh token         | Cookie    |
-| GET    | `/auth/profile`                | Obtener perfil del usuario autenticado         | JWT       |
-| POST   | `/auth/logout`                 | Cerrar sesion actual                           | JWT       |
-| POST   | `/auth/logout-all`             | Cerrar todas las sesiones                      | JWT       |
-| POST   | `/auth/2fa/setup`              | Generar QR para configurar 2FA                 | JWT       |
-| POST   | `/auth/2fa/enable`             | Activar 2FA y emitir codigos de respaldo       | JWT       |
-| POST   | `/auth/2fa/verify`             | Verificar codigo 2FA durante login             | TempToken |
-| POST   | `/auth/2fa/disable`            | Desactivar 2FA                                 | JWT       |
-| POST   | `/auth/2fa/backup-codes/regenerate` | Regenerar codigos de respaldo             | JWT       |
-| POST   | `/auth/forgot-password/step-1` | Enviar email de recuperacion                   | No        |
-| POST   | `/auth/forgot-password/step-2` | Resetear password con codigo                   | No        |
-| POST   | `/auth/change-password`        | Cambiar password (autenticado)                 | JWT       |
+| Metodo | Endpoint                            | Descripcion                                    | Auth      |
+| ------ | ----------------------------------- | ---------------------------------------------- | --------- |
+| GET    | `/auth/google`                      | Inicia flujo OAuth con Google                  | No        |
+| GET    | `/auth/google/callback`             | Callback de Google OAuth                       | No        |
+| POST   | `/auth/login`                       | Login con email y password                     | No        |
+| POST   | `/auth/signup/step-1`               | Registro paso 1: enviar codigo de verificacion | No        |
+| POST   | `/auth/signup/step-2`               | Registro paso 2: verificar codigo              | No        |
+| POST   | `/auth/signup/step-3`               | Registro paso 3: crear usuario y organizacion  | No        |
+| POST   | `/auth/refresh`                     | Renovar access token con refresh token         | Cookie    |
+| GET    | `/auth/profile`                     | Obtener perfil del usuario autenticado         | JWT       |
+| POST   | `/auth/logout`                      | Cerrar sesion actual                           | JWT       |
+| POST   | `/auth/logout-all`                  | Cerrar todas las sesiones                      | JWT       |
+| POST   | `/auth/2fa/setup`                   | Generar QR para configurar 2FA                 | JWT       |
+| POST   | `/auth/2fa/enable`                  | Activar 2FA y emitir codigos de respaldo       | JWT       |
+| POST   | `/auth/2fa/verify`                  | Verificar codigo 2FA durante login             | TempToken |
+| POST   | `/auth/2fa/disable`                 | Desactivar 2FA                                 | JWT       |
+| POST   | `/auth/2fa/backup-codes/regenerate` | Regenerar codigos de respaldo                  | JWT       |
+| POST   | `/auth/forgot-password/step-1`      | Enviar email de recuperacion                   | No        |
+| POST   | `/auth/forgot-password/step-2`      | Resetear password con codigo                   | No        |
+| POST   | `/auth/change-password`             | Cambiar password (autenticado)                 | JWT       |
 
 ---
 
@@ -116,7 +116,9 @@ Base path: `/v1/workflows` — Requiere `X-API-Key`
 | POST   | `/v1/workflows/:id/execute`        | Ejecutar workflow via API Key              |
 | POST   | `/v1/workflows/:id/execute/stream` | Ejecutar workflow en streaming via API Key |
 
-> Nota: Si `:id` es `current`, se usa el workflow asociado al API Key.
+> Nota: Si `:id` es `current`, se usa el workflow asociado al API Key. Una API Key ligada a un
+> workflow solo ejecuta ese workflow (otro `:id` responde 403), y una con `expiresAt` vencido se
+> rechaza con 401.
 
 ---
 

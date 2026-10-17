@@ -12,6 +12,7 @@ import {
 import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import { btnGhost, btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
 import type { WhatsAppTemplate } from '@tesseract/types';
+import { isToastHandled } from '@/lib/api/api-error';
 
 interface Props {
   isOpen: boolean;
@@ -30,7 +31,13 @@ interface FormState {
   bodyVariables: string;
 }
 
-const EMPTY_FORM: FormState = { id: null, name: '', displayName: '', language: 'es_MX', bodyVariables: '' };
+const EMPTY_FORM: FormState = {
+  id: null,
+  name: '',
+  displayName: '',
+  language: 'es_MX',
+  bodyVariables: '',
+};
 
 /**
  * CRUD de templates de un número — Meta los registra por número (WABA), no por
@@ -42,10 +49,19 @@ const EMPTY_FORM: FormState = { id: null, name: '', displayName: '', language: '
  * pero se quedan fuera de este formulario a propósito — el caso de uso real es casi
  * siempre variables del cuerpo.
  */
-export function WhatsappTemplatesAdminModal({ isOpen, onClose, organizationId, configId, configLabel }: Props) {
+export function WhatsappTemplatesAdminModal({
+  isOpen,
+  onClose,
+  organizationId,
+  configId,
+  configLabel,
+}: Props) {
   const t = useTranslations('Admin.WhatsappTemplatesModal');
   const getApiErrorMessage = useApiErrorMessage();
-  const { data: templates, isLoading } = useAdminWhatsappTemplates(organizationId, isOpen ? configId : null);
+  const { data: templates, isLoading } = useAdminWhatsappTemplates(
+    organizationId,
+    isOpen ? configId : null,
+  );
   const { createTemplate, updateTemplate, deleteTemplate } = useAdminWhatsappTemplateMutations(
     organizationId,
     configId,
@@ -96,27 +112,32 @@ export function WhatsappTemplatesAdminModal({ isOpen, onClose, organizationId, c
         setIsFormOpen(false);
         setForm(EMPTY_FORM);
       })
-      .catch((e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)));
+      .catch((e: unknown) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)));
   };
 
   const handleDelete = (template: WhatsAppTemplate) => {
     deleteTemplate.mutate(template.id, {
       onSuccess: () => toast.success(t('templateDeleted')),
-      onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+      onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
     });
   };
 
   const handleToggleActive = (template: WhatsAppTemplate) => {
     updateTemplate.mutate(
       { id: template.id, data: { isActive: !template.isActive } },
-      { onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)) },
+      { onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)) },
     );
   };
 
   const isSaving = createTemplate.isPending || updateTemplate.isPending;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={t('modalTitle', { config: configLabel })} size="lg">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={t('modalTitle', { config: configLabel })}
+      size="lg"
+    >
       <div className="space-y-4">
         <p className="text-xs text-text-secondary">{t('subtitle')}</p>
 
@@ -133,7 +154,7 @@ export function WhatsappTemplatesAdminModal({ isOpen, onClose, organizationId, c
             {templates.map((template) => (
               <li
                 key={template.id}
-                className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface p-3"
+                className="flex items-center justify-between gap-3 rounded-xl border border-border p-3"
               >
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-text-primary">
@@ -151,8 +172,10 @@ export function WhatsappTemplatesAdminModal({ isOpen, onClose, organizationId, c
                   <button
                     onClick={() => handleToggleActive(template)}
                     title={template.isActive ? t('deactivateTitle') : t('activateTitle')}
-                    className={`rounded-lg p-1.5 transition-colors hover:bg-surface-secondary ${
-                      template.isActive ? 'text-success-500' : 'text-text-tertiary'
+                    className={`rounded-xl p-1.5 transition-colors hover:bg-[var(--surface-tint)] ${
+                      template.isActive
+                        ? 'text-[var(--success-text-adaptive)]'
+                        : 'text-text-tertiary'
                     }`}
                   >
                     <Power size={14} />
@@ -160,14 +183,14 @@ export function WhatsappTemplatesAdminModal({ isOpen, onClose, organizationId, c
                   <button
                     onClick={() => startEdit(template)}
                     title={t('editTitle')}
-                    className="rounded-lg p-1.5 text-text-secondary transition-colors hover:bg-surface-secondary"
+                    className="rounded-xl p-1.5 text-text-secondary transition-colors hover:bg-[var(--surface-tint)]"
                   >
                     <Pencil size={14} />
                   </button>
                   <button
                     onClick={() => handleDelete(template)}
                     title={t('deleteTitle')}
-                    className="hover:bg-danger/10 rounded-lg p-1.5 text-danger transition-colors"
+                    className="rounded-xl p-1.5 text-danger transition-colors hover:bg-[var(--danger-tint-hover)]"
                   >
                     <Trash2 size={14} />
                   </button>
@@ -185,7 +208,7 @@ export function WhatsappTemplatesAdminModal({ isOpen, onClose, organizationId, c
               </p>
               <button
                 onClick={() => setIsFormOpen(false)}
-                className="rounded-lg p-1 text-text-tertiary hover:bg-surface-secondary"
+                className="rounded-lg p-1 text-text-tertiary transition-colors hover:bg-[var(--surface-tint)]"
               >
                 <X size={14} />
               </button>

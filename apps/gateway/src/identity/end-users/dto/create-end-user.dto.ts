@@ -10,11 +10,15 @@ export class CreateEndUserDto implements ICreateEndUserDto {
    * `EndUser.phoneNumber` una vez normalizado ahí también, así que un contacto dado de alta
    * a mano hace match con el mensaje real de esa persona en vez de duplicarse.
    */
-  @ApiProperty({ description: 'Número de WhatsApp del contacto: "+" + código de país (2 dígitos) + número (10 dígitos)' })
+  @ApiProperty({
+    description:
+      'Número de WhatsApp del contacto: "+" + código de país (2 dígitos) + número (10 dígitos)',
+  })
   @IsString()
   @NormalizePhone()
   @Matches(/^\+\d{2}\d{10}$/, {
-    message: 'phoneNumber debe ser "+" seguido del código de país (2 dígitos) y el número (10 dígitos)',
+    message:
+      'phoneNumber debe ser "+" seguido del código de país (2 dígitos) y el número (10 dígitos)',
   })
   phoneNumber: string;
 

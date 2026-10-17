@@ -92,7 +92,11 @@ export class AuthController {
     description:
       'Maneja el retorno desde Google, crea/vincula usuario y devuelve cookies de sesión.',
   })
-  async googleAuthRedirect(@Req() req: any, @Res({ passthrough: true }) res: Response) {
+  async googleAuthRedirect(
+    // GoogleStrategy deja en req.user lo que devuelve AuthService.validateGoogleUser.
+    @Req() req: Request & { user: Awaited<ReturnType<AuthService['validateGoogleUser']>> },
+    @Res({ passthrough: true }) res: Response,
+  ) {
     // req.user contiene el usuario validado/creado por GoogleStrategy -> AuthService.validateGoogleUser
     const user = req.user;
     const isProduction = process.env.NODE_ENV === 'production';
@@ -200,7 +204,7 @@ export class AuthController {
     const responseBuilder = new ApiResponseBuilder();
     try {
       await this.turnstileService.verifyToken(loginDto.turnstileToken);
-      const result: any = await this.authService.login(loginDto);
+      const result = await this.authService.login(loginDto);
       const isProduction = process.env.NODE_ENV === 'production';
 
       if (result.status === 'complete') {
@@ -257,7 +261,7 @@ export class AuthController {
 
       response.statusCode = HttpStatus.OK;
       response.send(responseBuilder.build());
-    } catch (error: any) {
+    } catch (error) {
       if (error instanceof BadRequestException) {
         Logger.error('Turnstile Verification Failed', {
           error: error.message,
@@ -713,7 +717,7 @@ export class AuthController {
     @Res() response: Response,
     @Locale() locale: SupportedLocale,
   ): Promise<Response<ApiResponseBuilder<object | keyof typeof StepOneErrors>>> {
-    const apiResponseBuilder = new ApiResponseBuilder<object | keyof typeof StepOneErrors>();
+    const apiResponseBuilder = new ApiResponseBuilder<true | keyof typeof StepOneErrors>();
     try {
       await this.turnstileService.verifyToken(payload.turnstileToken);
     } catch (_error) {
@@ -866,7 +870,7 @@ export class AuthController {
 
     try {
       await this.turnstileService.verifyToken(body.turnstileToken);
-    } catch (error: any) {
+    } catch (error) {
       if (error instanceof BadRequestException) {
         Logger.error('Turnstile Verification Failed in password reset', {
           error: error.message,
@@ -913,6 +917,7 @@ export class AuthController {
   ): Promise<Response<ApiResponse<boolean | keyof typeof ForgotPassErrors>>> {
     const responseBuilder = new ApiResponseBuilder<boolean | keyof typeof ForgotPassErrors>();
     const result = await this.authService.resetPasswordStepTwo(
+      body.email,
       body.verificationCode,
       body.newPassword,
     );

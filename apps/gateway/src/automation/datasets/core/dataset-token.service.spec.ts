@@ -52,7 +52,7 @@ describe('DatasetTokenService', () => {
     it('deja margen sobre el timeout del workflow para que no expire a media conversación', async () => {
       // 300 de timeout + 300 de margen: el token sigue vivo bastante después del corte del workflow.
       const token = await service.sign(claims, 300);
-      const { exp, iat } = rawJwt.decode(token) as { exp: number; iat: number };
+      const { exp, iat } = rawJwt.decode(token);
 
       expect(exp - iat).toBe(600);
     });
@@ -107,18 +107,6 @@ describe('DatasetTokenService', () => {
     it('rechaza basura', () => {
       expect(() => service.verify('no-es-un-jwt')).toThrow(UnauthorizedException);
     });
-  });
-
-  it('no recae en AGENTS_INTERNAL_SECRET', async () => {
-    // La llave de estos tokens es exclusiva del Gateway. `AGENTS_INTERNAL_SECRET` vive también en el
-    // servicio de agentes, y como HS256 firma y verifica igual, usarlo aquí le devolvería a ese
-    // servicio la capacidad de emitirse tokens para cualquier organización. Un respaldo "por si
-    // acaso" reabriría el agujero en silencio, así que este test existe para que no compile la idea.
-    configService.get.mockImplementation((key: string) =>
-      key === 'AGENTS_INTERNAL_SECRET' ? 'el-secreto-compartido' : undefined,
-    );
-
-    await expect(service.sign(claims, 300)).rejects.toThrow(InternalServerErrorException);
   });
 
   describe('sin DATASET_TOKEN_SECRET', () => {

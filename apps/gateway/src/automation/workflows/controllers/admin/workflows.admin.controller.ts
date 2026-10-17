@@ -1,4 +1,15 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { ApiResponse, ApiResponseBuilder, UserRole } from '@tesseract/types';
 import { JwtAuthGuard } from '@/identity/auth/guards/jwt-auth.guard';
@@ -152,7 +163,10 @@ export class WorkflowsAdminController {
 
   @Post()
   @ApiOperation({ summary: 'Crear un workflow en cualquier organización' })
-  async create(@Body() dto: CreateWorkflowAdminDto, @CurrentUser() user: UserPayload): Promise<ApiResponse> {
+  async create(
+    @Body() dto: CreateWorkflowAdminDto,
+    @CurrentUser() user: UserPayload,
+  ): Promise<ApiResponse> {
     const workflow = await this.workflowsAdminService.create(dto, {
       id: user?.sub,
       email: user?.email,

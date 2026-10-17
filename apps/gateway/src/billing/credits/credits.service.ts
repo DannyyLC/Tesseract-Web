@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '@/platform/database/prisma.service';
 import {
@@ -25,6 +25,21 @@ import { Logger } from 'winston';
 import { DashboardCreditTransactionDto } from './dto/dashboard-credit-transaction.dto';
 import { CursorPaginatedResponseUtils } from '@/platform/common/responses/cursor-paginated-response';
 import { UtilityService } from '@/platform/utility/utility.service';
+import { creditsSpentInCurrentPeriod } from './credits-period';
+import { PROJECTION_WINDOW_DAYS, projectCredits, type CreditProjection } from './credit-projection';
+import { resolveTimezone } from '@/platform/common/utils/resolve-timezone';
+import { addDaysInZone, startOfDayInZone, zonedDayKey } from '@/platform/common/utils/zoned-dates';
+
+/** Días de saldo real que se muestran antes de la proyección en la gráfica del cliente. */
+const PROJECTION_HISTORY_DAYS = 14;
+
+export interface CreditsProjectionResult extends CreditProjection {
+  timezone: string;
+  balance: number;
+  monthlyCredits: number;
+  /** Saldo real al cierre de cada día local, terminando hoy con el saldo actual. */
+  history: { date: string; balance: number }[];
+}
 
 const LOW_CREDITS_THRESHOLD_PERCENTAGE = 0.2;
 const OVERAGE_LIMIT_NOTIFICATION_COOLDOWN_MS = 24 * 60 * 60 * 1000;
@@ -71,7 +86,7 @@ export class CreditsService {
     amount: number,
     type: TransactionType,
     description?: string,
-    metadata?: Record<string, any>,
+    metadata?: Record<string, unknown>,
     costUSD?: number,
     subscriptionId?: string,
     invoiceId?: string,
@@ -103,7 +118,7 @@ export class CreditsService {
           balanceBefore,
           balanceAfter,
           description,
-          metadata: metadata ?? undefined,
+          metadata: metadata as Prisma.InputJsonObject | undefined,
           costUSD,
           subscriptionId,
           invoiceId,
@@ -136,7 +151,7 @@ export class CreditsService {
     amountMajor: number;
     cfdiStatus: CfdiStatus;
     stripePaymentIntentId?: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }): Promise<{ invoiceId: string; deduped: boolean }> {
     const balance = await this.prisma.creditBalance.findUnique({
       where: { organizationId: params.organizationId },
@@ -182,7 +197,7 @@ export class CreditsService {
             balanceBefore,
             balanceAfter,
             description: `Recarga de ${params.credits} créditos`,
-            metadata: params.metadata ?? undefined,
+            metadata: params.metadata as Prisma.InputJsonObject | undefined,
             invoiceId,
           },
         }),
@@ -257,7 +272,7 @@ export class CreditsService {
       };
     }
 
-    const requiredCredits = getWorkflowCreditCost(workflowCategory as any);
+    const requiredCredits = getWorkflowCreditCost(workflowCategory);
 
     // Caso 1: Tiene créditos suficientes
     if (balance.balance >= requiredCredits) {
@@ -315,7 +330,7 @@ export class CreditsService {
     workflowCategory: WorkflowCategory,
     workflowName: string,
     costUSD?: number,
-    metadata?: Record<string, any>,
+    metadata?: Record<string, unknown>,
   ): Promise<void> {
     // Obtener balance actual
     const balance = await this.prisma.creditBalance.findUnique({
@@ -326,7 +341,7 @@ export class CreditsService {
       throw new Error('Credit balance not found');
     }
 
-    const credits = getWorkflowCreditCost(workflowCategory as any);
+    const credits = getWorkflowCreditCost(workflowCategory);
     const balanceBefore = balance.balance;
     const balanceAfter = balanceBefore - credits;
 
@@ -355,7 +370,7 @@ export class CreditsService {
           workflowCategory,
           costUSD: costUSD ?? undefined,
           description: `Execution of ${workflowCategory} workflow: ${workflowName}`,
-          metadata: metadata ?? undefined,
+          metadata: metadata as Prisma.InputJsonObject | undefined,
         },
       }),
 
@@ -399,7 +414,7 @@ export class CreditsService {
     });
 
     if (organization) {
-      const planMonthlyCredits = getPlanLimits(organization.plan as any).monthlyCredits;
+      const planMonthlyCredits = getPlanLimits(organization.plan).monthlyCredits;
       const lowCreditsThreshold = Math.max(
         1,
         Math.ceil(planMonthlyCredits * LOW_CREDITS_THRESHOLD_PERCENTAGE),
@@ -508,6 +523,122 @@ export class CreditsService {
     }
   }
 
+  /**
+   * Proyección del saldo de créditos para el dashboard del cliente (ver `credit-projection.ts`).
+   * Aquí solo se juntan los datos: saldo, renovación, sobregiro y consumo por día local.
+   */
+  async getProjection(
+    organizationId: string,
+    now: Date = new Date(),
+  ): Promise<CreditsProjectionResult> {
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: {
+        plan: true,
+        timezone: true,
+        createdAt: true,
+        allowOverages: true,
+        overageLimit: true,
+        creditBalance: { select: { balance: true } },
+        subscription: {
+          select: { status: true, currentPeriodEnd: true, cancelAtPeriodEnd: true },
+        },
+      },
+    });
+    if (!organization) throw new NotFoundException('Organización no encontrada');
+
+    const timezone = resolveTimezone(organization.timezone);
+    const today = startOfDayInZone(now, timezone);
+    const windowStart = addDaysInZone(today, -PROJECTION_WINDOW_DAYS, timezone);
+    const historyStartDay = addDaysInZone(today, -(PROJECTION_HISTORY_DAYS - 1), timezone);
+    const balance = organization.creditBalance?.balance ?? 0;
+    const limits = getPlanLimits(organization.plan);
+
+    // Doble `AT TIME ZONE`: `createdAt` es `timestamp(3)` sin zona (ver CLAUDE.md).
+    const [consumptionRows, netRows, firstDeduction] = await Promise.all([
+      this.prisma.$queryRaw<{ day: Date; credits: number }[]>`
+        SELECT (("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${timezone})::date AS day,
+               COALESCE(SUM(-amount), 0)::int AS credits
+        FROM credit_transactions
+        WHERE "organizationId" = ${organizationId} AND type = 'EXECUTION_DEDUCTION'
+          AND "createdAt" >= ${windowStart}
+        GROUP BY 1
+      `,
+      this.prisma.$queryRaw<{ day: Date; net: number }[]>`
+        SELECT (("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${timezone})::date AS day,
+               COALESCE(SUM(amount), 0)::int AS net
+        FROM credit_transactions
+        WHERE "organizationId" = ${organizationId} AND "createdAt" >= ${historyStartDay}
+        GROUP BY 1
+      `,
+      this.prisma.creditTransaction.findFirst({
+        where: { organizationId, type: 'EXECUTION_DEDUCTION' },
+        orderBy: { createdAt: 'asc' },
+        select: { createdAt: true },
+      }),
+    ]);
+
+    // `::date` llega como medianoche UTC de ese día local: se lee el Y-M-D en UTC.
+    const dayOf = (value: Date) => value.toISOString().slice(0, 10);
+    const todayKey = zonedDayKey(today, timezone);
+    const dailyConsumption = new Map<string, number>();
+    let consumedToday = 0;
+    for (const row of consumptionRows) {
+      const key = dayOf(row.day);
+      if (key === todayKey) consumedToday = Number(row.credits);
+      else dailyConsumption.set(key, Number(row.credits));
+    }
+
+    // Se renueva solo si la suscripción está al día, no se cancela y su fin aún no pasó: una
+    // manual vencida y sin renovar no repone nada por sí sola.
+    const subscription = organization.subscription;
+    const renewalDate =
+      subscription &&
+      subscription.status === 'ACTIVE' &&
+      !subscription.cancelAtPeriodEnd &&
+      limits.monthlyCredits > 0 &&
+      subscription.currentPeriodEnd > now
+        ? subscription.currentPeriodEnd
+        : null;
+
+    // Historial real: desde la primera ejecución cobrada (o la creación, si fue después).
+    const historyStart =
+      firstDeduction && firstDeduction.createdAt > organization.createdAt
+        ? firstDeduction.createdAt
+        : organization.createdAt;
+
+    const projection = projectCredits({
+      now,
+      timezone,
+      balance,
+      consumedToday,
+      dailyConsumption,
+      historyStart,
+      renewalDate,
+      overageLimit: organization.allowOverages
+        ? (organization.overageLimit ?? limits.overageLimit)
+        : null,
+    });
+
+    // Saldo al cierre de cada día, hacia atrás desde el actual: cierre(d-1) = cierre(d) − neto(d).
+    const netByDay = new Map(netRows.map((row) => [dayOf(row.day), Number(row.net)]));
+    const history: CreditsProjectionResult['history'] = [];
+    let closing = balance;
+    for (let back = 0; back < PROJECTION_HISTORY_DAYS; back++) {
+      const key = zonedDayKey(addDaysInZone(today, -back, timezone), timezone);
+      history.unshift({ date: key, balance: closing });
+      closing -= netByDay.get(key) ?? 0;
+    }
+
+    return {
+      ...projection,
+      timezone,
+      balance,
+      monthlyCredits: limits.monthlyCredits,
+      history,
+    };
+  }
+
   async getDashboardData(
     organizationId: string,
     cursor?: string | null,
@@ -533,6 +664,8 @@ export class CreditsService {
     );
     return {
       ...balance,
+      // Desde las transacciones del periodo: la columna `currentMonthSpent` nunca se reinicia.
+      currentMonthSpent: (await creditsSpentInCurrentPeriod(this.prisma, organizationId)).credits,
       creditTransactions: await this.getCreditTransactionsForOrganization(
         organizationId,
         cursor,

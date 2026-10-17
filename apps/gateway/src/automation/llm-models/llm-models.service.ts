@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException, ConflictException } from '@nestjs/common';
 import { DEFAULT_PAGE_SIZE } from '@tesseract/types';
 import { PrismaService } from '@/platform/database/prisma.service';
+import { Prisma } from '@tesseract/database';
 import {
   CreateLlmModelDto,
   UpdateLlmModelDto,
@@ -67,7 +68,7 @@ export class LlmModelsService {
     const { search, tier, isActive, llmCategoryId, page = 1, limit = DEFAULT_PAGE_SIZE } = query;
     const skip = (page - 1) * limit;
 
-    const where: any = {};
+    const where: Prisma.LlmModelWhereInput = {};
     if (search) {
       where.OR = [
         { provider: { contains: search, mode: 'insensitive' } },
@@ -235,6 +236,11 @@ export class LlmModelsService {
           outputPricePer1m: dto.outputPricePer1m,
           contextWindow: current.contextWindow,
           recommendedMaxTokens: current.recommendedMaxTokens,
+          // Las capacidades son del modelo, no del precio: sin copiarlas, un cambio de
+          // precio dejaba al modelo con los defaults y el validador empezaba a rechazar
+          // configs que antes pasaban (o a dejar pasar temperature donde no aplica).
+          supportsTemperature: current.supportsTemperature,
+          allowedParams: current.allowedParams as Prisma.InputJsonValue,
           currency: current.currency,
           effectiveFrom: now,
           effectiveTo: null,

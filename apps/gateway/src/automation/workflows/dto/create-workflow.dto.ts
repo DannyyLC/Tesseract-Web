@@ -102,7 +102,7 @@ export interface WorkflowConfig {
   type: 'agent';
   graph: {
     type: 'react' | 'supervisor' | 'router' | 'sequential' | 'parallel';
-    config?: Record<string, any>;
+    config?: Record<string, unknown>;
   };
   agents: Record<
     string,

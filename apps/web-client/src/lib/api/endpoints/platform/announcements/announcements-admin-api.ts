@@ -1,3 +1,4 @@
+import { unwrapData } from '@/lib/api/unwrap-data';
 import ApiRequestManager from '../../../api-request-manager';
 import {
   AdminAnnouncementDto,
@@ -21,12 +22,32 @@ export interface AdminAnnouncementsQuery {
   limit?: number;
 }
 
+export interface AdminAnnouncementsOverview {
+  status: { published: number; draft: number; expired: number; unpublished: number };
+  engagement: {
+    days: number;
+    delivered: number;
+    read: number;
+    dismissed: number;
+    /** Entregas de anuncios con botón: la base de la tasa de clics. */
+    ctaDelivered: number;
+    ctaClicked: number;
+  };
+}
+
 class AnnouncementsAdminApi {
   public apiRequestManager: ApiRequestManager;
   private static BASE_URL = '/admin/announcements';
 
   constructor() {
     this.apiRequestManager = ApiRequestManager.getInstance();
+  }
+
+  public async getOverview(): Promise<AdminAnnouncementsOverview> {
+    const result = await this.apiRequestManager.get<ApiResponse<AdminAnnouncementsOverview>>(
+      `${AnnouncementsAdminApi.BASE_URL}/overview`,
+    );
+    return unwrapData(result);
   }
 
   public async list(query: AdminAnnouncementsQuery = {}): Promise<AdminAnnouncementsListResult> {
@@ -40,14 +61,14 @@ class AnnouncementsAdminApi {
     const result = await this.apiRequestManager.get<ApiResponse<AdminAnnouncementsListResult>>(
       `${AnnouncementsAdminApi.BASE_URL}${qs ? `?${qs}` : ''}`,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async getById(id: string): Promise<AdminAnnouncementDto> {
     const result = await this.apiRequestManager.get<ApiResponse<AdminAnnouncementDto>>(
       `${AnnouncementsAdminApi.BASE_URL}/${id}`,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async audiencePreview(
@@ -61,7 +82,7 @@ class AnnouncementsAdminApi {
     const result = await this.apiRequestManager.get<ApiResponse<AudiencePreviewDto>>(
       `${AnnouncementsAdminApi.BASE_URL}/audience-preview?${params.toString()}`,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async create(dto: CreateAnnouncementDto): Promise<AdminAnnouncementDto> {
@@ -69,7 +90,7 @@ class AnnouncementsAdminApi {
       AnnouncementsAdminApi.BASE_URL,
       dto,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async update(id: string, dto: UpdateAnnouncementDto): Promise<AdminAnnouncementDto> {
@@ -77,7 +98,7 @@ class AnnouncementsAdminApi {
       `${AnnouncementsAdminApi.BASE_URL}/${id}`,
       dto,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async publish(id: string): Promise<{ delivered: number }> {
@@ -85,7 +106,7 @@ class AnnouncementsAdminApi {
       `${AnnouncementsAdminApi.BASE_URL}/${id}/publish`,
       {},
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async unpublish(id: string): Promise<AdminAnnouncementDto> {
@@ -93,7 +114,7 @@ class AnnouncementsAdminApi {
       `${AnnouncementsAdminApi.BASE_URL}/${id}/unpublish`,
       {},
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 }
 

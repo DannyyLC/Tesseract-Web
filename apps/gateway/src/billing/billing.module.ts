@@ -15,7 +15,13 @@ import { AnalyticsModule } from './analytics/analytics.module';
  *   inquilino, así que no hace falta exportarlo)
  */
 @Module({
-  imports: [SubscriptionsModule, CreditsModule, InvoiceModule, FiscalProfileModule, AnalyticsModule],
+  imports: [
+    SubscriptionsModule,
+    CreditsModule,
+    InvoiceModule,
+    FiscalProfileModule,
+    AnalyticsModule,
+  ],
   exports: [SubscriptionsModule, CreditsModule, InvoiceModule, FiscalProfileModule],
 })
 export class BillingModule {}

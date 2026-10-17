@@ -37,7 +37,7 @@ export const BackupCodesPanel = ({ codes }: BackupCodesPanelProps) => {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-3 rounded-xl bg-warning-500/10 p-4 text-warning-500">
+      <div className="bg-warning-500/10 flex gap-3 rounded-xl p-4 text-warning-500">
         <AlertTriangle className="h-5 w-5 flex-shrink-0" />
         <div>
           <p className="text-sm font-medium">{t('warningHeading')}</p>
@@ -47,10 +47,7 @@ export const BackupCodesPanel = ({ codes }: BackupCodesPanelProps) => {
 
       <ul className="grid grid-cols-2 gap-2 rounded-xl bg-surface-secondary p-4">
         {codes.map((code) => (
-          <li
-            key={code}
-            className="text-center font-mono text-sm tracking-wider text-text-primary"
-          >
+          <li key={code} className="text-center font-mono text-sm tracking-wider text-text-primary">
             {code}
           </li>
         ))}

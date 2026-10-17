@@ -79,6 +79,21 @@ export interface Message {
   attachments?: MessageAttachment[];
 }
 
+/**
+ * Quién escribió el último mensaje de una conversación.
+ *
+ * El rol del mensaje no alcanza para distinguirlos: un turno `ASSISTANT` puede haberlo
+ * escrito el modelo o una persona del equipo —respondiendo desde el panel con la
+ * conversación intervenida, o directo desde la app de WhatsApp/Messenger— y en el
+ * historial los dos quedan con el mismo rol. El gateway lo resuelve leyendo la metadata
+ * del propio mensaje; ver `resolveLastMessageAuthor` en el gateway.
+ *
+ * - `END_USER`: el cliente del otro lado del canal.
+ * - `AI`: el asistente, generado por el workflow.
+ * - `HUMAN_AGENT`: alguien del equipo escribiendo por el asistente.
+ */
+export type LastMessageAuthor = 'END_USER' | 'AI' | 'HUMAN_AGENT';
+
 export interface ConversationDto {
   id: string;
   title?: string;
@@ -137,6 +152,14 @@ export interface DashboardConversationDto {
   messengerSenderId: string | null;
   messageCount: number;
   lastMessageAt: Date | null;
+  /**
+   * Texto del último mensaje del hilo, ya recortado en el gateway. NULL cuando la
+   * conversación todavía no tiene mensajes, o cuando el último solo trae un adjunto
+   * (una imagen sin texto): ahí hay autor pero no hay nada que citar.
+   */
+  lastMessagePreview: string | null;
+  /** Autor de ese último mensaje. NULL cuando la conversación no tiene mensajes. */
+  lastMessageAuthor: LastMessageAuthor | null;
   workflowId: string;
   closedAt: Date | null;
   userId: string | null;

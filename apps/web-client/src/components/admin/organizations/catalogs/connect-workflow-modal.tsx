@@ -71,16 +71,19 @@ export function ConnectWorkflowModal({
 
         <div className="space-y-2">
           <div className="relative">
-            <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
+            <Search
+              size={16}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary"
+            />
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder={t('searchWorkflowPlaceholder')}
-              className="w-full rounded-lg border border-border bg-surface py-2 pl-9 pr-3 text-sm text-text-primary outline-none focus:border-border-focus"
+              className="w-full rounded-xl border border-border bg-surface py-2 pl-9 pr-3 text-sm text-text-primary outline-none transition-colors focus:border-accent"
             />
           </div>
 
-          <div className="max-h-64 overflow-y-auto rounded-lg border border-border">
+          <div className="max-h-64 space-y-1 overflow-y-auto rounded-xl border border-border p-1.5">
             {isLoading ? (
               <div className="flex h-24 items-center justify-center">
                 <Loader2 size={18} className="animate-spin text-text-secondary" />
@@ -99,11 +102,15 @@ export function ConnectWorkflowModal({
                     key={workflow.id}
                     type="button"
                     onClick={() => setWorkflowId(workflow.id)}
-                    className={`flex w-full items-center gap-3 border-b border-border px-3 py-2 text-left transition-colors last:border-b-0 ${
-                      selected ? 'bg-surface-secondary' : 'hover:bg-surface-secondary'
+                    className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors ${
+                      selected
+                        ? 'bg-[var(--surface-tint)] font-medium'
+                        : 'hover:bg-[var(--surface-tint)]'
                     }`}
                   >
-                    <span className="min-w-0 flex-1 truncate text-sm text-text-primary">{workflow.name}</span>
+                    <span className="min-w-0 flex-1 truncate text-sm text-text-primary">
+                      {workflow.name}
+                    </span>
                     {selected && <Check size={16} className="shrink-0 text-accent" />}
                   </button>
                 );
@@ -116,7 +123,11 @@ export function ConnectWorkflowModal({
           <button className={btnGhost} onClick={close}>
             {t('cancel')}
           </button>
-          <button className={btnPrimary} onClick={handleConnect} disabled={!workflowId || linkWorkflow.isPending}>
+          <button
+            className={btnPrimary}
+            onClick={handleConnect}
+            disabled={!workflowId || linkWorkflow.isPending}
+          >
             {linkWorkflow.isPending && <Loader2 size={16} className="animate-spin" />}
             {linkWorkflow.isPending ? t('connecting') : t('connect')}
           </button>

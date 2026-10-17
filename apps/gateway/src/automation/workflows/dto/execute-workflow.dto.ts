@@ -33,7 +33,7 @@ export class ExecuteWorkflowDto implements IExecuteWorkflowDto {
    */
   @IsObject()
   @IsNotEmpty({ message: 'Los datos de entrada son requeridos' })
-  input!: Record<string, any>;
+  input!: Record<string, unknown>;
 
   /**
    * Metadata adicional (opcional)
@@ -43,5 +43,5 @@ export class ExecuteWorkflowDto implements IExecuteWorkflowDto {
    */
   @IsObject()
   @IsOptional()
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }

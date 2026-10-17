@@ -1,4 +1,13 @@
-import { HttpService } from '@nestjs/axios';
+import { readExecutionResult } from '@/automation/executions/execution-result';
+import { AgentLlmFailedException } from '@/platform/common/exceptions';
+import {
+  ProcessedAttachment
+} from '@/automation/media-processing/media-processing.service';
+import { WorkflowsService } from '@/automation/workflows/workflows.service';
+import { ConversationsService } from '@/messaging/conversations/conversations.service';
+import { maskPhone } from '@/platform/common/utils/mask-phone';
+import { CloudTasksOidcGuard } from '@/platform/tasks/cloud-tasks-oidc.guard';
+import { CloudTasksService } from '@/platform/tasks/cloud-tasks.service';
 import {
   Body,
   Controller,
@@ -10,44 +19,37 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
-import { ConversationChannel, TriggerType } from '@tesseract/database';
+import { JsonObject } from '@prisma/client/runtime/client';
+import {
+  ChatRole,
+  Conversation,
+  ConversationChannel,
+  TriggerType,
+  WhatsAppConfig,
+} from '@tesseract/database';
 import { Response } from 'express';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
-import { firstValueFrom } from 'rxjs';
 import { Logger } from 'winston';
-import {
-  MediaPolicy,
-  approximateAudioSeconds,
-  maxAudioBytes,
-} from '@/automation/media-processing/media-policy';
-import {
-  MediaProcessingService,
-  ProcessedAttachment,
-} from '@/automation/media-processing/media-processing.service';
-import { WorkflowsService } from '@/automation/workflows/workflows.service';
-import { ConversationsService } from '@/messaging/conversations/conversations.service';
-import { maskPhone } from '@/platform/common/utils/mask-phone';
-import { CloudTasksOidcGuard } from '@/platform/tasks/cloud-tasks-oidc.guard';
-import { CloudTasksService } from '@/platform/tasks/cloud-tasks.service';
-import { JsonObject } from '@prisma/client/runtime/client';
 import {
   TURN_MAX_WAIT_SECONDS,
   TURN_POLL_SECONDS,
 } from '../../../shared/channel-message-queue.service';
+import { IWBPayloadConsumer } from '../../payload-consumers/wb-payload-consumer.interface';
+import { WBPayloadConsumerResolver } from '../../payload-consumers/wb-payload-consumer.resolver';
+import { isSupportedWhatsAppProvider } from '../../transporters/wb-transporter.interface';
 import { WhatsappConfigService } from '../../whatsapp-config.service';
 import {
   BufferedMessage,
   WHATSAPP_MAX_WINDOW_SECONDS,
   WHATSAPP_WINDOW_SECONDS,
-  WhatsappMessageQueueService,
+  WhatsappMessageQueueService
 } from '../../whatsapp-message-queue.service';
-import { WhatsAppInboundEvent } from '../../dto';
 import { WHATSAPP_WORKER_PATH } from '../../whatsapp-worker.constants';
 
 interface ProcessWindowBody {
   organizationId: string;
-  phoneNumber: string;
-  userNumber: string;
+  agentPhoneNumber: string;
+  clientPhoneNumber: string;
   windowId: string;
   /** Epoch ms del primer mensaje de la ventana; sirve para aplicar el tope total. */
   windowStartedAt?: number;
@@ -61,7 +63,10 @@ interface ProcessWindowBody {
 }
 
 /** Lo que el worker le contesta a Cloud Tasks; el status decide si reintenta. */
-type WindowOutcome = { status: HttpStatus; body: Record<string, unknown> };
+interface WindowOutcome {
+  status: HttpStatus;
+  body: Record<string, unknown>;
+}
 
 /**
  * Procesamiento diferido de los mensajes de WhatsApp.
@@ -81,24 +86,23 @@ type WindowOutcome = { status: HttpStatus; body: Record<string, unknown> };
 @Controller('whatsapp-config/internal')
 export class WhatsappWorkerController {
   constructor(
-    private readonly httpService: HttpService,
     private readonly whatsappConfigService: WhatsappConfigService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
     private readonly workflowsService: WorkflowsService,
     private readonly whatsappMessageQueueService: WhatsappMessageQueueService,
-    private readonly mediaProcessingService: MediaProcessingService,
     private readonly conversationsService: ConversationsService,
     private readonly cloudTasks: CloudTasksService,
+    private readonly payloadConsumerResolver: WBPayloadConsumerResolver,
   ) {}
 
   @Post('process-window')
   async processWindow(@Body() body: ProcessWindowBody, @Res() res: Response) {
-    const { organizationId, phoneNumber, userNumber, windowId } = body;
-    // `userNumber` es el teléfono del cliente y se arrastra a todas las líneas de log de
-    // este worker, así que se enmascara aquí una sola vez. `phoneNumber` es el número del
+    const { organizationId, agentPhoneNumber, clientPhoneNumber, windowId } = body;
+    // `clientPhoneNumber` es el teléfono del cliente y se arrastra a todas las líneas de log de
+    // este worker, así que se enmascara aquí una sola vez. `agentPhoneNumber` es el número del
     // tenant —no es dato personal de nadie— y se deja entero para poder identificar la
     // cuenta. El enmascarado es determinista: se puede seguir buscando en Cloud Logging.
-    const logContext = { organizationId, phoneNumber, userNumber: maskPhone(userNumber), windowId };
+    const logContext = { organizationId, agentPhoneNumber, clientPhoneNumber: maskPhone(clientPhoneNumber), windowId };
 
     // Ventana deslizante: si el último mensaje es más reciente que el silencio
     // requerido, la persona sigue escribiendo. Se reagenda sin tocar el buffer para
@@ -113,8 +117,8 @@ export class WhatsappWorkerController {
     // ventana espera sin tocar el buffer, y lo que llegue mientras tanto se junta en ella.
     const turn = await this.whatsappMessageQueueService.acquireTurn(
       organizationId,
-      phoneNumber,
-      userNumber,
+      agentPhoneNumber,
+      clientPhoneNumber,
     );
     if (!turn.acquired) {
       const waiting = await this.deferWhileBusy(body, logContext);
@@ -132,8 +136,8 @@ export class WhatsappWorkerController {
     } finally {
       await this.whatsappMessageQueueService.releaseTurn(
         organizationId,
-        phoneNumber,
-        userNumber,
+        agentPhoneNumber,
+        clientPhoneNumber,
         turn.token,
       );
     }
@@ -150,12 +154,12 @@ export class WhatsappWorkerController {
     body: ProcessWindowBody,
     logContext: Record<string, unknown>,
   ): Promise<WindowOutcome> {
-    const { organizationId, phoneNumber, userNumber, windowId } = body;
+    const { organizationId, agentPhoneNumber, clientPhoneNumber, windowId } = body;
 
     const drained = await this.whatsappMessageQueueService.drainWindow(
       organizationId,
-      phoneNumber,
-      userNumber,
+      agentPhoneNumber,
+      clientPhoneNumber,
       windowId,
     );
 
@@ -167,7 +171,7 @@ export class WhatsappWorkerController {
     }
 
     try {
-      const account = await this.whatsappConfigService.getWhatsappConfigByPhoneNumber(phoneNumber);
+      const account = await this.whatsappConfigService.getWhatsappConfigByPhoneNumber(agentPhoneNumber);
 
       if (!account) {
         this.logger.warn('No Whatsapp-Config Account found for: ', logContext);
@@ -175,15 +179,33 @@ export class WhatsappWorkerController {
         return { status: HttpStatus.OK, body: { processed: false, reason: 'ausent-config' } };
       }
 
-      const yCloudApiKey = process.env.Y_CLOUD_API_KEY;
-      if (!yCloudApiKey || !account.defaultWorkflowId) {
-        this.logger.error('Falta Y_CLOUD_API_KEY o defaultWorkflowId; no se puede responder', {
-          ...logContext,
-          hasApiKey: Boolean(yCloudApiKey),
-          defaultWorkflowId: account.defaultWorkflowId,
-        });
+      // El webhook ya descarta los números sin aprobar; esto cubre una ventana que se agendó
+      // antes de que un super admin revocara o de que el número se diera de alta de nuevo.
+      if (!account.approvedAt) {
+        this.logger.warn('Número de WhatsApp sin aprobar; no se responde', logContext);
+        await this.commit(drained.processingKey);
+        return { status: HttpStatus.OK, body: { processed: false, reason: 'unapproved-config' } };
+      }
+
+      if (!account.defaultWorkflowId) {
+        this.logger.error('Falta defaultWorkflowId; no se puede responder', logContext);
         await this.commit(drained.processingKey);
         return { status: HttpStatus.OK, body: { processed: false, reason: 'missing-config' } };
+      }
+
+      // `account.provider` es un dato de la base, no algo que este flujo controle: un
+      // proveedor no soportado (typo, migración a medias, un valor que se dio de baja)
+      // es un problema de configuración permanente, no una falla transitoria. Cortar
+      // aquí evita que `interpretMessages`/`markMessagesAsRead` lo descubran más
+      // adelante y devuelvan 500 — un reintento de Cloud Tasks jamás lo arregla, así
+      // que insistir solo quema cuota sin que el cliente reciba nunca una respuesta.
+      if (!isSupportedWhatsAppProvider(account.provider)) {
+        this.logger.error('Proveedor de WhatsApp no soportado; no se puede responder', {
+          ...logContext,
+          provider: account.provider,
+        });
+        await this.commit(drained.processingKey);
+        return { status: HttpStatus.OK, body: { processed: false, reason: 'unsupported-provider' } };
       }
 
       // Si un humano ya tomó la conversación, el bot no emite nada en todo el turno: ni
@@ -195,7 +217,7 @@ export class WhatsappWorkerController {
       // efectos visibles que ocurren antes de llegar ahí.
       const conversation = await this.conversationsService.findActiveWhatsappConversation(
         account.id,
-        userNumber,
+        clientPhoneNumber,
       );
       const isIntervened = conversation?.isHumanInTheLoop === true;
 
@@ -206,11 +228,22 @@ export class WhatsappWorkerController {
       // de ejecutarlo, y en un workflow que a veces decide no contestar prometería una
       // respuesta que no va a llegar.
       if (!isIntervened && presenceIndicators) {
-        // Marcar como leído cuanto antes: es la señal de vida que ve el usuario.
-        await this.markMsgsAsReadAndSendTypingIndicator(
-          yCloudApiKey,
-          drained.messages.map((message) => message.messageId),
-        );
+        // Marcar como leído cuanto antes: es la señal de vida que ve el usuario. Es
+        // best-effort y va en su propio try/catch a propósito: es una cortesía visual,
+        // no la respuesta en sí, y un fallo acá (transporter caído, credencial mala)
+        // no debe tumbar el resto del turno ni impedir que el cliente reciba su
+        // respuesta real.
+        try {
+          await this.whatsappConfigService.markMessagesAsRead(
+            agentPhoneNumber,
+            drained.messages.map((message) => message.messageId),
+          );
+        } catch (error) {
+          this.logger.warn('No se pudo marcar la ventana como leída / mandar el typing indicator', {
+            ...logContext,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
       }
 
       if (account.connectionStatus !== 'CONNECTED') {
@@ -218,14 +251,12 @@ export class WhatsappWorkerController {
       }
 
       if (account.phoneNumber == null || account.phoneNumber === '') {
-        await this.whatsappConfigService.updatePhoneNumber(account.id, phoneNumber);
+        await this.whatsappConfigService.updatePhoneNumber(account.id, agentPhoneNumber);
       }
 
       const interpreted = await this.interpretMessages(
-        organizationId,
         drained.messages,
-        policy,
-        logContext,
+        account
       );
 
       // Los avisos van primero y el texto se sigue procesando: si alguien manda una
@@ -234,21 +265,24 @@ export class WhatsappWorkerController {
       // texto del bot y el bot está apagado.
       if (!isIntervened) {
         for (const notice of interpreted.notices) {
-          await this.whatsappConfigService.sendTextMessage(phoneNumber, userNumber, notice);
+          await this.whatsappConfigService.sendTextMessage(agentPhoneNumber, clientPhoneNumber, notice);
         }
       }
 
       if (!interpreted.aggregatedText.trim()) {
+        // Lo que de verdad le llegó al cliente, para dejarlo en el historial tal cual.
+        const sentNotices = isIntervened ? [] : [...interpreted.notices];
         if (interpreted.notices.length === 0) {
           // Red de seguridad: ningún camino conocido llega aquí sin haber avisado, pero
           // si aparece uno nuevo, el usuario recibe algo en vez de silencio. Salvo con la
           // conversación intervenida, donde el silencio es justamente lo correcto.
           if (!isIntervened) {
             await this.whatsappConfigService.sendTextMessage(
-              phoneNumber,
-              userNumber,
+              agentPhoneNumber,
+              clientPhoneNumber,
               policy.messages.unsupportedFormat,
             );
+            sentNotices.push(policy.messages.unsupportedFormat);
           }
           this.logger.error('No se pudo extraer texto de la ventana', {
             ...logContext,
@@ -256,6 +290,15 @@ export class WhatsappWorkerController {
             isIntervened,
           });
         }
+        await this.recordWindowWithoutText(
+          account,
+          agentPhoneNumber,
+          clientPhoneNumber,
+          conversation,
+          interpreted.transcript,
+          sentNotices,
+          logContext,
+        );
         await this.commit(drained.processingKey);
         return { status: HttpStatus.OK, body: { processed: false, reason: 'no-text' } };
       }
@@ -273,7 +316,9 @@ export class WhatsappWorkerController {
       const execution = await this.workflowsService.execute(
         organizationId,
         account.defaultWorkflowId,
-        { message: interpreted.aggregatedText },
+        // El transcript y no solo el texto: con los marcadores, el LLM sabe que el cliente
+        // mandó también un sticker o una foto que no pudo ver.
+        { message: interpreted.transcript },
         {
           channel: ConversationChannel.WHATSAPP,
           // Ya procesados aquí: `execute()` no debe volver a transcribirlos.
@@ -281,12 +326,12 @@ export class WhatsappWorkerController {
           preProcessedAttachments: interpreted.attachments,
         },
         undefined,
-        interpreted.primaryEvent,
+        interpreted.payloadConsumer,
         undefined,
         TriggerType.WEBHOOK,
       );
 
-      const result = execution.result as any;
+      const result = readExecutionResult(execution.result);
       const messages = result?.messages ?? [];
       const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
       const assistantContent = lastMessage?.role === 'assistant' ? lastMessage.content : null;
@@ -320,7 +365,7 @@ export class WhatsappWorkerController {
       // Responder ANTES de consultar la conversación: `findOne` lanza si el id viene
       // vacío o la conversación está borrada, y hacerlo primero tiraba al piso una
       // respuesta ya generada y ya cobrada al tenant.
-      await this.whatsappConfigService.sendTextMessage(phoneNumber, userNumber, assistantContent);
+      await this.whatsappConfigService.sendTextMessage(agentPhoneNumber, clientPhoneNumber, assistantContent);
 
       // A partir de aquí el usuario ya tiene su respuesta: la ventana se cierra pase
       // lo que pase, para que un reintento no vuelva a ejecutar el workflow.
@@ -333,10 +378,10 @@ export class WhatsappWorkerController {
         );
 
         await this.whatsappConfigService.handleActionsDerivatedFromMetadata(
-          result?.conversationId,
+          conversation.id,
           organizationId,
           conversation?.metadata as JsonObject,
-          interpreted.primaryEvent,
+          interpreted.payloadConsumer,
           account.defaultWorkflowId,
         );
       } catch (metadataError) {
@@ -363,6 +408,19 @@ export class WhatsappWorkerController {
         return { status: HttpStatus.OK, body: { processed: false, reason: 'blocked' } };
       }
 
+      if (error instanceof AgentLlmFailedException) {
+        // El modelo no respondió (ni sus fallbacks). Reintentar repetiría las tools y avisos
+        // que el turno ya ejecutó y casi siempre falla igual, así que la ventana se confirma
+        // y al cliente no se le manda nada. La ejecución ya quedó FAILED y la conversación
+        // marcada para seguimiento del equipo (WorkflowsService.execute).
+        await this.commit(drained.processingKey);
+        this.logger.error('El modelo no respondió, ventana confirmada sin reintento', {
+          ...logContext,
+          reason: error.message,
+        });
+        return { status: HttpStatus.OK, body: { processed: false, reason: 'llm-failed' } };
+      }
+
       // La ventana NO se confirma: sigue en Redis para que el reintento la retome.
       this.logger.error('Error procesando la ventana de WhatsApp', {
         ...logContext,
@@ -385,12 +443,12 @@ export class WhatsappWorkerController {
     body: ProcessWindowBody,
     logContext: Record<string, unknown>,
   ): Promise<Record<string, unknown> | null> {
-    const { organizationId, phoneNumber, userNumber, windowId } = body;
+    const { organizationId, agentPhoneNumber, clientPhoneNumber, windowId } = body;
 
     const lastBufferedAt = await this.whatsappMessageQueueService.peekLastBufferedAt(
       organizationId,
-      phoneNumber,
-      userNumber,
+      agentPhoneNumber,
+      clientPhoneNumber,
     );
 
     if (lastBufferedAt === null) {
@@ -427,12 +485,12 @@ export class WhatsappWorkerController {
       taskId: [
         'wa',
         CloudTasksService.sanitizeIdPart(organizationId),
-        CloudTasksService.sanitizeIdPart(phoneNumber),
-        CloudTasksService.sanitizeIdPart(userNumber),
+        CloudTasksService.sanitizeIdPart(agentPhoneNumber),
+        CloudTasksService.sanitizeIdPart(clientPhoneNumber),
         windowId,
         `x${extension}`,
       ].join('-'),
-      payload: { organizationId, phoneNumber, userNumber, windowId, windowStartedAt, extension },
+      payload: { organizationId, agentPhoneNumber, clientPhoneNumber, windowId, windowStartedAt, extension },
     });
 
     this.logger.debug('La persona sigue escribiendo, se extiende la ventana', {
@@ -455,16 +513,19 @@ export class WhatsappWorkerController {
     body: ProcessWindowBody,
     logContext: Record<string, unknown>,
   ): Promise<Record<string, unknown> | null> {
-    const { organizationId, phoneNumber, userNumber, windowId } = body;
+    const { organizationId, agentPhoneNumber, clientPhoneNumber, windowId } = body;
 
     const now = Date.now();
     const busySince = body.busySince ?? now;
 
     if (now - busySince >= TURN_MAX_WAIT_SECONDS * 1000) {
-      this.logger.error('La conversación sigue ocupada tras el tope de espera; se procesa sin turno', {
-        ...logContext,
-        waitedMs: now - busySince,
-      });
+      this.logger.error(
+        'La conversación sigue ocupada tras el tope de espera; se procesa sin turno',
+        {
+          ...logContext,
+          waitedMs: now - busySince,
+        },
+      );
       return null;
     }
 
@@ -476,15 +537,15 @@ export class WhatsappWorkerController {
       taskId: [
         'wa',
         CloudTasksService.sanitizeIdPart(organizationId),
-        CloudTasksService.sanitizeIdPart(phoneNumber),
-        CloudTasksService.sanitizeIdPart(userNumber),
+        CloudTasksService.sanitizeIdPart(agentPhoneNumber),
+        CloudTasksService.sanitizeIdPart(clientPhoneNumber),
         windowId,
         `x${extension}`,
       ].join('-'),
       payload: {
         organizationId,
-        phoneNumber,
-        userNumber,
+        agentPhoneNumber,
+        clientPhoneNumber,
         windowId,
         // El tope de la ventana deslizante cuenta desde que se libera la conversación, no
         // desde el primer mensaje: si no, tras un turno largo se respondería sin esperar
@@ -517,126 +578,111 @@ export class WhatsappWorkerController {
    * que un tipo apagado no cuesta ni un byte.
    */
   private async interpretMessages(
-    organizationId: string,
     messages: BufferedMessage[],
-    policy: MediaPolicy,
-    logContext: Record<string, unknown>,
+    account: WhatsAppConfig
   ): Promise<{
     aggregatedText: string;
-    primaryEvent: WhatsAppInboundEvent;
+    transcript: string;
+    payloadConsumer: IWBPayloadConsumer;
     attachments?: ProcessedAttachment[];
     notices: string[];
     mediaErrors: string[];
   }> {
     const parts: string[] = [];
+    // Lo mismo que `parts`, más un marcador por cada cosa que no llegó como texto, en el
+    // orden en que llegó. Es lo que se guarda y lo que ve el LLM.
+    const transcriptParts: string[] = [];
     const mediaErrors: string[] = [];
     const attachments: ProcessedAttachment[] = [];
     // Set para no repetir el mismo aviso si mandan tres imágenes seguidas.
     const notices = new Set<string>();
+    // El primer mensaje representa la ventana: es el que aporta el contexto de
+    // remitente a `execute()`, igual que hacía el "dueño" de la ventana.
+    let ownerPayloadConsumer: IWBPayloadConsumer | undefined;
 
     for (const buffered of messages) {
-      const inbound = buffered.event.whatsappInboundMessage;
+      // Cada mensaje de la ráfaga trae su propio payload y necesita su propio consumer:
+      // uno solo, construido con el evento del primer mensaje, devolvería siempre la
+      // misma interpretación sin importar cuántos mensajes tenga la ventana. La política
+      // de cada tipo vive en el consumer del proveedor; aquí solo se agrega el resultado
+      // de cada mensaje.
+      const payloadConsumer = await this.payloadConsumerResolver.forProvider(
+        account.provider,
+        buffered.event,
+      );
+      if (!ownerPayloadConsumer) ownerPayloadConsumer = payloadConsumer;
 
-      switch (inbound.type) {
-        case 'text':
-          if (inbound.text?.body) {
-            parts.push(inbound.text.body);
-          }
-          break;
+      const interpreted = await payloadConsumer.getInterpretedMessage();
 
-        case 'image':
-          if (!policy.image.enabled) {
-            notices.add(policy.messages.imageDisabled);
-            break;
-          }
-          if (inbound.image?.caption) {
-            parts.push(inbound.image.caption);
-          }
-          break;
-
-        case 'video':
-          notices.add(policy.messages.videoDisabled);
-          this.logger.warn('Mensaje de video recibido, no soportado', {
-            ...logContext,
-            messageId: buffered.messageId,
-          });
-          break;
-
-        case 'audio': {
-          if (!policy.audio.enabled) {
-            notices.add(policy.messages.audioDisabled);
-            break;
-          }
-
-          const { attachments: processed } =
-            await this.mediaProcessingService.processIncomingAttachments(organizationId, [
-              {
-                type: 'AUDIO',
-                sourceUrl: inbound.audio?.link || '',
-                mimeType: inbound.audio?.mime_type || 'audio/ogg',
-                sha256: inbound.audio?.sha256,
-                maxBytes: maxAudioBytes(policy),
-              },
-            ]);
-
-          const attachment = processed?.[0];
-
-          if (attachment?.tooLarge) {
-            notices.add(policy.messages.audioTooLong);
-            this.logger.warn('Audio rechazado por exceder el límite', {
-              ...logContext,
-              messageId: buffered.messageId,
-              sizeBytes: attachment.sizeBytes,
-              // Aproximado: el webhook no trae la duración, se deriva del tamaño. Sirve
-              // para entender de un vistazo si el límite está bien calibrado.
-              approxSeconds: attachment.sizeBytes
-                ? approximateAudioSeconds(attachment.sizeBytes)
-                : undefined,
-              maxSeconds: policy.audio.maxSeconds,
-            });
-            break;
-          }
-
-          if (!attachment?.processedText) {
-            // Avisar aunque la ventana traiga texto además del audio. Antes, si venían
-            // juntos, se contestaba al texto y el audio moría en silencio: el usuario
-            // veía una respuesta y se quedaba pensando por qué ignoramos su nota de voz.
-            notices.add(policy.messages.audioFailed);
-            mediaErrors.push(attachment?.processingError ?? 'STT sin texto');
-            this.logger.error('Falló la transcripción de un audio', {
-              ...logContext,
-              messageId: buffered.messageId,
-              error: attachment?.processingError,
-            });
-            break;
-          }
-
-          parts.push(attachment.processedText);
-          attachments.push(attachment);
-          break;
-        }
-
-        default:
-          // Stickers, documentos, ubicaciones, contactos. Antes solo se registraba y el
-          // usuario no recibía nada.
-          notices.add(policy.messages.unsupportedFormat);
-          this.logger.warn('Tipo de mensaje de WhatsApp no manejado', {
-            ...logContext,
-            messageId: buffered.messageId,
-            type: inbound.type,
-          });
+      if (interpreted.placeholder) transcriptParts.push(interpreted.placeholder);
+      if (interpreted.text) {
+        parts.push(interpreted.text);
+        transcriptParts.push(interpreted.text);
       }
+      if (interpreted.attachment) attachments.push(interpreted.attachment);
+      if (interpreted.notice) notices.add(interpreted.notice);
+      if (interpreted.mediaError) mediaErrors.push(interpreted.mediaError);
     }
 
     return {
-      aggregatedText: parts.map((part) => part.trim()).filter(Boolean).join('\n'),
-      // El primer mensaje representa la ventana: es el que aporta el contexto de
-      // remitente a `execute()`, igual que hacía el "dueño" de la ventana.
-      primaryEvent: messages[0].event,
+      aggregatedText: joinParts(parts),
+      transcript: joinParts(transcriptParts),
+      // `messages` nunca está vacío al llegar aquí (el caller ya cortó ese caso), así
+      // que siempre queda asignado en la primera vuelta del for.
+      payloadConsumer: ownerPayloadConsumer as IWBPayloadConsumer,
       attachments: attachments.length > 0 ? attachments : undefined,
       notices: [...notices],
       mediaErrors,
     };
+  }
+
+  /**
+   * Deja en el historial una ventana que no llega a `execute()` porque no trae texto (solo un
+   * sticker, una ubicación, un audio que no se transcribió...): el marcador de lo que mandó el
+   * cliente y los avisos que se le enviaron. Sin esto el LLM no sabría, en el siguiente turno,
+   * que el cliente mandó algo, y el panel no lo mostraría.
+   *
+   * No ejecuta el workflow ni cobra. Es best-effort: el cliente ya recibió los avisos, y
+   * reintentar la ventana por un fallo aquí se los volvería a mandar.
+   */
+  private async recordWindowWithoutText(
+    account: WhatsAppConfig,
+    agentPhoneNumber: string,
+    clientPhoneNumber: string,
+    knownConversation: Conversation | null,
+    transcript: string,
+    sentNotices: string[],
+    logContext: Record<string, unknown>,
+  ): Promise<void> {
+    if (!transcript || !account.defaultWorkflowId) return;
+
+    try {
+      const conversation =
+        knownConversation ??
+        (await this.conversationsService.findOrCreateConversationFromWhatsAppMessage(
+          account.defaultWorkflowId,
+          agentPhoneNumber,
+          clientPhoneNumber,
+        ));
+
+      await this.conversationsService.addMessage(conversation.id, ChatRole.USER, transcript, {
+        source: 'unprocessed_media',
+      });
+      for (const notice of sentNotices) {
+        await this.conversationsService.addMessage(conversation.id, ChatRole.ASSISTANT, notice, {
+          source: 'media_notice',
+        });
+      }
+
+      await this.conversationsService.update(conversation.organizationId, conversation.id, {
+        messageCount: { increment: 1 + sentNotices.length },
+      });
+    } catch (error) {
+      this.logger.error('No se pudo guardar en el historial una ventana sin texto', {
+        ...logContext,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   private async commit(processingKey: string | null): Promise<void> {
@@ -644,29 +690,11 @@ export class WhatsappWorkerController {
       await this.whatsappMessageQueueService.commitWindow(processingKey);
     }
   }
+}
 
-  private async markMsgsAsReadAndSendTypingIndicator(
-    accessToken: string,
-    messageIds: string[],
-  ): Promise<void> {
-    const results = await Promise.allSettled(
-      messageIds.map((messageId) =>
-        firstValueFrom(
-          this.httpService.post(
-            `https://api.ycloud.com/v2/whatsapp/inboundMessages/${messageId}/typingIndicator`,
-            {},
-            { headers: { 'X-API-Key': accessToken, 'Content-Type': 'application/json' } },
-          ),
-        ),
-      ),
-    );
-
-    results.forEach((result, index) => {
-      if (result.status === 'rejected') {
-        this.logger.warn(`No se pudo marcar como leído el mensaje ${messageIds[index]}`, {
-          error: result.reason?.message,
-        });
-      }
-    });
-  }
+function joinParts(parts: string[]): string {
+  return parts
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join('\n');
 }

@@ -30,7 +30,7 @@ describe('CronJobsService', () => {
   };
 
   const mockCfdiRetryService = {
-    retryPending: jest.fn(async () => ({ attempted: 0, stamped: 0, failed: 0 })),
+    retryPending: jest.fn(() => Promise.resolve({ attempted: 0, stamped: 0, failed: 0 })),
   };
 
   beforeEach(async () => {

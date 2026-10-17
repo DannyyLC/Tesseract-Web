@@ -21,6 +21,19 @@ export function useAdminOrganizations(query: AdminOrganizationsQuery = {}) {
   });
 }
 
+/**
+ * Números de arriba del listado. Va bajo la misma clave que el listado para que las mutaciones
+ * que ya invalidan `admin-organizations` (desactivar, reactivar, límites…) también lo refresquen.
+ */
+export function useAdminOrganizationsOverview() {
+  return useQuery({
+    queryKey: [KEY, 'overview'],
+    queryFn: () => RootApi.getInstance().getAnalyticsAdminApi().getOrganizationsOverview(),
+    retry: false,
+    staleTime: 1000 * 60,
+  });
+}
+
 // Detalle de una organización
 export function useAdminOrganization(id: string) {
   return useQuery({
@@ -40,6 +53,7 @@ export function useAdminOrganizationMutations() {
   const invalidate = (id: string) => {
     queryClient.invalidateQueries({ queryKey: [KEY, 'detail', id] });
     queryClient.invalidateQueries({ queryKey: [KEY, 'list'] });
+    queryClient.invalidateQueries({ queryKey: [KEY, 'overview'] });
   };
 
   const updateCustomLimits = useMutation({

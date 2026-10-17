@@ -11,6 +11,7 @@ import { Loader2, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import Image from 'next/image';
+import { toApiError } from '@/lib/api/api-error';
 
 interface Enable2FAModalProps {
   isOpen: boolean;
@@ -44,7 +45,8 @@ export default function Enable2FAModal({ isOpen, onClose }: Enable2FAModalProps)
       } else {
         toast.error(t('noQrError'));
       }
-    } catch (error: any) {
+    } catch (caught) {
+      const error = toApiError(caught);
       toast.error(error.message || t('setupError'));
     }
   };
@@ -65,7 +67,8 @@ export default function Enable2FAModal({ isOpen, onClose }: Enable2FAModalProps)
       // Los códigos solo llegan aquí: si no se muestran ahora, se pierden.
       setBackupCodes(response.data?.backupCodes ?? []);
       setStep(3);
-    } catch (error: any) {
+    } catch (caught) {
+      const error = toApiError(caught);
       toast.error(error.message || t('invalidCode'));
     }
   };

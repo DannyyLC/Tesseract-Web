@@ -9,7 +9,7 @@ import type {
   AdminTenantTool,
   EditorContext,
 } from '@/lib/api/endpoints/automation/workflows/workflows-admin-api';
-import { monoClass } from '@/app/[locale]/admin/_styles';
+import { monoClass, rowActiveClass, rowClass } from '@/app/[locale]/admin/_styles';
 
 interface Props {
   config: WorkflowConfig;
@@ -25,7 +25,8 @@ interface Props {
 export function NodesTab({ config, onChange, nodeCatalog, tenantTools }: Props) {
   const tt = useTranslations('Admin.NodesTab');
   const tSummary = useTranslations('Admin.NodeSummary');
-  const nodes: any[] = config.graph?.nodes ?? [];
+  // Memoizado: `?? []` crearía un arreglo nuevo en cada render y rompería los useMemo.
+  const nodes = useMemo(() => config.graph?.nodes ?? [], [config.graph?.nodes]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [filter, setFilter] = useState('');
   const [draftText, setDraftText] = useState<string | null>(null);
@@ -54,7 +55,7 @@ export function NodesTab({ config, onChange, nodeCatalog, tenantTools }: Props) 
   }, [nodes, filter]);
 
   const current = nodes[selectedIndex];
-  const schema = current && nodeCatalog?.node_types?.[current.type];
+  const schema = current?.type ? nodeCatalog?.node_types?.[current.type] : undefined;
 
   const select = (index: number) => {
     setSelectedIndex(index);
@@ -78,34 +79,32 @@ export function NodesTab({ config, onChange, nodeCatalog, tenantTools }: Props) 
   };
 
   if (nodes.length === 0) {
-    return (
-      <p className="p-8 text-center text-sm text-text-secondary">{tt('noNodes')}</p>
-    );
+    return <p className="p-8 text-center text-sm text-text-secondary">{tt('noNodes')}</p>;
   }
 
   return (
     <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
-      <div className="flex flex-col rounded-lg border border-border">
+      <div className="flex flex-col overflow-hidden rounded-2xl border border-border">
         <div className="relative border-b border-border p-2">
           <Search
             size={14}
-            className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary"
+            className="pointer-events-none absolute left-5 top-1/2 -translate-y-1/2 text-text-tertiary"
           />
           <input
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
             placeholder={tt('searchPlaceholder')}
-            className="w-full rounded-md border border-border bg-surface py-1.5 pl-7 pr-2 text-xs text-text-primary outline-none focus:border-border-focus"
+            className="w-full rounded-full border-none bg-[var(--surface-tint)] py-1.5 pl-8 pr-3 text-xs text-text-primary transition-all placeholder:text-input-placeholder hover:bg-[var(--surface-tint-md)] focus:outline-none focus:ring-2 focus:ring-[var(--border-subtle)]"
           />
         </div>
 
-        <ul className="max-h-[560px] overflow-y-auto">
+        <ul className="max-h-[560px] space-y-1 overflow-y-auto p-2">
           {visible.map(({ node, index }) => (
             <li key={node?.id ?? index}>
               <button
                 onClick={() => select(index)}
-                className={`flex w-full items-start gap-2 border-b border-border px-3 py-2 text-left transition-colors last:border-0 ${
-                  selectedIndex === index ? 'bg-surface-secondary' : 'hover:bg-surface-secondary'
+                className={`flex w-full items-start gap-2 px-3 py-2 text-left ${
+                  selectedIndex === index ? rowActiveClass : rowClass
                 }`}
               >
                 <span className="mt-0.5 text-text-secondary">
@@ -116,7 +115,7 @@ export function NodesTab({ config, onChange, nodeCatalog, tenantTools }: Props) 
                     {node?.id}
                   </span>
                   <span className="block truncate text-[11px] text-text-secondary">
-                    {nodeCatalog?.node_types?.[node?.type]?.label ?? node?.type}
+                    {(node?.type && nodeCatalog?.node_types?.[node.type]?.label) ?? node?.type}
                     {' · '}
                     {summarizeNode(tSummary, node, toolNames)}
                   </span>
@@ -132,7 +131,7 @@ export function NodesTab({ config, onChange, nodeCatalog, tenantTools }: Props) 
           <div className="flex flex-wrap items-center gap-2">
             <NodeIcon type={current.type} size={16} />
             <span className="font-medium text-text-primary">{current.id}</span>
-            <span className="rounded border border-border px-1.5 py-0.5 text-[10px] text-text-secondary">
+            <span className="rounded-full bg-[var(--surface-tint)] px-2 py-0.5 text-[10px] text-text-secondary">
               {schema?.label ?? current.type}
             </span>
             {!schema && nodeCatalog && (
@@ -176,38 +175,36 @@ export function NodesTab({ config, onChange, nodeCatalog, tenantTools }: Props) 
                 {tt('acceptedFieldsLabel')}
               </label>
               {schema ? (
-                <div className="max-h-[430px] overflow-y-auto rounded-lg border border-border p-3">
+                <div className="max-h-[430px] overflow-y-auto rounded-xl border border-border p-4">
                   <ul className="space-y-2">
-                    {Object.entries<any>(schema.config_schema?.properties ?? {}).map(
-                      ([key, prop]) => (
-                        <li key={key} className="text-xs">
-                          <span className="font-mono text-text-primary">{key}</span>
-                          <span className="ml-2 text-text-secondary">{prop.type}</span>
-                          {schema.config_schema?.required?.includes(key) && (
-                            <span className="ml-2 text-[10px] uppercase text-danger">
-                              {tt('required')}
-                            </span>
-                          )}
-                          {prop.enum && (
-                            <span className="ml-2 text-text-secondary">
-                              ({prop.enum.join(' | ')})
-                            </span>
-                          )}
-                          {prop.description && (
-                            <p className="mt-0.5 text-[11px] text-text-secondary">
-                              {prop.description}
-                            </p>
-                          )}
-                        </li>
-                      ),
-                    )}
+                    {Object.entries(schema.config_schema?.properties ?? {}).map(([key, prop]) => (
+                      <li key={key} className="text-xs">
+                        <span className="font-mono text-text-primary">{key}</span>
+                        <span className="ml-2 text-text-secondary">{prop.type}</span>
+                        {schema.config_schema?.required?.includes(key) && (
+                          <span className="ml-2 text-[10px] uppercase text-danger">
+                            {tt('required')}
+                          </span>
+                        )}
+                        {prop.enum && (
+                          <span className="ml-2 text-text-secondary">
+                            ({prop.enum.join(' | ')})
+                          </span>
+                        )}
+                        {prop.description && (
+                          <p className="mt-0.5 text-[11px] text-text-secondary">
+                            {prop.description}
+                          </p>
+                        )}
+                      </li>
+                    ))}
                   </ul>
                   <p className="mt-3 border-t border-border pt-2 text-[11px] text-text-secondary">
                     {tt('agentSynthesizerHint')}
                   </p>
                 </div>
               ) : (
-                <p className="rounded-lg border border-border p-3 text-xs text-text-secondary">
+                <p className="rounded-xl bg-[var(--surface-tint)] px-4 py-3 text-xs text-text-secondary">
                   {tt('engineUnavailable')}
                 </p>
               )}

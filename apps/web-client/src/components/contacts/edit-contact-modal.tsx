@@ -7,6 +7,7 @@ import { Loader2 } from 'lucide-react';
 import { DashboardEndUserDto } from '@tesseract/types';
 import { Modal } from '@/components/ui/modal';
 import { useEndUserMutations } from '@/hooks/identity/use-end-users';
+import { toApiError } from '@/lib/api/api-error';
 
 interface EditContactModalProps {
   /** Contacto a renombrar. `null` mantiene el modal cerrado. */
@@ -48,7 +49,8 @@ export function EditContactModal({ contact, onClose }: EditContactModalProps) {
       await updateEndUser.mutateAsync({ id: contact.id, data: { name: trimmed } });
       toast.success(t('editSuccess'));
       onClose();
-    } catch (err: any) {
+    } catch (caught) {
+      const err = toApiError(caught);
       const backendMessage = typeof err?.message === 'string' ? err.message : '';
       toast.error(backendMessage || t('editError'));
     }
@@ -58,7 +60,10 @@ export function EditContactModal({ contact, onClose }: EditContactModalProps) {
     <Modal isOpen={Boolean(contact)} onClose={onClose} title={t('editModalTitle')}>
       <div className="space-y-4">
         <div>
-          <label htmlFor="contact-name" className="mb-1.5 block text-sm font-medium text-text-primary">
+          <label
+            htmlFor="contact-name"
+            className="mb-1.5 block text-sm font-medium text-text-primary"
+          >
             {t('editNameLabel')}
           </label>
           <input

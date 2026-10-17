@@ -155,7 +155,7 @@ export default function UsersPage() {
    */
   const canEditUser = (targetUser: DashboardUserDataDto): boolean => {
     if (!currentUser) return false;
-    if (targetUser.id === currentUser.id) return false; // cannot edit yourself
+    if (targetUser.id === currentUser.sub) return false; // cannot edit yourself
     if (currentUser.role === UserRole.VIEWER) return false;
     if (targetUser.role === UserRole.OWNER) return false; // nobody edits the owner directly
     return true;
@@ -177,7 +177,7 @@ export default function UsersPage() {
       setIsEditModalOpen(false);
       setModalUser(null);
       toast.success(t('userUpdated'));
-    } catch (error) {
+    } catch {
       toast.error(t('updateUserError'));
     }
   };
@@ -194,7 +194,7 @@ export default function UsersPage() {
       setIsDeleteModalOpen(false);
       setModalUser(null);
       toast.success(t('userDeleted'));
-    } catch (error) {
+    } catch {
       toast.error(t('deleteUserError'));
     }
   };
@@ -212,22 +212,8 @@ export default function UsersPage() {
       setIsTransferModalOpen(false);
       setModalUser(null);
       toast.success(t('transferSuccess'));
-    } catch (error) {
+    } catch {
       toast.error(t('transferError'));
-    }
-  };
-
-  const handleToggleStatus = async (e: React.MouseEvent, user: DashboardUserDataDto) => {
-    e.stopPropagation();
-    if (!canEditUser(user)) return; // guard against stale renders
-    try {
-      await updateUser.mutateAsync({
-        id: user.id,
-        data: { isActive: !user.isActive },
-      });
-      toast.success(user.isActive ? t('userDeactivated') : t('userActivated'));
-    } catch (error) {
-      toast.error(t('toggleStatusError'));
     }
   };
 
@@ -477,7 +463,7 @@ export default function UsersPage() {
                             </div>
                             <p className="truncate text-sm text-text-secondary">
                               {t('sentTimeAgo', {
-                                time: formatTimeAgo(invitation.createdAt as any, tTimeAgo, intlLocale),
+                                time: formatTimeAgo(invitation.createdAt, tTimeAgo, intlLocale),
                               })}
                             </p>
                           </div>
@@ -518,7 +504,7 @@ export default function UsersPage() {
                     >
                       <div
                         className="cursor-pointer p-5"
-                        onClick={() => setExpandedUserId(isExpanded ? null : user.id!)}
+                        onClick={() => setExpandedUserId(isExpanded ? null : (user.id ?? null))}
                       >
                         <div className="flex items-center gap-4">
                           {/* Avatar */}
@@ -577,7 +563,7 @@ export default function UsersPage() {
 
                               <div className="flex flex-wrap gap-2">
                                 {/* Transfer Ownership - only for non-owner targets that are not yourself */}
-                                {user.role !== UserRole.OWNER && user.id !== currentUser?.id && (
+                                {user.role !== UserRole.OWNER && user.id !== currentUser?.sub && (
                                   <PermissionGuard permissions="users:transfer_ownership">
                                     <button
                                       onClick={(e) => {
@@ -655,7 +641,8 @@ export default function UsersPage() {
                     ? t('noResultsForQuery', { query: searchQuery })
                     : filterRole !== 'all'
                       ? t('noMembersWithRole', {
-                          role: roleFilters.find((f) => f.value === filterRole)?.label ?? filterRole,
+                          role:
+                            roleFilters.find((f) => f.value === filterRole)?.label ?? filterRole,
                         })
                       : t('noMembers')}
               </h3>

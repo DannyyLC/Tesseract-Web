@@ -127,7 +127,7 @@ export default function WorkflowsPage() {
       toast.success(t('requestSentToast'));
       setIsCreateModalOpen(false);
       router.push('/support?reason=nuevo-workflow');
-    } catch (error) {
+    } catch {
       toast.error(t('rateLimitError'));
     }
   };
@@ -298,7 +298,7 @@ export default function WorkflowsPage() {
           )}
 
           <AnimatePresence mode="popLayout">
-            {workflows.map((workflow, index) => {
+            {workflows.map((workflow) => {
               return <DashboardWorkflowItem key={workflow.id} workflow={workflow} />;
             })}
           </AnimatePresence>

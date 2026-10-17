@@ -1,5 +1,6 @@
 'use client';
 
+import { TURNSTILE_SITE_KEY } from '@/lib/turnstile';
 import { useState, useEffect, useRef } from 'react';
 import { Eye, EyeOff, ArrowRight, Building2, Mail, Lock, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -18,6 +19,7 @@ import {
 } from '@/hooks/identity/use-auth';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { Turnstile, TurnstileInstance } from '@marsidev/react-turnstile';
+import { toApiError } from '@/lib/api/api-error';
 
 /* ========================================= */
 /* INTERFACES, TYPES & CONSTANTS */
@@ -210,14 +212,12 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
         setTurnstileToken(null); // el token del paso 1 ya fue consumido
         startResendCooldown();
       }
-    } catch (error: any) {
+    } catch (caught) {
+      const error = toApiError(caught);
       console.error('Error en paso 1:', error);
-      // Verificamos si es el error específico de email ya existente
-      if (error?.errors?.includes('EMAIL_ALREADY_EXISTS')) {
-        toast.error(t('emailAlreadyRegistered'));
-      } else {
-        toast.error(error.message || t('sendVerificationError'));
-      }
+      // Un correo ya registrado no llega aquí: el gateway responde igual que a un alta
+      // nueva para no revelar qué correos tienen cuenta.
+      toast.error(error.message || t('sendVerificationError'));
     }
   };
   // Manejar paso 2 del signup (verificación)
@@ -280,7 +280,8 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
       // Redirigir al dashboard o onboarding con flag de bienvenida
       router.push('/billing/plans?welcome=true');
       toast.success(t('accountCreated'));
-    } catch (error: any) {
+    } catch (caught) {
+      const error = toApiError(caught);
       console.error('Error al registrar usuario:', error);
       toast.error(error.message || t('createAccountError'));
     }
@@ -551,7 +552,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                     <div className="flex justify-center">
                       <Turnstile
                         ref={turnstileRef}
-                        siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
+                        siteKey={TURNSTILE_SITE_KEY}
                         options={{ size: 'flexible' }}
                         onSuccess={(token) => setTurnstileToken(token)}
                         onExpire={() => setTurnstileToken(null)}
@@ -689,7 +690,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
 
                         <div className="flex justify-center">
                           <Turnstile
-                            siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
+                            siteKey={TURNSTILE_SITE_KEY}
                             options={{ size: 'flexible' }}
                             onSuccess={(token) => setTurnstileToken(token)}
                             onExpire={() => setTurnstileToken(null)}
@@ -821,7 +822,7 @@ export default function AuthScreen({ mode }: AuthScreenProps) {
                         <div className="flex justify-center">
                           <Turnstile
                             ref={resendTurnstileRef}
-                            siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
+                            siteKey={TURNSTILE_SITE_KEY}
                             options={{ size: 'flexible' }}
                             onSuccess={(token) => setTurnstileToken(token)}
                             onExpire={() => setTurnstileToken(null)}

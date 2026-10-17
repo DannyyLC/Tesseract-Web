@@ -34,12 +34,22 @@ export class AnnouncementsAdminController {
     return new ApiResponseBuilder().setData(result).build();
   }
 
+  @Get('overview')
+  @ApiOperation({ summary: 'Números del listado: anuncios por estado, lectura y clics' })
+  async overview(): Promise<ApiResponse> {
+    const result = await this.announcementsService.getOverview();
+    return new ApiResponseBuilder().setData(result).build();
+  }
+
   @Get('audience-preview')
   @ApiOperation({ summary: 'Conteo estimado de destinatarios antes de publicar' })
   async audiencePreview(@Query() query: AudiencePreviewQueryDto): Promise<ApiResponse> {
     const roles = (query.roles?.split(',').map((r) => r.trim().toUpperCase()) ?? []) as UserRole[];
     const organizationIds =
-      query.organizationIds?.split(',').map((id) => id.trim()).filter(Boolean) ?? [];
+      query.organizationIds
+        ?.split(',')
+        .map((id) => id.trim())
+        .filter(Boolean) ?? [];
     const result = await this.announcementsService.audiencePreview(organizationIds, roles);
     return new ApiResponseBuilder().setData(result).build();
   }

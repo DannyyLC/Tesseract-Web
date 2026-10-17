@@ -270,9 +270,7 @@ async function ensureDefaultPrice(
 ): Promise<void> {
   const product = await stripe.products.retrieve(productId);
   const currentDefault =
-    typeof product.default_price === 'string'
-      ? product.default_price
-      : product.default_price?.id;
+    typeof product.default_price === 'string' ? product.default_price : product.default_price?.id;
 
   if (currentDefault === priceId) return;
 

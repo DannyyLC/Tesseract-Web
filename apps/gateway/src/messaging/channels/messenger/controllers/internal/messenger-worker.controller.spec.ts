@@ -1,4 +1,6 @@
+import { HttpStatus } from '@nestjs/common';
 import { MessengerConnectionStatus } from '@tesseract/database';
+import { AgentLlmFailedException } from '@/platform/common/exceptions';
 import { MessengerWorkerController } from './messenger-worker.controller';
 
 /**
@@ -25,7 +27,13 @@ describe('MessengerWorkerController', () => {
     releaseTurn: jest.fn(),
   };
   const mockMediaProcessingService: any = { processIncomingAttachments: jest.fn() };
-  const mockConversationsService: any = { findOne: jest.fn() };
+  const mockConversationsService: any = {
+    findOne: jest.fn(),
+    findActiveMessengerConversation: jest.fn(),
+    findOrCreateConversationFromMessengerMessage: jest.fn(),
+    addMessage: jest.fn(),
+    update: jest.fn(),
+  };
   const mockCloudTasks: any = { enqueue: jest.fn() };
 
   const body = { organizationId: 'org-1', pageId: 'page-1', senderId: 'psid-1', windowId: 'w-1' };
@@ -72,15 +80,124 @@ describe('MessengerWorkerController', () => {
     // Conversación libre: el turno se toma a la primera.
     mockQueueService.acquireTurn.mockResolvedValue({ acquired: true, token: 'tok-1' });
     mockQueueService.drainWindow.mockResolvedValue({
-      messages: [{ messageId: 'm-1', bufferedAt: Date.now(), event: { messaging: { message: { text: 'hola' } } } }],
+      messages: [
+        {
+          messageId: 'm-1',
+          bufferedAt: Date.now(),
+          event: { messaging: { message: { text: 'hola' } } },
+        },
+      ],
       processingKey: 'proc-1',
     });
     mockMessengerConfigService.getMessengerConfigByPageId.mockResolvedValue(account);
     mockWorkflowsService.execute.mockResolvedValue({
       id: 'exec-1',
-      result: { messages: [{ role: 'assistant', content: 'Claro, te ayudo.' }], conversationId: 'conv-1' },
+      result: {
+        messages: [{ role: 'assistant', content: 'Claro, te ayudo.' }],
+        conversationId: 'conv-1',
+      },
     });
     mockConversationsService.findOne.mockResolvedValue({ id: 'conv-1', metadata: {} });
+    mockConversationsService.findActiveMessengerConversation.mockResolvedValue({
+      id: 'conv-1',
+      organizationId: 'org-1',
+      isHumanInTheLoop: false,
+    });
+  });
+
+  const withStickerOnly = () =>
+    mockQueueService.drainWindow.mockResolvedValue({
+      messages: [
+        {
+          messageId: 'm-1',
+          bufferedAt: Date.now(),
+          event: { messaging: { message: { attachments: [{ type: 'location' }] } } },
+        },
+      ],
+      processingKey: 'proc-1',
+    });
+
+  it('con la conversación intervenida no manda nada: ni visto, ni respuesta, ni fallback', async () => {
+    withPresence(true);
+    mockConversationsService.findActiveMessengerConversation.mockResolvedValue({
+      id: 'conv-1',
+      organizationId: 'org-1',
+      isHumanInTheLoop: true,
+    });
+    mockWorkflowsService.execute.mockResolvedValue({
+      id: 'exec-1',
+      result: { messages: [], skipped: 'hitl', conversationId: 'conv-1' },
+    });
+    const res = buildResponse();
+
+    await controller.processWindow(body, res);
+
+    expect(mockMessengerConfigService.markSeenAndSendTypingIndicator).not.toHaveBeenCalled();
+    expect(mockMessengerConfigService.sendTextMessage).not.toHaveBeenCalled();
+    expect(mockQueueService.commitWindow).toHaveBeenCalledWith('proc-1');
+    expect(res.send).toHaveBeenCalledWith({ processed: false, reason: 'hitl' });
+  });
+
+  it('un adjunto sin texto se guarda como marcador junto con el aviso, sin ejecutar', async () => {
+    withPresence(true);
+    withStickerOnly();
+
+    await controller.processWindow(body, buildResponse());
+
+    expect(mockWorkflowsService.execute).not.toHaveBeenCalled();
+    expect(mockConversationsService.addMessage).toHaveBeenNthCalledWith(
+      1,
+      'conv-1',
+      'USER',
+      '[Ubicación]',
+      { source: 'unprocessed_media' },
+    );
+    expect(mockConversationsService.addMessage).toHaveBeenNthCalledWith(
+      2,
+      'conv-1',
+      'ASSISTANT',
+      'formato no soportado',
+      { source: 'media_notice' },
+    );
+    expect(mockConversationsService.update).toHaveBeenCalledWith('org-1', 'conv-1', {
+      messageCount: { increment: 2 },
+    });
+  });
+
+  it('intervenida, el adjunto sin texto se guarda pero no se avisa al cliente', async () => {
+    withPresence(true);
+    withStickerOnly();
+    mockConversationsService.findActiveMessengerConversation.mockResolvedValue({
+      id: 'conv-1',
+      organizationId: 'org-1',
+      isHumanInTheLoop: true,
+    });
+
+    await controller.processWindow(body, buildResponse());
+
+    expect(mockMessengerConfigService.sendTextMessage).not.toHaveBeenCalled();
+    expect(mockConversationsService.addMessage).toHaveBeenCalledTimes(1);
+    expect(mockConversationsService.addMessage).toHaveBeenCalledWith(
+      'conv-1',
+      'USER',
+      '[Ubicación]',
+      { source: 'unprocessed_media' },
+    );
+  });
+
+  it('si el modelo no respondió confirma la ventana sin reintentar y no le manda nada al cliente', async () => {
+    withPresence(true);
+    mockWorkflowsService.execute.mockRejectedValue(
+      new AgentLlmFailedException("LLM_CALL_FAILED: agente 'default': boom"),
+    );
+    const res = buildResponse();
+
+    await controller.processWindow(body, res);
+
+    expect(mockQueueService.commitWindow).toHaveBeenCalledWith('proc-1');
+    expect(mockMessengerConfigService.sendTextMessage).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(HttpStatus.OK);
+    expect(res.send).toHaveBeenCalledWith({ processed: false, reason: 'llm-failed' });
   });
 
   it('marca como leído y muestra escribiendo por defecto', async () => {

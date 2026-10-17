@@ -20,12 +20,7 @@ import {
   UpdateUserDto,
   UserDetailDto,
 } from '../../dto';
-import {
-  ApiResponse,
-  ApiResponseBuilder,
-  PaginatedResponse,
-  UserRole,
-} from '@tesseract/types';
+import { ApiResponse, ApiResponseBuilder, PaginatedResponse, UserRole } from '@tesseract/types';
 import { HttpStatusCode } from 'axios';
 import { JwtAuthGuard } from '@/identity/auth/guards/jwt-auth.guard';
 import { CurrentUser } from '@/identity/auth/decorators/current-user.decorator';
@@ -36,6 +31,8 @@ import { ServiceInfoRequestDto } from '@/identity/users/dto/service-info-request
 import { Throttle } from '@nestjs/throttler';
 import { RolesGuard } from '@/identity/auth/guards/roles.guard';
 import { Roles } from '@/identity/auth/decorators/roles.decorator';
+import { Locale } from '@/platform/common/decorators/locale.decorator';
+import { SupportedLocale } from '@/platform/common/types/locale.type';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -82,7 +79,9 @@ export class UsersController {
     @Res() res: Response,
     @Query('cursor') cursor: string | null = null,
     @Query('pageSize', ParsePageSizePipe) pageSize: number,
-    @Query('locale') locale = 'es',
+    // El front manda el idioma en `X-Locale`, no en la query: con `@Query('locale')` siempre
+    // llegaba el default y las notificaciones salían en español aunque la app estuviera en inglés.
+    @Locale() locale: SupportedLocale,
   ): Promise<Response<ApiResponse<PaginatedResponse<NotificationEventDto>>>> {
     const apiResponse = new ApiResponseBuilder<PaginatedResponse<NotificationEventDto>>();
     // Cast to any if needed or ensure service returns strict match
@@ -119,7 +118,7 @@ export class UsersController {
 
   @Get('stats')
   async getStats(@CurrentUser() user: UserPayload, @Res() res: Response): Promise<Response> {
-    const apiResponse = new ApiResponseBuilder<any>();
+    const apiResponse = new ApiResponseBuilder<unknown>();
     const stats = await this.usersService.getStats(user.organizationId);
     apiResponse
       .setStatusCode(HttpStatusCode.Ok)
@@ -181,7 +180,7 @@ export class UsersController {
     @Body() updateUserDto: UpdateUserDto,
     @Res() res: Response,
   ): Promise<Response> {
-    const apiResponse = new ApiResponseBuilder<any>();
+    const apiResponse = new ApiResponseBuilder<unknown>();
     let updatedUser;
 
     // 1. Update Role if provided
@@ -220,7 +219,7 @@ export class UsersController {
     @Body() updateProfileDto: UpdateProfileDto,
     @Res() res: Response,
   ): Promise<Response> {
-    const apiResponse = new ApiResponseBuilder<any>();
+    const apiResponse = new ApiResponseBuilder<unknown>();
 
     // Solo permitir que el usuario edite su propio perfil
     if (id !== user.sub) {

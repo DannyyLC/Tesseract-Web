@@ -50,7 +50,7 @@ export function OrganizationMultiSelect({ value, onChange }: Props) {
 
   return (
     <div className="space-y-3">
-      <div className="rounded-lg border border-border p-3">
+      <div className="rounded-xl border border-border p-4">
         <Switch
           checked={mode === 'all'}
           onChange={toggleAll}
@@ -60,13 +60,13 @@ export function OrganizationMultiSelect({ value, onChange }: Props) {
       </div>
 
       {mode === 'specific' && (
-        <div className="space-y-2 rounded-lg border border-border p-3">
+        <div className="space-y-2 rounded-xl border border-border p-4">
           {value.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {value.map((id) => (
                 <span
                   key={id}
-                  className="inline-flex items-center gap-1 rounded-full bg-surface-secondary px-2.5 py-1 text-xs text-text-primary"
+                  className="inline-flex items-center gap-1 rounded-full bg-[var(--surface-tint)] px-2.5 py-1 text-xs text-text-primary"
                 >
                   {nameById.get(id) ?? id}
                   <button
@@ -95,16 +95,16 @@ export function OrganizationMultiSelect({ value, onChange }: Props) {
             />
           </div>
 
-          <div className="max-h-56 overflow-y-auto rounded-lg border border-border">
+          <div className="max-h-56 overflow-y-auto rounded-xl border border-border">
             {isLoading ? (
               <p className="p-3 text-center text-xs text-text-secondary">{t('loading')}</p>
             ) : organizations.length === 0 ? (
               <p className="p-3 text-center text-xs text-text-secondary">{t('noResults')}</p>
             ) : (
-              <ul className="divide-y divide-border">
+              <ul className="divide-y divide-[var(--border-subtle)]">
                 {organizations.map((org) => (
                   <li key={org.id}>
-                    <label className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-surface-secondary">
+                    <label className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm text-text-primary transition-colors hover:bg-[var(--surface-tint)]">
                       <input
                         type="checkbox"
                         className="h-4 w-4 accent-accent"
@@ -122,7 +122,7 @@ export function OrganizationMultiSelect({ value, onChange }: Props) {
                 type="button"
                 onClick={() => fetchNextPage()}
                 disabled={isFetchingNextPage}
-                className={`${labelClass} w-full border-t border-border py-2 text-center hover:bg-surface-secondary`}
+                className={`${labelClass} w-full border-t border-border py-2 text-center transition-colors hover:bg-[var(--surface-tint)]`}
               >
                 {isFetchingNextPage ? t('loading') : t('loadMore')}
               </button>

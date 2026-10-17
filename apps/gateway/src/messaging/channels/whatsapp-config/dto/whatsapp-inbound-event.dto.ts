@@ -1,10 +1,9 @@
-export type WhatsAppEventType =
-  | 'whatsapp.inbound_message.received'
-  | 'whatsapp.smb.message.echoes';
+export type WhatsAppEventType = 'whatsapp.inbound_message.received' | 'whatsapp.smb.message.echoes';
 
 export interface WhatsAppInboundEvent {
   id: string;
-  type: WhatsAppEventType | string;
+  // `string & {}`: acepta eventos nuevos de YCloud sin colapsar la unión a string.
+  type: WhatsAppEventType | (string & {});
   apiVersion: string;
   createTime: string;
   // Presente en 'whatsapp.inbound_message.received': el cliente le escribe al negocio.

@@ -6,7 +6,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { NotificationKind, Notification, Prisma } from '@tesseract/database';
+import {
+  NotificationKind,
+  Notification,
+  Prisma,
+  UserRole as DbUserRole,
+} from '@tesseract/database';
 import {
   DEFAULT_PAGE_SIZE,
   AdminAnnouncementDto,
@@ -36,6 +41,9 @@ interface MetricsRow {
   ctaClicked: number;
   read: number;
 }
+
+/** Ventana de lectura y clics de las tarjetas del listado de anuncios. */
+const OVERVIEW_WINDOW_DAYS = 90;
 
 /**
  * Lado de escritura del super admin: crear, publicar (fan-out), despublicar, editar y medir
@@ -75,7 +83,7 @@ export class AnnouncementsService {
         messageTemplate: dto.message,
         titleTemplateEn: dto.titleEn ?? null,
         messageTemplateEn: dto.messageEn ?? null,
-        announcementTemplate: dto.template as any,
+        announcementTemplate: dto.template,
         ctaLabel: dto.ctaLabel ?? null,
         ctaLabelEn: dto.ctaLabelEn ?? null,
         ctaUrl: dto.ctaUrl ?? null,
@@ -182,7 +190,7 @@ export class AnnouncementsService {
     const where: Prisma.UserWhereInput = {
       isActive: true,
       deletedAt: null,
-      role: { in: roles as any },
+      role: { in: roles as DbUserRole[] },
       organization: {
         isActive: true,
         deletedAt: null,
@@ -227,7 +235,9 @@ export class AnnouncementsService {
     }
 
     await this.prisma.notification.update({ where: { id }, data: { deliveredCount: delivered } });
-    this.logger.info(`AnnouncementsService - fanOut >> anuncio ${id} entregado a ${delivered} usuarios`);
+    this.logger.info(
+      `AnnouncementsService - fanOut >> anuncio ${id} entregado a ${delivered} usuarios`,
+    );
     return { delivered };
   }
 
@@ -236,7 +246,7 @@ export class AnnouncementsService {
       where: {
         isActive: true,
         deletedAt: null,
-        role: { in: roles as any },
+        role: { in: roles },
         organization: {
           isActive: true,
           deletedAt: null,
@@ -252,7 +262,9 @@ export class AnnouncementsService {
   async getById(id: string): Promise<AdminAnnouncementDto> {
     const row = await this.prisma.notification.findFirst({
       where: { id, kind: NotificationKind.ANNOUNCEMENT },
-      include: { targetOrganizations: { include: { organization: { select: { id: true, name: true } } } } },
+      include: {
+        targetOrganizations: { include: { organization: { select: { id: true, name: true } } } },
+      },
     });
     if (!row) throw new NotFoundException('Anuncio no encontrado');
     const metrics = await this.getMetrics(id);
@@ -284,7 +296,9 @@ export class AnnouncementsService {
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
-        include: { targetOrganizations: { include: { organization: { select: { id: true, name: true } } } } },
+        include: {
+          targetOrganizations: { include: { organization: { select: { id: true, name: true } } } },
+        },
       }),
       this.prisma.notification.count({ where }),
     ]);
@@ -293,6 +307,59 @@ export class AnnouncementsService {
     const data = rows.map((row) => this.toAdminDto(row, metrics.get(row.id)));
 
     return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
+  }
+
+  /**
+   * Números de arriba del listado: cuántos anuncios hay en cada estado (con `statusWhere`, el
+   * mismo filtro del listado, para que coincidan) y qué tanto se leen y se les da clic a los
+   * publicados en la ventana.
+   */
+  async getOverview() {
+    const now = new Date();
+    const since = new Date(now.getTime() - OVERVIEW_WINDOW_DAYS * 86_400_000);
+    const count = (status: AnnouncementStatus) =>
+      this.prisma.notification.count({
+        where: { kind: NotificationKind.ANNOUNCEMENT, ...this.statusWhere(status, now) },
+      });
+
+    const [published, draft, expired, unpublished, [engagement]] = await Promise.all([
+      count(AnnouncementStatus.PUBLISHED),
+      count(AnnouncementStatus.DRAFT),
+      count(AnnouncementStatus.EXPIRED),
+      count(AnnouncementStatus.UNPUBLISHED),
+      // Clics solo sobre entregas de anuncios con botón: dividir entre todas las entregas
+      // castigaría la tasa por anuncios que no tenían en qué hacer clic.
+      this.prisma.$queryRaw<
+        {
+          delivered: number;
+          read: number;
+          dismissed: number;
+          ctaDelivered: number;
+          ctaClicked: number;
+        }[]
+      >`
+        SELECT count(*)::int                                                AS delivered,
+               count(*) FILTER (WHERE un."isRead")::int                     AS read,
+               count(*) FILTER (WHERE un."dismissedAt" IS NOT NULL)::int    AS dismissed,
+               count(*) FILTER (WHERE n."ctaUrl" IS NOT NULL)::int          AS "ctaDelivered",
+               count(*) FILTER (WHERE un."ctaClickedAt" IS NOT NULL)::int   AS "ctaClicked"
+        FROM   "user_notifications" un
+        JOIN   "notifications" n ON n.id = un."notificationId"
+        WHERE  n.kind = 'ANNOUNCEMENT' AND un."createdAt" >= ${since}
+      `,
+    ]);
+
+    return {
+      status: { published, draft, expired, unpublished },
+      engagement: {
+        days: OVERVIEW_WINDOW_DAYS,
+        delivered: engagement?.delivered ?? 0,
+        read: engagement?.read ?? 0,
+        dismissed: engagement?.dismissed ?? 0,
+        ctaDelivered: engagement?.ctaDelivered ?? 0,
+        ctaClicked: engagement?.ctaClicked ?? 0,
+      },
+    };
   }
 
   private async getAnnouncementOrThrow(id: string): Promise<Notification> {
@@ -370,7 +437,10 @@ export class AnnouncementsService {
     );
   }
 
-  private toAdminDto(row: NotificationWithTargets, metrics?: AnnouncementMetricsDto): AdminAnnouncementDto {
+  private toAdminDto(
+    row: NotificationWithTargets,
+    metrics?: AnnouncementMetricsDto,
+  ): AdminAnnouncementDto {
     const m = metrics ?? { delivered: 0, dismissed: 0, ctaClicked: 0, read: 0 };
     return {
       id: row.id,
@@ -383,7 +453,7 @@ export class AnnouncementsService {
       ctaLabelEn: row.ctaLabelEn,
       ctaUrl: row.ctaUrl,
       targetOrganizations: row.targetOrganizations.map((t) => t.organization),
-      targetRoles: (row.targetRoles as string[]) as UserRole[],
+      targetRoles: row.targetRoles as string[] as UserRole[],
       status: this.deriveStatus(row),
       isActive: row.isActive,
       publishedAt: row.publishedAt?.toISOString() ?? null,

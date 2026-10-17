@@ -32,13 +32,18 @@ export class SearchDatasetDto {
   @IsOptional()
   @IsString()
   @MaxLength(200)
-  @ApiPropertyOptional({ description: 'Texto libre; barre todas las columnas de texto a la vez' })
+  @ApiPropertyOptional({
+    description: 'Texto libre; barre todas las columnas de texto y select a la vez',
+  })
   query?: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(41)
-  @ApiPropertyOptional({ description: 'Columna de orden; con guion inicial, descendente', example: '-precio' })
+  @ApiPropertyOptional({
+    description: 'Columna de orden; con guion inicial, descendente',
+    example: '-precio',
+  })
   sortBy?: string;
 
   @IsOptional()

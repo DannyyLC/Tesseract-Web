@@ -12,6 +12,7 @@ import type {
   UpdateAdminCustomLimitsInput,
 } from '@/lib/api/endpoints/identity/organizations/organizations-admin-api';
 import { btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
+import { isToastHandled } from '@/lib/api/api-error';
 
 interface Props {
   org: AdminOrganizationDetail;
@@ -78,7 +79,7 @@ export function LimitsTab({ org }: Props) {
       { id: org.id, data: payload },
       {
         onSuccess: () => toast.success(t('limitsUpdated')),
-        onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+        onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
       },
     );
   };
@@ -94,16 +95,18 @@ export function LimitsTab({ org }: Props) {
       },
       {
         onSuccess: () => toast.success(t('overageUpdated')),
-        onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+        onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
       },
     );
   };
 
   return (
     <div className="w-full space-y-6">
-      <section className="rounded-xl border border-border bg-surface p-4">
-        <h2 className="mb-1 text-sm font-semibold text-text-primary">{t('customLimitsTitle')}</h2>
-        <p className="mb-4 text-xs text-text-secondary">{t('customLimitsHint', { plan: org.plan })}</p>
+      <section className="rounded-2xl border border-border p-6">
+        <h2 className="mb-1 text-base font-semibold text-text-primary">{t('customLimitsTitle')}</h2>
+        <p className="mb-4 text-xs text-text-secondary">
+          {t('customLimitsHint', { plan: org.plan })}
+        </p>
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {LIMIT_FIELDS.map(({ key, label, planLimitKey }) => {
@@ -141,8 +144,8 @@ export function LimitsTab({ org }: Props) {
         </div>
       </section>
 
-      <section className="rounded-xl border border-border bg-surface p-4">
-        <h2 className="mb-3 text-sm font-semibold text-text-primary">{t('overageTitle')}</h2>
+      <section className="rounded-2xl border border-border p-6">
+        <h2 className="mb-4 text-base font-semibold text-text-primary">{t('overageTitle')}</h2>
         <div className="space-y-3">
           <Switch
             checked={allowOverages}
@@ -158,7 +161,9 @@ export function LimitsTab({ org }: Props) {
               className={inputClass}
               value={overageLimit}
               onChange={(e) => setOverageLimit(e.target.value)}
-              placeholder={t('overageLimitPlaceholder', { value: org.planLimits.limits.monthlyCredits })}
+              placeholder={t('overageLimitPlaceholder', {
+                value: org.planLimits.limits.monthlyCredits,
+              })}
               disabled={!allowOverages}
             />
           </div>

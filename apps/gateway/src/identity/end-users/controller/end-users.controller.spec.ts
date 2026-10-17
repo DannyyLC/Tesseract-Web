@@ -121,10 +121,16 @@ describe('EndUsersController', () => {
         res,
       );
 
-      expect(service.getDashboardData).toHaveBeenCalledWith('org-123', 'eu-cursor-123', 25, 'next', {
-        search: 'Jane',
-        blocked: 'blocked',
-      });
+      expect(service.getDashboardData).toHaveBeenCalledWith(
+        'org-123',
+        'eu-cursor-123',
+        25,
+        'next',
+        {
+          search: 'Jane',
+          blocked: 'blocked',
+        },
+      );
     });
 
     // ─── Caso 3: Paginación hacia atrás ────────────────────────

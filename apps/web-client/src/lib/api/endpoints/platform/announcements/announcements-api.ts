@@ -1,3 +1,4 @@
+import { unwrapData } from '@/lib/api/unwrap-data';
 import ApiRequestManager from '../../../api-request-manager';
 import { ApiResponse, PendingAnnouncementDto } from '@tesseract/types';
 
@@ -13,7 +14,7 @@ class AnnouncementsApi {
     const result = await this.apiRequestManager.get<ApiResponse<PendingAnnouncementDto[]>>(
       `${AnnouncementsApi.BASE_URL}/pending?locale=${locale}`,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async dismiss(userNotificationId: string): Promise<void> {

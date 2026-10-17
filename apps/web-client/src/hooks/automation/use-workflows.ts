@@ -2,12 +2,19 @@ import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tansta
 import { useState } from 'react';
 import RootApi from '@/lib/api/endpoints/root-api';
 import WorkflowsStream from '@/lib/api/endpoints/automation/workflows/workflows-stream';
+import type { UpdateWorkflowInput } from '@/lib/api/endpoints/automation/workflows/workflows-api';
 
 // ============================================================================
 // REST API HOOKS
 // ============================================================================
 // Hook para obtener el dashboard de workflows (Foto inicial)
 import { WorkflowCategory } from '@tesseract/types';
+import {
+  eventString,
+  toStreamError,
+  type StreamError,
+  type StreamEventHandler,
+} from '@/lib/api/endpoints/automation/workflows/stream-types';
 
 // Hook para obtener el dashboard de workflows con filtros
 export function useDashboardWorkflows(
@@ -116,7 +123,7 @@ export function useWorkflowMutations() {
   const queryClient = useQueryClient();
 
   const updateWorkflow = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+    mutationFn: async ({ id, data }: { id: string; data: UpdateWorkflowInput }) => {
       const api = RootApi.getInstance().getWorkflowsApi();
       return await api.update(id, data);
     },
@@ -127,7 +134,9 @@ export function useWorkflowMutations() {
       // Editar el workflow puede cambiar su zona horaria, y las series ya cargadas
       // quedarían calculadas con la anterior sin ninguna señal de estar obsoletas.
       queryClient.invalidateQueries({ queryKey: ['workflows', 'metrics', variables.id] });
-      queryClient.invalidateQueries({ queryKey: ['workflows', 'hourly-distribution', variables.id] });
+      queryClient.invalidateQueries({
+        queryKey: ['workflows', 'hourly-distribution', variables.id],
+      });
     },
   });
 
@@ -143,7 +152,15 @@ export function useWorkflowMutations() {
   });
 
   const executeWorkflow = useMutation({
-    mutationFn: async ({ id, input, metadata }: { id: string; input: any; metadata?: any }) => {
+    mutationFn: async ({
+      id,
+      input,
+      metadata,
+    }: {
+      id: string;
+      input: Record<string, unknown>;
+      metadata?: Record<string, unknown>;
+    }) => {
       const api = RootApi.getInstance().getWorkflowsApi();
       return await api.execute(id, input, metadata);
     },
@@ -163,14 +180,14 @@ export function useWorkflowMutations() {
 export function useExecuteStream() {
   const [messages, setMessages] = useState<string>('');
   const [isStreaming, setIsStreaming] = useState(false);
-  const [error, setError] = useState<any>(null);
+  const [error, setError] = useState<StreamError | null>(null);
   const queryClient = useQueryClient();
 
   const execute = async (
     id: string,
-    input: any,
-    metadata?: any,
-    onEvent?: (event: string, data: any) => void,
+    input: Record<string, unknown>,
+    metadata?: Record<string, unknown>,
+    onEvent?: StreamEventHandler,
     conversationId?: string,
   ) => {
     setIsStreaming(true);
@@ -208,11 +225,11 @@ export function useExecuteStream() {
         onEvent: (event, data) => {
           if (onEvent) onEvent(event, data);
           if (event === 'conversation_id') {
-            resolvedConversationId = data;
+            resolvedConversationId = eventString(data);
           }
         },
         onError: (err) => {
-          setError(err);
+          setError(toStreamError(err));
           setIsStreaming(false);
           // Stream fallido o truncado: ir al servidor para mostrar la respuesta guardada en DB
           syncOnFailure(resolvedConversationId);
@@ -225,7 +242,7 @@ export function useExecuteStream() {
         },
       });
     } catch (e) {
-      setError(e);
+      setError(toStreamError(e));
       setIsStreaming(false);
       syncOnFailure(resolvedConversationId);
       syncDashboard();

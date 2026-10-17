@@ -5,7 +5,7 @@ import {
   MediaProcessResult,
   MediaTooLargeError,
 } from './media-processor.adapter';
-  
+
 @Injectable()
 export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdapter {
   private readonly apiBaseUrl: string;
@@ -13,7 +13,6 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
   private readonly sttModels: string[];
   private readonly ocrModels: string[];
   private readonly timeoutMs: number;
-
 
   constructor(private readonly configService: ConfigService) {
     this.apiBaseUrl = this.configService
@@ -31,13 +30,13 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
     this.timeoutMs = this.configService.get<number>('MEDIA_PROCESSING_TIMEOUT_MS', 30000);
   }
 
-
   async process(media: {
     type: 'IMAGE' | 'AUDIO';
     sourceUrl: string;
+    sourceHeaders?: Record<string, string>;
     mimeType: string;
     sha256?: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
     customOcrPrompt?: string;
     maxBytes?: number;
   }): Promise<MediaProcessResult> {
@@ -52,10 +51,15 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
 
     try {
       if (media.type === 'AUDIO') {
-        const { text: processedText, modelUsed, sizeBytes } = await this.transcribeAudio(
+        const { 
+          text: processedText, 
+          modelUsed, 
+          sizeBytes 
+        } = await this.transcribeAudio(
           media.sourceUrl,
           media.mimeType,
           media.maxBytes,
+          media.sourceHeaders,
         );
         return {
           status: 'PROCESSED',
@@ -118,7 +122,7 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
   async transcribeBuffer(audio: {
     buffer: Buffer;
     mimeType: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }): Promise<MediaProcessResult> {
     if (!this.apiKey) {
       return {
@@ -157,8 +161,9 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
     sourceUrl: string,
     mimeType: string,
     maxBytes?: number,
+    sourceHeaders?: Record<string, string>,
   ): Promise<{ text: string; modelUsed: string; sizeBytes: number }> {
-    const fileBuffer = await this.downloadBinary(sourceUrl, maxBytes);
+    const fileBuffer = await this.downloadBinary(sourceUrl, maxBytes, sourceHeaders);
     return this.transcribeFileBuffer(fileBuffer, mimeType);
   }
 
@@ -268,7 +273,7 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
         if (Array.isArray(content)) {
           const merged = content
             .filter((part) => part?.type === 'text' && part?.text)
-            .map((part) => part.text!.trim())
+            .map((part) => (part.text ?? '').trim())
             .filter(Boolean)
             .join('\n');
           return {
@@ -296,9 +301,14 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
    * de media hora se rechaza sin descargarlo y sin pagar la transcripción. Si el
    * servidor responde sin `Content-Length`, se lee por trozos y se corta al pasarse.
    */
-  private async downloadBinary(sourceUrl: string, maxBytes?: number): Promise<Buffer> {
+  private async downloadBinary(
+    sourceUrl: string,
+    maxBytes?: number,
+    sourceHeaders?: Record<string, string>,
+  ): Promise<Buffer> {
     const response = await this.fetchWithTimeout(sourceUrl, {
       method: 'GET',
+      headers: sourceHeaders,
     });
 
     if (!response.ok) {

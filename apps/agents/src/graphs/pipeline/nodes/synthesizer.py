@@ -39,7 +39,9 @@ def make_synthesizer_node(node_id: str, agent_name: str, config: Dict[str, Any],
     El agente (agent_name) debe existir en agents_config como cualquier otro:
     define model, temperature y system_prompt del sintetizador.
     """
-    llm = registry.get_llm(ctx, agent_name)
+    # Con fallbacks encadenados: solo si el principal y sus fallbacks fallan se degrada
+    # a concatenar las respuestas de los especialistas (más abajo).
+    llm = registry.build_runnable(ctx, agent_name)
     system_prompt_extra = config.get("system_prompt_extra", "")
     set_variables_on_finish = config.get("set_variables", {})
 

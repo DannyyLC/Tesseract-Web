@@ -179,6 +179,17 @@ class TestBusqueda:
         assert result["mostrando"] == 1
         assert result["resultados"][0] == {"id": "r1", "nombre": "Land Cruiser", "precio": 320000}
 
+    def test_cero_resultados_trae_una_sugerencia_para_reintentar(self):
+        tool = by_name(make_tools(), "search_dataset")
+
+        with patch(
+            "tools.dataset.httpx.request", return_value=fake_response({"total": 0, "items": []})
+        ):
+            result = json.loads(tool.invoke({"query": "camionetas"}))
+
+        # Sin la pista, el modelo contesta "no hay" ante un plural o un error de dedo.
+        assert "reintenta" in result["sugerencia"]
+
     def test_recorta_el_limit_al_maximo(self):
         tool = by_name(make_tools(), "search_dataset")
 

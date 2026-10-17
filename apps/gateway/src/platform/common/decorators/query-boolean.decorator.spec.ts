@@ -16,7 +16,7 @@ function parse<T extends object>(dto: new () => T, query: Record<string, string>
 const ORG = '00000000-0000-4000-8000-000000000001';
 const WORKFLOW = '00000000-0000-4000-8000-000000000002';
 
-const cases: Array<[string, new () => object, string, Record<string, string>]> = [
+const cases: [string, new () => object, string, Record<string, string>][] = [
   ['QueryWorkflowsAdminDto', QueryWorkflowsAdminDto, 'includeDeleted', {}],
   ['QueryOrganizationsAdminDto', QueryOrganizationsAdminDto, 'isActive', {}],
   ['QueryLlmModelsDto', QueryLlmModelsDto, 'isActive', {}],

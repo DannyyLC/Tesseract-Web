@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import RootApi from '@/lib/api/endpoints/root-api';
 import { useAudioRecorder } from './use-audio-recorder';
+import { toApiError } from '@/lib/api/api-error';
 
 /**
  * Silencio que cierra un segmento.
@@ -90,7 +91,8 @@ export function useDictation(onTranscribed: (text: string) => void) {
             if (text.trim()) {
               onTranscribedRef.current(text);
             }
-          } catch (error: any) {
+          } catch (caught) {
+            const error = toApiError(caught);
             // Un segmento fallido no debe tumbar el dictado: se avisa y se sigue oyendo.
             toast.error(error?.message || t('transcriptionFailed'));
           }

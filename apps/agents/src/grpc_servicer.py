@@ -5,9 +5,7 @@ Adapta la lógica existente de api/routes.py al transporte gRPC.
 La lógica de negocio (build_context, create_agent_graph, tokens) no cambia.
 """
 
-import os
 import json
-import hmac
 import time
 import logging
 from typing import AsyncIterator
@@ -21,56 +19,20 @@ from core.message_utils import (
     convert_langchain_messages_to_dict,
     extract_human_handoff_from_messages,
 )
+from core.llm_errors import LLMCallError
 from core.usage import UsageAccumulator
 from graphs.pipeline import NO_STREAM_TAG, get_node_catalog
 
 logger = logging.getLogger(__name__)
 
 
-# ── Auth helper ───────────────────────────────────────────────────────────────
-
-_oidc_presence_logged = False
-
-
-def _note_oidc_once(metadata: dict) -> None:
-    """
-    Temporal: confirma en producción que el Gateway ya manda el ID token, antes de cerrar el
-    servicio con IAM.
-
-    Mientras el servicio siga aceptando tráfico anónimo no hay forma de saber si el Gateway
-    adjunta la cabecera: las conversaciones corren igual con token o sin él, así que un error
-    del lado emisor solo se manifestaría al cerrar, como caída total. Este renglón es la señal
-    que autoriza ese paso.
-
-    Una vez por instancia y no por llamada: como el servicio escala a cero, salen
-    confirmaciones a goteo en Cloud Logging en vez de una entrada suelta que se pierde.
-
-    Se borra junto con AGENTS_INTERNAL_SECRET, en el último paso de la migración a OIDC
-    (ver docs/setup/deployment.md).
-    """
-    global _oidc_presence_logged
-    if _oidc_presence_logged:
-        return
-    _oidc_presence_logged = True
-    logger.info(
-        "OIDC: cabecera authorization %s en la primera llamada de esta instancia",
-        "presente" if "authorization" in metadata else "AUSENTE",
-    )
-
-
-def _verify_token(context: grpc.aio.ServicerContext, expected: str) -> bool:
-    metadata = dict(context.invocation_metadata())
-    _note_oidc_once(metadata)
-
-    # Fallar cerrado. Antes, un `expected` vacío dejaba pasar a todo el mundo: si la variable
-    # se perdía al recrear el servicio, el único rastro era un warning en el arranque y nadie
-    # notaba que los agentes habían quedado abiertos. Ahora sin secreto no pasa nadie, y
-    # `validate_env()` impide de entrada que una revisión así llegue a servir tráfico.
-    if not expected:
-        return False
-
-    token = metadata.get("x-internal-token", "")
-    return hmac.compare_digest(token, expected)
+# ── Autenticación ─────────────────────────────────────────────────────────────
+#
+# No vive aquí. El servicio en Cloud Run está cerrado con IAM (`--invoker-iam-check`): solo la
+# service account del Gateway tiene `roles/run.invoker`, y Cloud Run valida su ID token en el
+# borde, antes de que la petición llegue a este proceso. Hasta la migración a OIDC había además
+# un secreto compartido (`AGENTS_INTERNAL_SECRET`) que se comparaba aquí; ver
+# docs/setup/deployment.md.
 
 
 # ── Proto ↔ dict converters ───────────────────────────────────────────────────
@@ -201,18 +163,23 @@ def _build_execution_metadata(
 
 # ── Servicer ──────────────────────────────────────────────────────────────────
 
-class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
 
-    def __init__(self) -> None:
-        self._internal_secret: str = os.getenv("AGENTS_INTERNAL_SECRET", "")
-        if self._internal_secret:
-            logger.info("Internal token auth enabled")
-        else:
-            # En producción no se llega aquí: `validate_env()` corta el arranque antes. Este
-            # aviso es para local, donde el servicio sí levanta pero rechaza todas las llamadas.
-            logger.warning(
-                "AGENTS_INTERNAL_SECRET not set — se rechazarán todas las llamadas (UNAUTHENTICATED)"
-            )
+def _find_llm_error(exc: BaseException) -> LLMCallError | None:
+    """El LLMCallError que originó `exc`, si lo hay.
+
+    LangGraph puede envolver la excepción de un nodo (p.ej. en ramas paralelas), así que
+    se recorre la cadena de causas en lugar de confiar en el tipo de la de afuera.
+    """
+    seen: set[int] = set()
+    current: BaseException | None = exc
+    while current is not None and id(current) not in seen:
+        if isinstance(current, LLMCallError):
+            return current
+        seen.add(id(current))
+        current = current.__cause__ or current.__context__
+    return None
+
+class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
 
     async def GetNodeCatalog(
         self,
@@ -220,9 +187,6 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
         context: grpc.aio.ServicerContext,
     ) -> agents_pb2.NodeCatalogResponse:
         """Catálogo autodescriptivo de tipos de nodo (ver graphs/pipeline/catalog.py)."""
-        if not _verify_token(context, self._internal_secret):
-            await context.abort(grpc.StatusCode.UNAUTHENTICATED, "Invalid internal token")
-
         graph_type = request.graph_type or "pipeline"
         if graph_type != "pipeline":
             await context.abort(
@@ -237,9 +201,6 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
         request: agents_pb2.AgentExecutionRequest,
         context: grpc.aio.ServicerContext,
     ) -> agents_pb2.AgentExecutionResponse:
-        if not _verify_token(context, self._internal_secret):
-            await context.abort(grpc.StatusCode.UNAUTHENTICATED, "Invalid internal token")
-
         conversation_id = request.conversation_id
         start_time = time.time()
 
@@ -316,6 +277,12 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
 
         except Exception as e:
             logger.error(f"[{conversation_id}] Execute failed: {e}", exc_info=True)
+            # Falla del modelo (con reintentos y fallbacks agotados): código propio para que
+            # el gateway la distinga de un error interno — no reintenta, marca la ejecución
+            # FAILED y avisa al equipo. El mensaje ya empieza con LLM_CALL_FAILED.
+            llm_error = _find_llm_error(e)
+            if llm_error is not None:
+                await context.abort(grpc.StatusCode.FAILED_PRECONDITION, str(llm_error))
             await context.abort(grpc.StatusCode.INTERNAL, str(e))
 
     async def ExecuteStream(
@@ -323,10 +290,6 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
         request: agents_pb2.AgentExecutionRequest,
         context: grpc.aio.ServicerContext,
     ) -> AsyncIterator[agents_pb2.AgentStreamEvent]:
-        if not _verify_token(context, self._internal_secret):
-            await context.abort(grpc.StatusCode.UNAUTHENTICATED, "Invalid internal token")
-            return
-
         conversation_id = request.conversation_id
         start_time = time.time()
 
@@ -443,4 +406,9 @@ class AgentsServicer(agents_pb2_grpc.AgentsServiceServicer):
 
         except Exception as e:
             logger.error(f"[{conversation_id}] ExecuteStream failed: {e}", exc_info=True)
-            yield agents_pb2.AgentStreamEvent(type="error", content=str(e))
+            # Mismo contrato que Execute: el gateway reconoce la falla del modelo por el
+            # prefijo LLM_CALL_FAILED del contenido.
+            llm_error = _find_llm_error(e)
+            yield agents_pb2.AgentStreamEvent(
+                type="error", content=str(llm_error if llm_error is not None else e)
+            )

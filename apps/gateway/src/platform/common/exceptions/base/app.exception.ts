@@ -11,7 +11,7 @@ import { ErrorCode } from './error-codes.enum';
  * - {field: 'email', value: 'invalid@' }
  */
 
-export type ErrorMetadata = Record<string, any>;
+export type ErrorMetadata = Record<string, unknown>;
 // Clase base para todas las excepciones de la aplicacion
 export class AppException extends HttpException {
   public readonly errorCode: ErrorCode;
@@ -44,7 +44,7 @@ export class AppException extends HttpException {
    * Método helper para obtener el response formateado
    * Útil para logging o inspección
    */
-  public getResponse(): any {
+  public getResponse(): string | object {
     return super.getResponse();
   }
 

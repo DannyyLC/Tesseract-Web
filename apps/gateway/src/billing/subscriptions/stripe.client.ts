@@ -15,7 +15,9 @@ export class StripeClient implements OnModuleInit {
     }
 
     this.stripe = new Stripe(apiKey, {
-      apiVersion: '2025-01-27.acacia' as any, // Bypass strict typing for now or match exact version if known
+      // Fijada a propósito en una API anterior a la que describen los tipos del SDK; el código
+      // lee ambas formas (ver stripe-compat.types.ts). El SDK solo tipa la versión más reciente.
+      apiVersion: '2025-01-27.acacia' as Stripe.StripeConfig['apiVersion'],
       typescript: true,
     });
   }

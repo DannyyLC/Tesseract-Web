@@ -15,9 +15,9 @@ import {
   Pie,
   Cell,
   Legend,
+  type TooltipContentProps,
 } from 'recharts';
-import { Activity, ArrowUpRight, Loader2 } from 'lucide-react';
-import { Link } from '@/i18n/routing';
+import { Activity, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/identity/use-auth';
 import { useWorkflowStats } from '@/hooks/automation/use-workflows';
 import {
@@ -32,35 +32,13 @@ import PermissionGuard from '@/components/auth/permission-guard';
 import { BrokenIntegrationsBanner } from '@/components/integrations/broken-integrations-banner';
 import { PastDuePaymentBanner } from '@/components/billing/past-due-payment-banner';
 import { ROLE_PERMISSIONS } from '@tesseract/types';
+import { ChartSkeleton, SectionTitle } from './_components/dashboard-section';
+import { CreditsProjectionCard } from './_components/credits-projection-card';
+import { ResponseTimeCard } from './_components/response-time-card';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-function SectionTitle({
-  children,
-  href,
-  linkLabel,
-}: {
-  children: React.ReactNode;
-  href?: string;
-  linkLabel?: string;
-}) {
-  return (
-    <div className="flex items-center justify-between border-b border-border p-5">
-      <h2 className="text-lg font-semibold text-text-primary">{children}</h2>
-      {href && (
-        <Link
-          href={href}
-          className="flex items-center gap-1 text-sm text-black/50 transition-colors hover:text-text-primary"
-        >
-          {linkLabel}
-          <ArrowUpRight size={14} />
-        </Link>
-      )}
-    </div>
-  );
-}
-
 // Custom tooltip for recharts with dark mode awareness
-function ChartTooltip({ active, payload, label }: any) {
+function ChartTooltip({ active, payload, label }: Partial<TooltipContentProps<number, string>>) {
   if (!active || !payload?.length) return null;
   const displayLabel = label
     ? (() => {
@@ -72,19 +50,12 @@ function ChartTooltip({ active, payload, label }: any) {
   return (
     <div className="rounded-xl border border-border bg-surface-popover px-3 py-2 shadow-lg">
       {displayLabel && <p className="mb-1 text-xs text-text-tertiary">{displayLabel}</p>}
-      {payload.map((p: any, i: number) => (
+      {payload.map((p, i) => (
         <p key={i} className="text-sm font-semibold" style={{ color: p.color }}>
           {p.name}: {p.value?.toLocaleString('es-MX')}
         </p>
       ))}
     </div>
-  );
-}
-
-// ─── Skeleton for charts ──────────────────────────────────────────────────────
-function ChartSkeleton({ height = 200 }: { height?: number }) {
-  return (
-    <div className="w-full animate-pulse rounded-xl bg-surface-secondary" style={{ height }} />
   );
 }
 
@@ -163,7 +134,7 @@ export default function DashboardPage() {
 
     // Filter out zero values (e.g. if no paused workflows, don't show segment)
     return data.filter((d) => d.value > 0);
-  }, [workflowStats]);
+  }, [workflowStats, t]);
 
   // ── Radial bar data — credit usage (kept simple for availability) ──────────
   const creditData = useMemo(() => {
@@ -387,6 +358,13 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* ── Proyección de créditos + Tiempo de respuesta ────────────────────── */}
+      {/* Sin permiso de facturación la proyección no aparece y el tiempo de respuesta ocupa la fila. */}
+      <div className={`grid gap-6 ${hasBilling ? 'lg:grid-cols-2' : 'lg:grid-cols-1'}`}>
+        {hasBilling && <CreditsProjectionCard />}
+        <ResponseTimeCard />
+      </div>
+
       {/* ── Bar Chart + Activity Feed ───────────────────────────────────────── */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Horizontal bar — workflows breakdown */}
@@ -421,10 +399,12 @@ export default function DashboardPage() {
                         align="right"
                         layout="vertical"
                         iconType="circle"
-                        formatter={(value, entry: any) => (
+                        formatter={(value: string, entry) => (
                           <span className="text-sm font-medium text-text-primary">
                             {value}{' '}
-                            <span className="text-text-tertiary">({entry.payload.value})</span>
+                            <span className="text-text-tertiary">
+                              ({(entry.payload as { value?: number } | undefined)?.value})
+                            </span>
                           </span>
                         )}
                       />
@@ -457,8 +437,8 @@ export default function DashboardPage() {
                 <div className="p-5">
                   <ChartSkeleton height={160} />
                 </div>
-              ) : (stats7d?.topWorkflows ?? []).length > 0 ? (
-                stats7d!.topWorkflows.slice(0, 5).map((wf, i) => {
+              ) : stats7d && stats7d.topWorkflows.length > 0 ? (
+                stats7d.topWorkflows.slice(0, 5).map((wf, i) => {
                   const successPct = Math.round(wf.successRate ?? 0);
                   const barColor =
                     successPct >= 90
@@ -558,10 +538,10 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {executions.slice(0, 5).map((exec: any, i: number) => {
-                  const wfName = exec.workflow?.name ?? exec.workflowName ?? exec.workflowId ?? '—';
-                  const credits = exec.credits ?? exec.creditsUsed ?? exec.tokensUsed ?? '—';
-                  const dateVal = exec.startedAt ?? exec.createdAt;
+                {executions.slice(0, 5).map((exec, i) => {
+                  const wfName = exec.workflow?.name ?? exec.workflowName ?? exec.workflowId;
+                  const credits = exec.credits ?? '—';
+                  const dateVal = exec.startedAt;
                   const date = dateVal
                     ? new Date(dateVal).toLocaleString('es-MX', {
                         day: '2-digit',

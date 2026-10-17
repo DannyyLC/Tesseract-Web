@@ -215,9 +215,25 @@ def get_llm(ctx: TenantContext, model_key: str = "default") -> BaseChatModel:
     # ==========================================
     # temperature es opcional: None = no especificado → no se envía al proveedor
     # (necesario para modelos reasoning que rechazan temperature != 1).
+    logger.info(
+        f"[{ctx.workflow_id}] Initializing LLM with LiteLLM: {model_name} "
+        f"(temperature={model_config.get('temperature')}, "
+        f"fallbacks={len(model_config.get('fallbacks') or [])}, "
+        f"model_params={list((model_config.get('model_params') or {}).keys()) or None})"
+    )
+    return _build_chat_model(ctx, model_name, model_config)
+
+
+def _build_chat_model(ctx: TenantContext, model_name: str, model_config: dict) -> BaseChatModel:
+    """Un ChatLiteLLM para `model_name` con los parámetros del agente.
+
+    Los fallbacks se construyen con esta misma función y los mismos parámetros: el
+    validador del gateway ya comprobó que cada fallback los acepta.
+    """
+    # temperature es opcional: None = no especificado → no se envía al proveedor
+    # (necesario para modelos reasoning que rechazan temperature != 1).
     temperature = model_config.get("temperature")
     max_tokens = model_config.get("max_tokens")
-    fallbacks = model_config.get("fallbacks", [])
     max_retries = model_config.get("max_retries", 2)
     timeout = model_config.get("timeout", 60)
     api_base = model_config.get("api_base")
@@ -225,19 +241,9 @@ def get_llm(ctx: TenantContext, model_key: str = "default") -> BaseChatModel:
     # como model_kwargs del LLM. Genérico: no requiere cambios de código por parámetro.
     model_params = model_config.get("model_params") or {}
 
-    logger.info(
-        f"[{ctx.workflow_id}] Initializing LLM with LiteLLM: {model_name} "
-        f"(temperature={temperature}, fallbacks={len(fallbacks)}, "
-        f"model_params={list(model_params.keys()) or None})"
-    )
-    
-    # ==========================================
-    # 3. Inicializar con LiteLLM
-    # ==========================================
     try:
         from langchain_community.chat_models import ChatLiteLLM
-        
-        # Construir parámetros
+
         llm_kwargs = {
             "model": model_name,
             "max_retries": max_retries,
@@ -249,47 +255,83 @@ def get_llm(ctx: TenantContext, model_key: str = "default") -> BaseChatModel:
         if temperature is not None:
             llm_kwargs["temperature"] = temperature
 
-        # Parámetros extra del proveedor → model_kwargs (p.ej. reasoning_effort)
+        # Parámetros extra del proveedor → model_kwargs (p.ej. reasoning_effort).
+        # `allowed_openai_params` le dice a LiteLLM que los mande tal cual: sin eso,
+        # LiteLLM decide por el NOMBRE del modelo qué acepta y bloquea lo que no reconoce
+        # antes de llamar al proveedor (así falló gpt-6-luna con LiteLLM 1.83). Quién
+        # acepta qué lo declara el catálogo (llm_models.allowedParams) y lo hace cumplir
+        # el validador del gateway al guardar el workflow.
         if model_params:
-            llm_kwargs["model_kwargs"] = {**model_params}
+            llm_kwargs["model_kwargs"] = {
+                **model_params,
+                "allowed_openai_params": list(model_params.keys()),
+            }
 
-        # Agregar parámetros opcionales
         if max_tokens:
             llm_kwargs["max_tokens"] = max_tokens
-        
-        if fallbacks:
-            llm_kwargs["fallbacks"] = fallbacks
-            logger.debug(
-                f"[{ctx.workflow_id}] Fallbacks configured: {fallbacks}"
-            )
-        
+
         if api_base:
             llm_kwargs["api_base"] = api_base
             logger.debug(
                 f"[{ctx.workflow_id}] Custom API base: {api_base}"
             )
-        
-        # Crear LLM
+
         llm = ChatLiteLLM(**llm_kwargs)
-        
+
         logger.info(
             f"[{ctx.workflow_id}] LLM initialized successfully: {model_name}"
         )
-        
+
         return llm
-    
+
     except ImportError:
         logger.error(
             "ChatLiteLLM not available. Install with: pip install langchain-community litellm"
         )
         raise
-    
+
     except Exception as e:
         logger.error(
             f"[{ctx.workflow_id}] Failed to initialize LLM '{model_name}': {e}",
             exc_info=True
         )
         raise
+
+
+def get_fallback_llms(ctx: TenantContext, model_key: str = "default") -> List[BaseChatModel]:
+    """Un LLM por cada modelo de `fallbacks`, en orden, con los parámetros del agente.
+
+    ChatLiteLLM no tiene campo `fallbacks`: pasárselo al constructor (como se hacía
+    antes) lo descartaba en silencio, así que los fallbacks configurados nunca se
+    usaron. Ahora se encadenan con `.with_fallbacks()` de LangChain en `build_runnable`.
+    """
+    model_config = ctx.get_agent_config(model_key) or {}
+    fallbacks = [f for f in (model_config.get("fallbacks") or []) if isinstance(f, str) and f]
+    return [_build_chat_model(ctx, name, model_config) for name in fallbacks]
+
+
+def build_runnable(ctx: TenantContext, model_key: str = "default", tools: List[BaseTool] | None = None):
+    """LLM listo para invocar: tools enlazadas en cada modelo y fallbacks encadenados.
+
+    Sin fallbacks devuelve el LLM principal tal cual (con tools si las hay). Con
+    fallbacks, si el principal lanza (después de sus propios reintentos), LangChain
+    intenta el siguiente con los mismos mensajes; el uso se reporta con el nombre del
+    modelo que respondió, así que el costo sale al precio correcto.
+    """
+    return chain_fallbacks(ctx, model_key, get_llm(ctx, model_key), tools)
+
+
+def chain_fallbacks(ctx: TenantContext, model_key: str, primary: BaseChatModel, tools: List[BaseTool] | None = None):
+    """Como `build_runnable`, pero partiendo de un LLM principal ya construido.
+
+    Lo usan los grafos legacy, que obtienen el principal con `get_llm` (y sus tests lo
+    parchean ahí). Sin fallbacks equivale a `primary.bind_tools(tools)` o `primary`.
+    """
+    chain = [primary] + get_fallback_llms(ctx, model_key)
+    if tools:
+        chain = [m.bind_tools(tools) for m in chain]
+    head, rest = chain[0], chain[1:]
+    return head.with_fallbacks(rest) if rest else head
 
 
 # ==========================================

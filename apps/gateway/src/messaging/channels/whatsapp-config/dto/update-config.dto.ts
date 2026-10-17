@@ -1,4 +1,6 @@
-import { IsBoolean, IsOptional, IsString } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsBoolean, IsNotEmpty, IsOptional, IsString, Matches } from 'class-validator';
+import { NormalizePhone } from '@/platform/common/utils/normalize-phone';
 
 /**
  * Edición de un número ya dado de alta.
@@ -35,4 +37,41 @@ export class UpdateWhatsappConfigDto {
   @IsOptional()
   @IsBoolean()
   isDefaultForOutbound?: boolean;
+}
+
+/**
+ * Edición desde el super admin. Es la única que puede cambiar `phoneNumber`: el panel del cliente
+ * usa `UpdateWhatsappConfigDto`, sin él, porque ese valor es la llave con la que el webhook
+ * resuelve la cuenta y un cambio equivocado deja los mensajes entrantes sin a dónde llegar.
+ */
+export class UpdateAdminWhatsappConfigDto extends UpdateWhatsappConfigDto {
+  /** Canónico (`+` y dígitos), igual que al crear. Ausente = no lo toca. */
+  @IsOptional()
+  @IsString()
+  @NormalizePhone()
+  @Matches(/^\+\d{8,15}$/, { message: 'phoneNumber must be in E.164 format, e.g. +52234567890' })
+  phoneNumber?: string;
+  /**
+   * Credenciales de Meta (`WhatsAppConfig.sessionData`). Parciales: lo ausente no se toca, así se
+   * puede rotar solo el token sin volver a capturar el app secret, que la API nunca devuelve.
+   * Un string vacío es un error (no borra nada): para conservar el valor, no se manda.
+   * Solo aplican a un número con `provider = 'meta'`; el controlador lo verifica.
+   */
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @IsNotEmpty()
+  phoneNumberId?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @IsNotEmpty()
+  appSecret?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @IsNotEmpty()
+  accessToken?: string;
 }

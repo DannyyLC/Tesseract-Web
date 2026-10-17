@@ -19,6 +19,7 @@ import { MediaProcessingModule } from '@/automation/media-processing/media-proce
 import { DatasetsModule } from '../datasets/datasets.module';
 import { CloudTasksModule } from '@/platform/tasks/cloud-tasks.module';
 import { EndUsersModule } from '@/identity/end-users/end-users.module';
+import { AnalyticsModule } from '@/billing/analytics/analytics.module';
 
 /**
  * WorkflowsModule
@@ -39,6 +40,8 @@ import { EndUsersModule } from '@/identity/end-users/end-users.module';
     CloudTasksModule,
     // Última guardia de la lista negra antes de gastar el LLM.
     EndUsersModule,
+    // Segmentos de las tarjetas del listado del admin (con fallas, margen negativo, inactivos).
+    AnalyticsModule,
   ],
   controllers: [
     WorkflowsController,

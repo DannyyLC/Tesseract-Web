@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { MessageSquareText } from 'lucide-react';
+import { Building2, ChevronRight, MessageSquareText, Phone } from 'lucide-react';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { InfiniteSelect } from '@/components/ui/infinite-select';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -10,6 +10,15 @@ import { useInfiniteAdminOrganizations } from '@/hooks/automation/use-admin-work
 import { useAdminWhatsappNumbers } from '@/hooks/messaging/use-admin-whatsapp-config';
 import { WhatsappTemplatesAdminModal } from '@/components/admin/organizations/whatsapp-templates-admin-modal';
 import type { WhatsAppConfig } from '@tesseract/types';
+import {
+  filterSelectClass,
+  labelClass,
+  pageSubtitleClass,
+  pageTitleClass,
+  rowActionClass,
+  rowClass,
+} from '../_styles';
+import { WhatsappOverviewCards } from '@/components/admin/whatsapp/whatsapp-overview-cards';
 
 const CONNECTION_STYLE: Record<string, string> = {
   CONNECTED: 'text-success-600',
@@ -49,14 +58,18 @@ export default function AdminWbTemplatesPage() {
   const { data: configs, isLoading: configsLoading } = useAdminWhatsappNumbers(organizationId);
 
   return (
-    <div className="w-full">
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-text-primary">{t('title')}</h1>
-        <p className="mt-1 text-sm text-text-secondary">{t('subtitle')}</p>
+    <div className="w-full space-y-6">
+      <div>
+        <h1 className={pageTitleClass}>{t('title')}</h1>
+        <p className={pageSubtitleClass}>{t('subtitle')}</p>
       </div>
 
-      <div className="mb-4 max-w-sm">
+      <WhatsappOverviewCards />
+
+      <div className="max-w-sm">
+        <label className={labelClass}>{t('orgLabel')}</label>
         <InfiniteSelect
+          triggerClassName={filterSelectClass}
           value={organizationId}
           onChange={setOrganizationId}
           options={orgOptions}
@@ -71,25 +84,50 @@ export default function AdminWbTemplatesPage() {
         />
       </div>
 
-      <section className="rounded-xl border border-border bg-surface">
+      <section>
         {!organizationId ? (
-          <p className="px-4 py-10 text-center text-sm text-text-secondary">{t('selectOrgFirst')}</p>
+          <EmptyState icon={Building2} title={t('selectOrgTitle')} body={t('selectOrgFirst')}>
+            {/* El recorrido completo, con el paso en el que se está resaltado: deja claro que
+                la lista depende de la organización y qué viene después. */}
+            <ol className="mt-6 flex flex-wrap items-center justify-center gap-2 text-xs font-medium">
+              {[
+                { icon: Building2, label: t('stepOrg') },
+                { icon: Phone, label: t('stepNumber') },
+                { icon: MessageSquareText, label: t('stepTemplates') },
+              ].map(({ icon: Icon, label }, index) => (
+                <li key={label} className="flex items-center gap-2">
+                  {index > 0 && <ChevronRight size={14} className="text-text-tertiary" />}
+                  <span
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 ${
+                      index === 0
+                        ? 'bg-accent text-text-inverse'
+                        : 'bg-[var(--surface-tint)] text-text-tertiary'
+                    }`}
+                  >
+                    <span className="tabular-nums">{index + 1}</span>
+                    <Icon size={13} />
+                    {label}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </EmptyState>
         ) : configsLoading ? (
           <div className="flex justify-center py-16">
             <LogoLoader text={t('loading')} />
           </div>
         ) : !configs?.length ? (
-          <p className="px-4 py-10 text-center text-sm text-text-secondary">{t('noNumbers')}</p>
+          <EmptyState icon={Phone} title={t('noNumbersTitle')} body={t('noNumbers')} />
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="space-y-1">
             {configs.map((config) => (
               <li
                 key={config.id}
-                className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+                className={`${rowClass} flex flex-wrap items-center justify-between gap-3 px-4 py-3.5`}
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="truncate font-medium text-text-primary">
+                    <span className="truncate font-semibold text-text-primary">
                       {config.displayName || config.phoneNumber}
                     </span>
                     {config.displayName && (
@@ -105,10 +143,7 @@ export default function AdminWbTemplatesPage() {
                     {config.connectionStatus}
                   </span>
                 </div>
-                <button
-                  onClick={() => setTemplatesTarget(config)}
-                  className="flex shrink-0 items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary"
-                >
+                <button onClick={() => setTemplatesTarget(config)} className={rowActionClass}>
                   <MessageSquareText size={14} />
                   {t('templatesButton')}
                 </button>
@@ -127,6 +162,30 @@ export default function AdminWbTemplatesPage() {
           configLabel={templatesTarget.displayName || templatesTarget.phoneNumber}
         />
       )}
+    </div>
+  );
+}
+
+/** Estado vacío con icono, como los de Catálogos y Contactos del panel de usuario. */
+function EmptyState({
+  icon: Icon,
+  title,
+  body,
+  children,
+}: {
+  icon: typeof Building2;
+  title: string;
+  body: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl border border-dashed border-border px-4 py-16 text-center">
+      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--surface-tint)]">
+        <Icon size={24} className="text-text-tertiary" />
+      </div>
+      <h2 className="text-lg font-semibold text-text-primary">{title}</h2>
+      <p className="mx-auto mt-1 max-w-md text-sm text-text-secondary">{body}</p>
+      {children}
     </div>
   );
 }

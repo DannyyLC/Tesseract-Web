@@ -9,6 +9,7 @@ import { OrganizationsService } from '@/identity/organizations/organizations.ser
 import { AgentsService } from '../agents/agents.service';
 import { InvalidWorkflowConfigException } from '@/platform/common/exceptions';
 import { hashConfig } from './workflow-config.utils';
+import { AdminAnalyticsService } from '@/billing/analytics/analytics.service';
 
 /**
  * Config válido mínimo: incluye una clave que ningún formulario del editor conoce,
@@ -39,7 +40,9 @@ describe('WorkflowsAdminService', () => {
     tx = {
       workflowConfigVersion: {
         count: jest.fn().mockResolvedValue(0),
-        create: jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: 'v-new', ...data })),
+        create: jest
+          .fn()
+          .mockImplementation(({ data }) => Promise.resolve({ id: 'v-new', ...data })),
         findMany: jest.fn().mockResolvedValue([]),
         deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
@@ -62,11 +65,18 @@ describe('WorkflowsAdminService', () => {
         WorkflowsAdminService,
         WorkflowConfigValidator,
         { provide: PrismaService, useValue: prisma },
-        { provide: OrganizationsService, useValue: { canAddWorkflow: jest.fn().mockResolvedValue(true) } },
+        {
+          provide: OrganizationsService,
+          useValue: { canAddWorkflow: jest.fn().mockResolvedValue(true) },
+        },
         // Sin motor disponible: la validación de catálogo se omite, como en producción
         // cuando el servicio de agentes está caído.
-        { provide: AgentsService, useValue: { getNodeCatalog: jest.fn().mockRejectedValue(new Error('down')) } },
+        {
+          provide: AgentsService,
+          useValue: { getNodeCatalog: jest.fn().mockRejectedValue(new Error('down')) },
+        },
         { provide: ConfigService, useValue: { get: (_k: string, d: unknown) => d } },
+        { provide: AdminAnalyticsService, useValue: { resolveWorkflowSegment: jest.fn() } },
       ],
     }).compile();
 
@@ -133,9 +143,14 @@ describe('WorkflowsAdminService', () => {
 
     it('ignora el reordenamiento de claves al comparar', async () => {
       prisma.workflow.findUnique.mockResolvedValue(current());
-      const reordered = { agents: validConfig().agents, graph: validConfig().graph, type: 'agent', post_turn_actions: validConfig().post_turn_actions };
+      const reordered = {
+        agents: validConfig().agents,
+        graph: validConfig().graph,
+        type: 'agent',
+        post_turn_actions: validConfig().post_turn_actions,
+      };
 
-      const result = await service.updateConfig('wf-1', reordered as any, 9, ACTOR);
+      const result = await service.updateConfig('wf-1', reordered, 9, ACTOR);
 
       expect(result.changed).toBe(false);
     });
@@ -144,7 +159,14 @@ describe('WorkflowsAdminService', () => {
       prisma.workflow.findUnique.mockResolvedValue(current());
       const broken = {
         type: 'agent',
-        graph: { type: 'pipeline', nodes: [{ id: 'a', type: 'agent' }, { id: 'a', type: 'agent' }], edges: [{ from: 'START', to: 'fantasma' }] },
+        graph: {
+          type: 'pipeline',
+          nodes: [
+            { id: 'a', type: 'agent' },
+            { id: 'a', type: 'agent' },
+          ],
+          edges: [{ from: 'START', to: 'fantasma' }],
+        },
         agents: { x: { model: 'modelo-inexistente' } },
       };
 
@@ -170,7 +192,10 @@ describe('WorkflowsAdminService', () => {
         source: WorkflowVersionSource.BASELINE,
       });
       expect(baselineCall[0].data.config).toEqual(previo);
-      expect(nuevaCall[0].data).toMatchObject({ version: 10, source: WorkflowVersionSource.ADMIN_UI });
+      expect(nuevaCall[0].data).toMatchObject({
+        version: 10,
+        source: WorkflowVersionSource.ADMIN_UI,
+      });
     });
 
     it('no repite el baseline si ya hay historial', async () => {

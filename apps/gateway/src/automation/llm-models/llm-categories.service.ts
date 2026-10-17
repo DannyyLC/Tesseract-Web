@@ -74,10 +74,7 @@ export class LlmCategoriesService {
     try {
       return await this.prisma.llmModelCategory.update({ where: { id }, data: dto });
     } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         throw new ConflictException(`Ya existe una categoría con el nombre "${dto.name}"`);
       }
       throw error;

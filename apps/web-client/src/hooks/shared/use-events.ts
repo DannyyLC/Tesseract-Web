@@ -1,23 +1,25 @@
 import { useEffect, useRef } from 'react';
 import SseRequestManager from '@/lib/api/sse-request-manager';
 
-type MessageHandler = (data: any, event?: MessageEvent) => void;
+type MessageHandler = (data: unknown, event?: MessageEvent) => void;
 
 export default function useEvents() {
   // store active EventSource instances keyed by endpoint
   const sourcesRef = useRef<Map<string, EventSource>>(new Map());
 
   useEffect(() => {
+    // El Map se crea una vez y nunca se reasigna; se copia para el cleanup, como pide React.
+    const sources = sourcesRef.current;
     return () => {
       // cleanup all connections on unmount
-      sourcesRef.current.forEach((src) => {
+      sources.forEach((src) => {
         try {
           src.close();
-        } catch (e) {
+        } catch {
           // ignore
         }
       });
-      sourcesRef.current.clear();
+      sources.clear();
     };
   }, []);
 
@@ -36,7 +38,7 @@ export default function useEvents() {
       let parsed = event.data;
       try {
         parsed = JSON.parse(event.data);
-      } catch (e) {
+      } catch {
         // keep raw if not json
       }
       handler(parsed, event);
@@ -50,7 +52,7 @@ export default function useEvents() {
         source?.removeEventListener(eventType, messageListener as EventListener);
         // if no more listeners, close source
         // There's no straightforward way to inspect listeners, so we keep the source open until unsubscribeAll or unmount.
-      } catch (e) {
+      } catch {
         // ignore
       }
     };
@@ -60,7 +62,7 @@ export default function useEvents() {
     sourcesRef.current.forEach((src) => {
       try {
         src.close();
-      } catch (e) {
+      } catch {
         // ignore
       }
     });

@@ -21,7 +21,19 @@ import {
   useAudiencePreview,
 } from '@/hooks/platform/use-admin-announcements';
 import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
-import { btnGhost, btnPrimary, inputClass, labelClass } from '../../_styles';
+import {
+  btnGhost,
+  btnPrimary,
+  inputClass,
+  labelClass,
+  pageSubtitleClass,
+  pageTitleClass,
+  sectionClass,
+  sectionTitleClass,
+  segmentedItemClass,
+  segmentedTrackClass,
+} from '../../_styles';
+import { isToastHandled } from '@/lib/api/api-error';
 
 const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
   { value: UserRole.OWNER, label: 'Owner' },
@@ -31,8 +43,8 @@ const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-xl border border-border bg-surface p-5">
-      <h2 className="mb-4 text-sm font-semibold text-text-primary">{title}</h2>
+    <section className={`${sectionClass} p-6`}>
+      <h2 className={`mb-4 ${sectionTitleClass}`}>{title}</h2>
       {children}
     </section>
   );
@@ -70,7 +82,9 @@ export default function NewAnnouncementPage() {
   const audiencePreview = useAudiencePreview();
 
   const toggleRole = (role: UserRole) => {
-    setTargetRoles((prev) => (prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role]));
+    setTargetRoles((prev) =>
+      prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role],
+    );
     setConfirmedBroadcast(false);
   };
 
@@ -135,7 +149,7 @@ export default function NewAnnouncementPage() {
         toast.success(publishNow ? t('publishedSuccess') : t('draftSavedSuccess'));
         router.push('/admin/anuncios');
       },
-      onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+      onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
     });
   };
 
@@ -145,14 +159,14 @@ export default function NewAnnouncementPage() {
         <button
           type="button"
           onClick={() => router.push('/admin/anuncios')}
-          className="rounded-lg p-2 text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
+          className="rounded-xl p-2 text-text-secondary transition-colors hover:bg-[var(--surface-tint)] hover:text-text-primary"
           aria-label={t('backToAnnouncements')}
         >
           <ArrowLeft size={18} />
         </button>
         <div>
-          <h1 className="text-xl font-semibold text-text-primary">{t('title')}</h1>
-          <p className="mt-1 text-sm text-text-secondary">{t('subtitle')}</p>
+          <h1 className={pageTitleClass}>{t('title')}</h1>
+          <p className={pageSubtitleClass}>{t('subtitle')}</p>
         </div>
       </div>
 
@@ -163,7 +177,12 @@ export default function NewAnnouncementPage() {
               <div className="grid grid-cols-2 gap-2">
                 {(
                   [
-                    [AnnouncementTemplateKind.NEWS, t('templateNews'), Newspaper, t('templateNewsHint')],
+                    [
+                      AnnouncementTemplateKind.NEWS,
+                      t('templateNews'),
+                      Newspaper,
+                      t('templateNewsHint'),
+                    ],
                     [
                       AnnouncementTemplateKind.CELEBRATION,
                       t('templateCelebration'),
@@ -176,10 +195,10 @@ export default function NewAnnouncementPage() {
                     key={value}
                     type="button"
                     onClick={() => setTemplate(value)}
-                    className={`rounded-lg border p-3 text-left transition-colors ${
+                    className={`rounded-xl border p-4 text-left transition-all duration-200 ${
                       template === value
-                        ? 'border-accent bg-surface-secondary'
-                        : 'border-border hover:bg-surface-secondary'
+                        ? 'border-accent shadow-sm'
+                        : 'border-border hover:border-border-hover hover:shadow-sm'
                     }`}
                   >
                     <span className="flex items-center gap-2 text-sm font-medium text-text-primary">
@@ -201,17 +220,13 @@ export default function NewAnnouncementPage() {
             </Section>
 
             <Section title={t('contentSection')}>
-              <div className="mb-3 flex w-full gap-1 rounded-lg border border-border p-1">
+              <div className={`${segmentedTrackClass} mb-4 w-full`}>
                 {(['es', 'en'] as const).map((loc) => (
                   <button
                     key={loc}
                     type="button"
                     onClick={() => setContentLocale(loc)}
-                    className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                      contentLocale === loc
-                        ? 'bg-accent text-text-inverse'
-                        : 'text-text-secondary hover:bg-surface-secondary'
-                    }`}
+                    className={`flex-1 ${segmentedItemClass(contentLocale === loc)}`}
                   >
                     {loc === 'es' ? t('localeSpanish') : t('localeEnglishOptional')}
                   </button>
@@ -235,7 +250,9 @@ export default function NewAnnouncementPage() {
                       className={`${inputClass} min-h-56 resize-y font-mono text-sm`}
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
-                      placeholder={'A partir de hoy…\n\n- Punto uno\n- Punto dos\n\n**Importante:** …'}
+                      placeholder={
+                        'A partir de hoy…\n\n- Punto uno\n- Punto dos\n\n**Importante:** …'
+                      }
                     />
                   </div>
                 </div>
@@ -268,16 +285,31 @@ export default function NewAnnouncementPage() {
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className={labelClass}>{t('ctaLabelEsLabel')}</label>
-                  <input className={inputClass} value={ctaLabel} onChange={(e) => setCtaLabel(e.target.value)} placeholder={t('ctaLabelEsPlaceholder')} />
+                  <input
+                    className={inputClass}
+                    value={ctaLabel}
+                    onChange={(e) => setCtaLabel(e.target.value)}
+                    placeholder={t('ctaLabelEsPlaceholder')}
+                  />
                 </div>
                 <div>
                   <label className={labelClass}>{t('ctaLabelEnLabel')}</label>
-                  <input className={inputClass} value={ctaLabelEn} onChange={(e) => setCtaLabelEn(e.target.value)} placeholder={t('ctaLabelEnPlaceholder')} />
+                  <input
+                    className={inputClass}
+                    value={ctaLabelEn}
+                    onChange={(e) => setCtaLabelEn(e.target.value)}
+                    placeholder={t('ctaLabelEnPlaceholder')}
+                  />
                 </div>
               </div>
               <div className="mt-3">
                 <label className={labelClass}>{t('ctaUrlLabel')}</label>
-                <input className={inputClass} value={ctaUrl} onChange={(e) => setCtaUrl(e.target.value)} placeholder={t('ctaUrlPlaceholder')} />
+                <input
+                  className={inputClass}
+                  value={ctaUrl}
+                  onChange={(e) => setCtaUrl(e.target.value)}
+                  placeholder={t('ctaUrlPlaceholder')}
+                />
                 <p className="mt-1 text-xs text-text-secondary">{t('ctaHint')}</p>
               </div>
             </Section>
@@ -286,12 +318,18 @@ export default function NewAnnouncementPage() {
           <div className="space-y-6">
             <Section title={t('targetSection')}>
               <div className="space-y-4">
-                <OrganizationMultiSelect value={targetOrganizationIds} onChange={handleTargetOrganizationsChange} />
+                <OrganizationMultiSelect
+                  value={targetOrganizationIds}
+                  onChange={handleTargetOrganizationsChange}
+                />
                 <div>
                   <label className={labelClass}>{t('targetRolesLabel')}</label>
                   <div className="flex flex-wrap gap-3">
                     {ROLE_OPTIONS.map((r) => (
-                      <label key={r.value} className="flex cursor-pointer items-center gap-2 text-sm text-text-primary">
+                      <label
+                        key={r.value}
+                        className="flex cursor-pointer items-center gap-2 text-sm text-text-primary"
+                      >
                         <input
                           type="checkbox"
                           className="h-4 w-4 accent-accent"
@@ -326,7 +364,7 @@ export default function NewAnnouncementPage() {
                   hint={t('publishNowHint')}
                 />
                 {publishNow && (
-                  <div className="rounded-lg border border-border bg-surface-secondary p-3">
+                  <div className="rounded-xl border border-border p-4">
                     <p className="text-xs text-text-secondary">
                       {confirmedBroadcast ? t('targetConfirmed') : t('reviewAudienceHint')}
                     </p>
@@ -345,12 +383,21 @@ export default function NewAnnouncementPage() {
           </div>
         </div>
 
-        <div className="sticky bottom-0 -mx-4 mt-6 flex justify-end gap-2 border-t border-border bg-dashboard-background/95 px-4 py-4 backdrop-blur-sm md:-mx-6 md:px-6 lg:-mx-8 lg:px-8">
-          <button type="button" className={btnGhost} onClick={() => router.push('/admin/anuncios')} disabled={createAnnouncement.isPending}>
+        <div className="bg-surface/80 sticky bottom-0 -mx-4 mt-6 flex justify-end gap-2 border-t border-border px-4 py-4 backdrop-blur-xl md:-mx-6 md:px-6 lg:-mx-8 lg:px-8">
+          <button
+            type="button"
+            className={btnGhost}
+            onClick={() => router.push('/admin/anuncios')}
+            disabled={createAnnouncement.isPending}
+          >
             {t('cancel')}
           </button>
           <button type="submit" className={btnPrimary} disabled={createAnnouncement.isPending}>
-            {createAnnouncement.isPending ? t('saving') : publishNow ? t('publish') : t('saveDraft')}
+            {createAnnouncement.isPending
+              ? t('saving')
+              : publishNow
+                ? t('publish')
+                : t('saveDraft')}
           </button>
         </div>
       </form>
@@ -377,7 +424,10 @@ export default function NewAnnouncementPage() {
         title={t('confirmTargetTitle')}
         message={
           audienceConfirm
-            ? t('confirmTargetMessage', { count: audienceConfirm.count, scope: audienceConfirm.scope })
+            ? t('confirmTargetMessage', {
+                count: audienceConfirm.count,
+                scope: audienceConfirm.scope,
+              })
             : ''
         }
         confirmLabel={t('confirm')}

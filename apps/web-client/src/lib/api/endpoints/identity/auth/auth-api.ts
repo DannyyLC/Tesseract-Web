@@ -11,7 +11,23 @@ import {
   BackupCodesResponse,
   ForgotPassDto,
   ApiResponse,
+  LoginResponse,
 } from '@tesseract/types';
+
+/** Respuesta de `GET /auth/me`: el payload de la sesión más el estado de seguridad. */
+export interface AuthUser {
+  sub: string;
+  email: string;
+  name: string;
+  role: string;
+  organizationId: string;
+  organizationName: string;
+  plan: string;
+  hasPassword?: boolean;
+  twoFactorEnabled?: boolean;
+  /** Códigos de respaldo sin usar. 0 cuando el 2FA está desactivado. */
+  backupCodesRemaining?: number;
+}
 
 class AuthApi {
   public apiRequestManager: ApiRequestManager;
@@ -28,8 +44,8 @@ class AuthApi {
 
   public async signupStepOne(
     verificationFlowDto: StartVerificationFlowDto,
-  ): Promise<ApiResponse<any>> {
-    const result = await this.apiRequestManager.post<ApiResponse<any>>(
+  ): Promise<ApiResponse<unknown>> {
+    const result = await this.apiRequestManager.post<ApiResponse<unknown>>(
       `${AuthApi.BASE_URL}/2fasignup-step-one`,
       verificationFlowDto,
     );
@@ -45,24 +61,24 @@ class AuthApi {
     return result.data?.data ?? false;
   }
 
-  public async signupStepThree(signupDto: CreateUserDto): Promise<ApiResponse<any>> {
-    const result = await this.apiRequestManager.post<ApiResponse<any>>(
+  public async signupStepThree(signupDto: CreateUserDto): Promise<unknown> {
+    const result = await this.apiRequestManager.post<ApiResponse<unknown>>(
       `${AuthApi.BASE_URL}/2fasignup-step-three`,
       signupDto,
     );
     return result.data.data;
   }
 
-  public async login(loginDto: LoginDto): Promise<ApiResponse<any>> {
-    const result = await this.apiRequestManager.post<ApiResponse<any>>(
+  public async login(loginDto: LoginDto): Promise<ApiResponse<LoginResponse>> {
+    const result = await this.apiRequestManager.post<ApiResponse<LoginResponse>>(
       `${AuthApi.BASE_URL}/login`,
       loginDto,
     );
     return result.data;
   }
 
-  public async verify2FACode(verify2FACodeDto: Verify2FACodeDto): Promise<ApiResponse<any>> {
-    const result = await this.apiRequestManager.post<ApiResponse<any>>(
+  public async verify2FACode(verify2FACodeDto: Verify2FACodeDto): Promise<ApiResponse<unknown>> {
+    const result = await this.apiRequestManager.post<ApiResponse<unknown>>(
       `${AuthApi.BASE_URL}/verify2facode`,
       verify2FACodeDto,
     );
@@ -126,8 +142,8 @@ class AuthApi {
     return result.data;
   }
 
-  public async changePassword(changePasswordDto: ChangePasswordDto): Promise<ApiResponse<any>> {
-    const result = await this.apiRequestManager.post<ApiResponse<any>>(
+  public async changePassword(changePasswordDto: ChangePasswordDto): Promise<ApiResponse<unknown>> {
+    const result = await this.apiRequestManager.post<ApiResponse<unknown>>(
       `${AuthApi.BASE_URL}/change-password`,
       changePasswordDto,
     );
@@ -143,8 +159,8 @@ class AuthApi {
     }
   }
 
-  public async getMe(): Promise<any> {
-    const result = await this.apiRequestManager.get<any>(`${AuthApi.BASE_URL}/me`);
+  public async getMe(): Promise<AuthUser> {
+    const result = await this.apiRequestManager.get<AuthUser>(`${AuthApi.BASE_URL}/me`);
     return result.data;
   }
 

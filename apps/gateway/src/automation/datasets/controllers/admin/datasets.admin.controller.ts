@@ -1,6 +1,12 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { ApiResponse, ApiResponseBuilder, DatasetField, DEFAULT_PAGE_SIZE, UserRole } from '@tesseract/types';
+import {
+  ApiResponse,
+  ApiResponseBuilder,
+  DatasetField,
+  DEFAULT_PAGE_SIZE,
+  UserRole,
+} from '@tesseract/types';
 import { CurrentUser } from '@/identity/auth/decorators/current-user.decorator';
 import { Roles } from '@/identity/auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '@/identity/auth/guards/jwt-auth.guard';
@@ -146,6 +152,8 @@ export class DatasetsAdminController {
       query.limit ?? DEFAULT_PAGE_SIZE,
       query.offset ?? 0,
       query.query,
+      query.filters,
+      query.sortBy,
     );
     return new ApiResponseBuilder().setData(result).build();
   }

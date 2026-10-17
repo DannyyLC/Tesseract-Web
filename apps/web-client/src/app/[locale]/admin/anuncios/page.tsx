@@ -12,9 +12,22 @@ import { PagePager } from '@/components/ui/page-pager';
 import { usePageSize } from '@/hooks/shared/use-page-size';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { useInfiniteAdminOrganizations } from '@/hooks/automation/use-admin-workflows';
-import { useAdminAnnouncements, useAdminAnnouncementMutations } from '@/hooks/platform/use-admin-announcements';
+import {
+  useAdminAnnouncements,
+  useAdminAnnouncementMutations,
+} from '@/hooks/platform/use-admin-announcements';
 import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
-import { btnGhost, btnPrimary, inputClass } from '../_styles';
+import {
+  btnPrimary,
+  emptyClass,
+  filterSelectClass,
+  pageSubtitleClass,
+  pageTitleClass,
+  rowActionClass,
+  rowClass,
+} from '../_styles';
+import { isToastHandled } from '@/lib/api/api-error';
+import { AnnouncementsOverviewCards } from '@/components/admin/announcements/announcements-overview-cards';
 
 const STATUS_CLASS: Record<AnnouncementStatus, string> = {
   [AnnouncementStatus.DRAFT]: 'text-text-tertiary',
@@ -37,7 +50,8 @@ export default function AdminAnnouncementsPage() {
 
   const targetLabel = (a: AdminAnnouncementDto): string => {
     if (a.targetOrganizations.length === 0) return t('allOrganizations');
-    if (a.targetOrganizations.length <= 2) return a.targetOrganizations.map((o) => o.name).join(', ');
+    if (a.targetOrganizations.length <= 2)
+      return a.targetOrganizations.map((o) => o.name).join(', ');
     return t('multipleOrgs', { count: a.targetOrganizations.length });
   };
   const [organizationId, setOrganizationId] = useState('');
@@ -79,11 +93,11 @@ export default function AdminAnnouncementsPage() {
   const { publish, unpublish } = useAdminAnnouncementMutations();
 
   return (
-    <div className="w-full">
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+    <div className="w-full space-y-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-text-primary">{t('title')}</h1>
-          <p className="mt-1 text-sm text-text-secondary">{t('subtitle')}</p>
+          <h1 className={pageTitleClass}>{t('title')}</h1>
+          <p className={pageSubtitleClass}>{t('subtitle')}</p>
         </div>
         <button className={btnPrimary} onClick={() => router.push('/admin/anuncios/nuevo')}>
           <Plus size={16} />
@@ -91,9 +105,12 @@ export default function AdminAnnouncementsPage() {
         </button>
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-3">
+      <AnnouncementsOverviewCards status={status} onStatusChange={setStatus} />
+
+      <div className="flex flex-wrap items-center gap-3">
         <div className="min-w-[240px] flex-1">
           <InfiniteSelect
+            triggerClassName={filterSelectClass}
             value={organizationId}
             onChange={setOrganizationId}
             options={orgOptions}
@@ -108,7 +125,7 @@ export default function AdminAnnouncementsPage() {
           />
         </div>
         <select
-          className={`${inputClass} max-w-[200px]`}
+          className={`${filterSelectClass} max-w-[200px]`}
           value={status}
           onChange={(e) => setStatus(e.target.value as AnnouncementStatus | '')}
         >
@@ -121,22 +138,25 @@ export default function AdminAnnouncementsPage() {
         </select>
       </div>
 
-      <section className="rounded-xl border border-border bg-surface">
+      <section>
         {isLoading ? (
           <div className="flex justify-center py-16">
             <LogoLoader text={t('loading')} />
           </div>
         ) : error ? (
-          <p className="px-4 py-10 text-center text-sm text-danger">{t('loadError')}</p>
+          <p className={`${emptyClass} text-danger`}>{t('loadError')}</p>
         ) : !data?.data.length ? (
-          <p className="px-4 py-10 text-center text-sm text-text-secondary">{t('empty')}</p>
+          <p className={emptyClass}>{t('empty')}</p>
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="space-y-1">
             {data.data.map((a) => (
-              <li key={a.id} className="flex flex-wrap items-center gap-4 px-4 py-3">
+              <li
+                key={a.id}
+                className={`${rowClass} flex flex-wrap items-center gap-4 px-4 py-3.5`}
+              >
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                    <span className="truncate font-medium text-text-primary">{a.title}</span>
+                    <span className="truncate font-semibold text-text-primary">{a.title}</span>
                     <span className="text-xs text-text-tertiary">
                       {a.template === 'CELEBRATION' ? t('templateCelebration') : t('templateNews')}
                     </span>
@@ -176,13 +196,22 @@ export default function AdminAnnouncementsPage() {
 
                 <div className="flex shrink-0 items-center gap-2">
                   {a.status === AnnouncementStatus.DRAFT && (
-                    <button className={btnGhost} disabled={publish.isPending} onClick={() => setPendingPublish(a)}>
+                    <button
+                      className={rowActionClass}
+                      disabled={publish.isPending}
+                      onClick={() => setPendingPublish(a)}
+                    >
                       <Send size={14} />
                       {t('publish')}
                     </button>
                   )}
-                  {(a.status === AnnouncementStatus.PUBLISHED || a.status === AnnouncementStatus.EXPIRED) && (
-                    <button className={btnGhost} disabled={unpublish.isPending} onClick={() => setPendingUnpublish(a)}>
+                  {(a.status === AnnouncementStatus.PUBLISHED ||
+                    a.status === AnnouncementStatus.EXPIRED) && (
+                    <button
+                      className={rowActionClass}
+                      disabled={unpublish.isPending}
+                      onClick={() => setPendingUnpublish(a)}
+                    >
                       <EyeOff size={14} />
                       {t('unpublish')}
                     </button>
@@ -209,7 +238,6 @@ export default function AdminAnnouncementsPage() {
             totalPages: data.meta.totalPages,
             total: data.meta.total,
           })}
-          className="mt-4"
         />
       )}
 
@@ -232,7 +260,7 @@ export default function AdminAnnouncementsPage() {
           if (!pendingPublish) return;
           await publish.mutateAsync(pendingPublish.id, {
             onSuccess: (result) => toast.success(t('sentToUsers', { count: result.delivered })),
-            onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+            onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
           });
           setPendingPublish(null);
         }}
@@ -250,7 +278,7 @@ export default function AdminAnnouncementsPage() {
         onConfirm={async () => {
           if (!pendingUnpublish) return;
           await unpublish.mutateAsync(pendingUnpublish.id, {
-            onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+            onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
           });
           setPendingUnpublish(null);
         }}

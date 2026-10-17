@@ -6,7 +6,7 @@ import { CursorPaginatedResponseUtils } from '@/platform/common/responses/cursor
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { UtilityService } from '@/platform/utility/utility.service';
 import { KmsService } from '@/automation/tools/core/kms.service';
-import { ConversationChannel } from '@tesseract/database';
+import { ChatRole, ConversationChannel } from '@tesseract/database';
 import { CHANNEL_FILTER_GROUPS } from '@tesseract/types';
 
 // Mock CursorPaginatedResponseUtils
@@ -31,6 +31,9 @@ const mockPrismaService = {
   },
   whatsAppConfig: {
     findUnique: jest.fn(),
+  },
+  messengerConfig: {
+    findFirst: jest.fn(),
   },
   endUser: {
     upsert: jest.fn(),
@@ -85,7 +88,8 @@ describe('ConversationsService', () => {
   describe('findOrCreateConversation', () => {
     it('should return existing conversation if conversationId is provided and exists', async () => {
       const mockConversation = { id: 'conv-123' };
-      mockPrismaService.conversation.findUnique.mockResolvedValue(mockConversation);
+      mockPrismaService.workflow.findUnique.mockResolvedValue({ organizationId: 'org-1' });
+      mockPrismaService.conversation.findFirst.mockResolvedValue(mockConversation);
 
       const result = await service.findOrCreateConversation(
         'wf-1',
@@ -95,14 +99,37 @@ describe('ConversationsService', () => {
         'conv-123',
       );
 
-      expect(mockPrismaService.conversation.findUnique).toHaveBeenCalledWith({
-        where: { id: 'conv-123' },
+      expect(mockPrismaService.conversation.findFirst).toHaveBeenCalledWith({
+        where: { id: 'conv-123', organizationId: 'org-1' },
       });
       expect(result).toEqual(mockConversation);
     });
 
+    // El conversationId llega en la metadata del execute: quien llama lo elige.
+    it('no reutiliza una conversación de otra organización: crea una propia', async () => {
+      mockPrismaService.workflow.findUnique.mockResolvedValue({ organizationId: 'org-1' });
+      // La búsqueda filtra por org-1, así que la conversación de otro tenant no aparece.
+      mockPrismaService.conversation.findFirst.mockResolvedValue(null);
+      mockPrismaService.conversation.create.mockResolvedValue({ id: 'new-conv-1' });
+
+      const result = await service.findOrCreateConversation(
+        'wf-1',
+        'api',
+        undefined,
+        undefined,
+        'conv-de-otro-tenant',
+      );
+
+      expect(mockPrismaService.conversation.findFirst).toHaveBeenCalledWith({
+        where: { id: 'conv-de-otro-tenant', organizationId: 'org-1' },
+      });
+      expect(mockPrismaService.conversation.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ organizationId: 'org-1' }) }),
+      );
+      expect(result).toEqual({ id: 'new-conv-1' });
+    });
+
     it('should throw Error if workflow not found', async () => {
-      mockPrismaService.conversation.findUnique.mockResolvedValue(null);
       mockPrismaService.workflow.findUnique.mockResolvedValue(null);
 
       await expect(service.findOrCreateConversation('wf-1', 'api')).rejects.toThrow(
@@ -147,6 +174,33 @@ describe('ConversationsService', () => {
           data: expect.objectContaining({ isInternalWorkflow: true }),
         }),
       );
+    });
+  });
+
+  describe('findOne', () => {
+    // `id: undefined` no filtra nada en Prisma: sin la guarda devolvía la primera
+    // conversación de la organización.
+    it('rechaza un id vacío sin consultar la base', async () => {
+      await expect(service.findOne('org-1', undefined)).rejects.toThrow(NotFoundException);
+      expect(mockPrismaService.conversation.findFirst).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('findOrCreateConversationFromMessengerMessage', () => {
+    // El pageId es público y puede llegar en la metadata del execute: sin el filtro, un
+    // tenant podía crear conversaciones colgadas de la página (y el token) de otro.
+    it('solo resuelve páginas de la organización del workflow', async () => {
+      mockPrismaService.workflow.findUnique.mockResolvedValue({ organizationId: 'org-1' });
+      mockPrismaService.messengerConfig.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.findOrCreateConversationFromMessengerMessage('wf-1', 'page-ajena', 'psid-1'),
+      ).rejects.toThrow('Messenger config no encontrada para la página: page-ajena');
+
+      expect(mockPrismaService.messengerConfig.findFirst).toHaveBeenCalledWith({
+        where: { pageId: 'page-ajena', organizationId: 'org-1' },
+      });
+      expect(mockPrismaService.conversation.create).not.toHaveBeenCalled();
     });
   });
 
@@ -279,7 +333,7 @@ describe('ConversationsService', () => {
 
   describe('findAll', () => {
     it('should return paginated conversations', async () => {
-      const mockConversations = [{ id: 'c-1', userId: 'u-1' }];
+      const mockConversations = [{ id: 'c-1', userId: 'u-1', messages: [] }];
       mockPrismaService.conversation.findMany.mockResolvedValue(mockConversations);
       mockBuild.mockReturnValue({ items: mockConversations, nextCursor: null });
 
@@ -363,6 +417,7 @@ describe('ConversationsService', () => {
         userId: null,
         endUser: { name: 'Juan Pérez', phoneNumber: null },
         messengerConfig: { pageName: 'Tacos El Fractal' },
+        messages: [],
       };
       mockPrismaService.conversation.findMany.mockResolvedValue([row]);
       mockBuild.mockReturnValue({ items: [row], nextCursor: null });
@@ -380,6 +435,72 @@ describe('ConversationsService', () => {
           endUserPhoneNumber: null,
         }),
       );
+    });
+
+    it('resume el último mensaje y quién lo escribió, sin devolver el mensaje', async () => {
+      const row = {
+        id: 'c-1',
+        userId: null,
+        messages: [
+          {
+            role: ChatRole.ASSISTANT,
+            content: 'Ya te lo mando\npor aquí',
+            metadata: { source: 'messenger_echo' },
+          },
+        ],
+      };
+      mockPrismaService.conversation.findMany.mockResolvedValue([row]);
+      mockBuild.mockReturnValue({ items: [row], nextCursor: null });
+
+      const result = await service.findAll({
+        paginationAction: 'next',
+        organizationId: 'org-1',
+        take: 10,
+      });
+
+      expect(result.items[0]).toEqual(
+        expect.objectContaining({
+          lastMessagePreview: 'Ya te lo mando por aquí',
+          lastMessageAuthor: 'HUMAN_AGENT',
+        }),
+      );
+      // El mensaje crudo no viaja al front: de él solo salen esos dos campos.
+      expect(result.items[0]).not.toHaveProperty('messages');
+    });
+
+    it('deja los campos del último mensaje en null cuando no hay mensajes', async () => {
+      const row = { id: 'c-1', userId: null, messages: [] };
+      mockPrismaService.conversation.findMany.mockResolvedValue([row]);
+      mockBuild.mockReturnValue({ items: [row], nextCursor: null });
+
+      const result = await service.findAll({
+        paginationAction: 'next',
+        organizationId: 'org-1',
+        take: 10,
+      });
+
+      expect(result.items[0]).toEqual(
+        expect.objectContaining({ lastMessagePreview: null, lastMessageAuthor: null }),
+      );
+    });
+
+    it('pide solo el último turno USER/ASSISTANT del hilo', async () => {
+      mockPrismaService.conversation.findMany.mockResolvedValue([]);
+      mockBuild.mockReturnValue({ items: [], nextCursor: null });
+
+      await service.findAll({
+        paginationAction: 'next',
+        organizationId: 'org-1',
+        take: 10,
+      });
+
+      const include = mockPrismaService.conversation.findMany.mock.calls.at(-1)?.[0].include;
+      expect(include.messages).toEqual({
+        where: { role: { in: [ChatRole.USER, ChatRole.ASSISTANT] } },
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+        select: { role: true, content: true, metadata: true },
+      });
     });
 
     it('sin priorización ordena por último mensaje, no por fecha de creación', async () => {

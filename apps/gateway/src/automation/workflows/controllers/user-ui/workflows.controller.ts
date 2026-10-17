@@ -34,6 +34,7 @@ import {
 import { Response } from 'express';
 import { RolesGuard } from '@/identity/auth/guards/roles.guard';
 import { Roles } from '@/identity/auth/decorators/roles.decorator';
+import { readExecutionResult } from '@/automation/executions/execution-result';
 
 /**
  * Controller de Workflows
@@ -55,10 +56,8 @@ export class WorkflowsController {
    */
   @Get('node-catalog')
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
-  async getNodeCatalog(
-    @Query('graphType', new DefaultValuePipe('pipeline')) graphType: string,
-  ) {
-    const apiResponse = new ApiResponseBuilder<Record<string, any>>();
+  async getNodeCatalog(@Query('graphType', new DefaultValuePipe('pipeline')) graphType: string) {
+    const apiResponse = new ApiResponseBuilder<Record<string, unknown>>();
     const catalog = await this.workflowsService.getNodeCatalog(graphType);
     apiResponse.setData(catalog).setMessage('Node catalog retrieved successfully').setSuccess(true);
     return apiResponse.build();
@@ -186,7 +185,7 @@ export class WorkflowsController {
     );
 
     // Transformar respuesta para ocultar metadata interna (DTO simplificado)
-    const result = execution.result as any;
+    const result = readExecutionResult(execution.result);
     const messages = result?.messages ?? [];
     const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
     const assistantContent = lastMessage?.role === 'assistant' ? lastMessage.content : null;
@@ -226,7 +225,7 @@ export class WorkflowsController {
       TriggerType.MANUAL, // trigger: UI executions are manual
     );
 
-    return new StreamableFile(stream as any);
+    return new StreamableFile(stream);
   }
 
   /**

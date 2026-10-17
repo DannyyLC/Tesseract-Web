@@ -1,3 +1,4 @@
+import { unwrapData } from '@/lib/api/unwrap-data';
 import ApiRequestManager from '../../../api-request-manager';
 import { ApiResponse } from '@tesseract/types';
 
@@ -26,6 +27,10 @@ export interface LlmModel {
   outputPricePer1m: string;
   contextWindow: number;
   recommendedMaxTokens: number;
+  /** Si acepta `temperature` (los modelos de razonamiento rechazan valores ≠ default). */
+  supportsTemperature: boolean;
+  /** `model_params` aceptados: `{ param: [valores] }`, lista vacía = cualquier valor. */
+  allowedParams: Record<string, string[]>;
   effectiveFrom: string;
   effectiveTo: string | null;
   isActive: boolean;
@@ -58,6 +63,8 @@ export interface CreateLlmModelInput {
   outputPricePer1m: number;
   contextWindow: number;
   recommendedMaxTokens: number;
+  supportsTemperature?: boolean;
+  allowedParams?: Record<string, string[]>;
   currency?: string;
   notes?: string;
 }
@@ -95,14 +102,14 @@ class LlmModelsApi {
     const qs = params.toString();
     const url = `${LlmModelsApi.BASE_URL}${qs ? `?${qs}` : ''}`;
     const result = await this.apiRequestManager.get<ApiResponse<LlmModelsListResult>>(url);
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async findOne(id: string): Promise<LlmModel> {
     const result = await this.apiRequestManager.get<ApiResponse<LlmModel>>(
       `${LlmModelsApi.BASE_URL}/${id}`,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async create(data: CreateLlmModelInput): Promise<LlmModel> {
@@ -110,7 +117,7 @@ class LlmModelsApi {
       LlmModelsApi.BASE_URL,
       data,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async update(id: string, data: UpdateLlmModelInput): Promise<LlmModel> {
@@ -118,7 +125,7 @@ class LlmModelsApi {
       `${LlmModelsApi.BASE_URL}/${id}`,
       data,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async supersedePricing(id: string, data: SupersedePricingInput): Promise<LlmModel> {
@@ -126,14 +133,14 @@ class LlmModelsApi {
       `${LlmModelsApi.BASE_URL}/${id}/pricing`,
       data,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async remove(id: string): Promise<LlmModel> {
     const result = await this.apiRequestManager.delete<ApiResponse<LlmModel>>(
       `${LlmModelsApi.BASE_URL}/${id}`,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 }
 

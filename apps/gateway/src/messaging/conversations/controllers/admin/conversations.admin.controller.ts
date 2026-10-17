@@ -1,4 +1,13 @@
-import { BadRequestException, Body, Controller, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { ApiResponse, ApiResponseBuilder, UserRole } from '@tesseract/types';
 import { JwtAuthGuard } from '@/identity/auth/guards/jwt-auth.guard';
@@ -50,7 +59,10 @@ export class ConversationsAdminController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Renombrar una conversación' })
-  async rename(@Param('id') id: string, @Body() dto: RenameConversationAdminDto): Promise<ApiResponse> {
+  async rename(
+    @Param('id') id: string,
+    @Body() dto: RenameConversationAdminDto,
+  ): Promise<ApiResponse> {
     await this.conversationsService.renameForAdmin(dto.organizationId, id, dto.title);
     return new ApiResponseBuilder().setMessage('Conversación renombrada').build();
   }

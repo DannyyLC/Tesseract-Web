@@ -9,11 +9,13 @@ jest.mock('../auth/utils/api-key.util');
 
 describe('ApiKeysService', () => {
   let service: ApiKeysService;
-  let prismaService: PrismaService;
 
   const mockPrismaService = {
     organization: {
       findUnique: jest.fn(),
+    },
+    workflow: {
+      findFirst: jest.fn(),
     },
     apiKey: {
       create: jest.fn(),
@@ -40,7 +42,6 @@ describe('ApiKeysService', () => {
     }).compile();
 
     service = module.get<ApiKeysService>(ApiKeysService);
-    prismaService = module.get<PrismaService>(PrismaService);
     jest.clearAllMocks();
   });
 
@@ -66,6 +67,7 @@ describe('ApiKeysService', () => {
       const hashedKey = 'hashed_key_123';
 
       mockPrismaService.organization.findUnique.mockResolvedValue(mockOrganization);
+      mockPrismaService.workflow.findFirst.mockResolvedValue({ id: createDto.workflowId });
       (ApiKeyUtil.generate as jest.Mock).mockReturnValue(generatedKey);
       (ApiKeyUtil.hash as jest.Mock).mockReturnValue(hashedKey);
 
@@ -126,6 +128,22 @@ describe('ApiKeysService', () => {
       mockPrismaService.organization.findUnique.mockResolvedValue(null);
 
       await expect(service.create(organizationId, createDto)).rejects.toThrow(NotFoundException);
+    });
+
+    it('rechaza un workflow de otra organización sin crear la key', async () => {
+      mockPrismaService.organization.findUnique.mockResolvedValue({
+        id: organizationId,
+        plan: 'FREE',
+        _count: { apiKeys: 0 },
+      });
+      mockPrismaService.workflow.findFirst.mockResolvedValue(null);
+
+      await expect(service.create(organizationId, createDto)).rejects.toThrow(NotFoundException);
+      expect(mockPrismaService.workflow.findFirst).toHaveBeenCalledWith({
+        where: { id: createDto.workflowId, organizationId },
+        select: { id: true },
+      });
+      expect(mockPrismaService.apiKey.create).not.toHaveBeenCalled();
     });
 
     it('should throw BadRequestException if max api keys limit is reached', async () => {

@@ -9,6 +9,7 @@ import { useApiKeyMutations } from '@/hooks/identity/use-api-key';
 import { useInfiniteDashboardWorkflows } from '@/hooks/automation/use-workflows';
 import { InfiniteSelect } from '@/components/ui/infinite-select';
 import { Modal } from '@/components/ui/modal';
+import { toApiError } from '@/lib/api/api-error';
 
 interface CreateApiKeyModalProps {
   isOpen: boolean;
@@ -87,7 +88,8 @@ export function CreateApiKeyModal({
       handleClose();
       onCreated(created);
       toast.success(t('createSuccess'));
-    } catch (error: any) {
+    } catch (caught) {
+      const error = toApiError(caught);
       // El tope de API Keys del plan llega como 400 con un mensaje que le dice al usuario
       // qué hacer; tragárselo y mostrar el genérico deja la pantalla sin explicación.
       const serverMessage =

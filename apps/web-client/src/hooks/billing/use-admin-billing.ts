@@ -42,6 +42,8 @@ export function useAdjustAdminCredits() {
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: [CREDITS_KEY, variables.organizationId] });
+      // El saldo decide "créditos bajos / saldo negativo" en las tarjetas del listado.
+      queryClient.invalidateQueries({ queryKey: ['admin-organizations', 'overview'] });
     },
   });
 }
@@ -62,7 +64,11 @@ export function useUpdateAdminSubscription() {
       return await api.update(organizationId, data);
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['admin-organizations', 'detail', variables.organizationId] });
+      queryClient.invalidateQueries({
+        queryKey: ['admin-organizations', 'detail', variables.organizationId],
+      });
+      // Plan, estado y fin del periodo mueven el MRR y "renovación manual" de las tarjetas.
+      queryClient.invalidateQueries({ queryKey: ['admin-organizations', 'overview'] });
     },
   });
 }

@@ -26,7 +26,9 @@ export function DatasetList({ organizationId, onSelect }: DatasetListProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [fields, setFields] = useState<DatasetField[]>([{ key: '', label: '', type: 'text', order: 0 }]);
+  const [fields, setFields] = useState<DatasetField[]>([
+    { key: '', label: '', type: 'text', order: 0 },
+  ]);
   const [error, setError] = useState<string | null>(null);
 
   const usage = data?.usage;
@@ -43,13 +45,16 @@ export function DatasetList({ organizationId, onSelect }: DatasetListProps) {
   const handleCreate = async () => {
     setError(null);
     try {
-      const created = await createDataset.mutateAsync({ organizationId, data: { name, description, fields } });
+      const created = await createDataset.mutateAsync({
+        organizationId,
+        data: { name, description, fields },
+      });
       if (created) {
         closeCreate();
         onSelect(created.id);
       }
     } catch (caught) {
-      setError(getApiErrorMessage(caught as any));
+      setError(getApiErrorMessage(caught));
     }
   };
 
@@ -65,7 +70,7 @@ export function DatasetList({ organizationId, onSelect }: DatasetListProps) {
     <div className="w-full space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold text-text-primary">{t('title')}</h2>
+          <h2 className="text-base font-semibold text-text-primary">{t('title')}</h2>
           {usage && (
             <p className="mt-1 text-xs text-text-secondary">
               {t('usageSummary', {
@@ -75,7 +80,7 @@ export function DatasetList({ organizationId, onSelect }: DatasetListProps) {
                 maxRows: usage.maxDatasetRows === -1 ? '∞' : usage.maxDatasetRows,
               })}
               {usage.writesBlocked && (
-                <span className="ml-2 rounded-md bg-warning-500/10 px-1.5 py-0.5 text-warning-600">
+                <span className="ml-2 rounded-lg bg-[var(--badge-warning-bg-solid)] px-2 py-0.5 font-medium text-[var(--badge-warning-text-solid)]">
                   {t('writesBlocked')}
                 </span>
               )}
@@ -93,7 +98,7 @@ export function DatasetList({ organizationId, onSelect }: DatasetListProps) {
       </div>
 
       {data.datasets.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border py-16 text-center">
+        <div className="rounded-2xl border border-dashed border-border py-16 text-center">
           <Database size={28} className="mx-auto text-text-tertiary" />
           <p className="mt-3 text-sm text-text-secondary">{t('empty')}</p>
         </div>
@@ -103,16 +108,18 @@ export function DatasetList({ organizationId, onSelect }: DatasetListProps) {
             <button
               key={dataset.id}
               onClick={() => onSelect(dataset.id)}
-              className="group rounded-xl border border-border bg-surface p-4 text-left transition-colors hover:border-border-focus"
+              className="group rounded-xl border border-transparent p-5 text-left transition-all duration-200 hover:border-border hover:bg-surface-panel hover:shadow-sm"
             >
               <div className="flex items-start gap-3">
-                <div className="rounded-lg bg-surface-secondary p-2 text-accent">
+                <div className="rounded-xl bg-[var(--surface-tint)] p-2 text-accent">
                   <Database size={16} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h3 className="truncate text-sm font-semibold text-text-primary">{dataset.name}</h3>
+                  <h3 className="truncate font-semibold text-text-primary">{dataset.name}</h3>
                   {dataset.description && (
-                    <p className="mt-1 line-clamp-2 text-xs text-text-secondary">{dataset.description}</p>
+                    <p className="mt-1 line-clamp-2 text-xs text-text-secondary">
+                      {dataset.description}
+                    </p>
                   )}
                 </div>
               </div>
@@ -122,7 +129,8 @@ export function DatasetList({ organizationId, onSelect }: DatasetListProps) {
                 </span>
                 <span>{t('columnsCount', { count: dataset.fieldCount })}</span>
                 <span className="flex items-center gap-1">
-                  <Workflow size={13} /> {t('workflowsCount', { count: dataset.workflowIds.length })}
+                  <Workflow size={13} />{' '}
+                  {t('workflowsCount', { count: dataset.workflowIds.length })}
                 </span>
               </div>
             </button>
@@ -134,7 +142,12 @@ export function DatasetList({ organizationId, onSelect }: DatasetListProps) {
         <div className="space-y-4">
           <div>
             <label className={labelClass}>{t('nameLabel')}</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} className={inputClass} placeholder={t('namePlaceholder')} />
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className={inputClass}
+              placeholder={t('namePlaceholder')}
+            />
           </div>
           <div>
             <label className={labelClass}>{t('descriptionLabel')}</label>
@@ -151,13 +164,21 @@ export function DatasetList({ organizationId, onSelect }: DatasetListProps) {
             <SchemaBuilder fields={fields} onChange={setFields} />
           </div>
 
-          {error && <div className="bg-danger/10 rounded-lg px-4 py-3 text-sm text-danger-600">{error}</div>}
+          {error && (
+            <div className="rounded-xl border border-[var(--danger-banner-border)] bg-[var(--danger-banner-bg)] px-4 py-3 text-sm text-[var(--danger-text-adaptive)]">
+              {error}
+            </div>
+          )}
 
           <div className="flex justify-end gap-2">
             <button className={btnGhost} onClick={closeCreate}>
               {t('cancel')}
             </button>
-            <button className={btnPrimary} onClick={handleCreate} disabled={!name.trim() || createDataset.isPending}>
+            <button
+              className={btnPrimary}
+              onClick={handleCreate}
+              disabled={!name.trim() || createDataset.isPending}
+            >
               {createDataset.isPending ? t('creating') : t('create')}
             </button>
           </div>

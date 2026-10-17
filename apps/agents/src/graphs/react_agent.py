@@ -34,12 +34,13 @@ from typing import Annotated, Literal, TypedDict
 from langgraph.graph import StateGraph, END, START
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 import logging
 
 from core.context import TenantContext
 from core.prompts import apply_system_prompt, build_time_context
-from tools.registry import load_tools, get_llm
+from core.llm_errors import LLMCallError
+from tools.registry import chain_fallbacks, load_tools, get_llm
 
 # ==========================================
 # Logger
@@ -167,12 +168,9 @@ def call_model(state: ReactAgentState, ctx: TenantContext, llm_with_tools) -> di
             f"[{ctx.workflow_id}] Error calling LLM: {str(e)}",
             exc_info=True
         )
-        
-        # Retornar mensaje de error para que el grafo no se rompa
-        error_message = AIMessage(
-            content=f"Lo siento, ocurrió un error al procesar tu solicitud: {str(e)}"
-        )
-        return {"messages": [error_message]}
+        # Sin respuesta del modelo (ni de sus fallbacks) el error sube: antes se devolvía
+        # como mensaje del agente y le llegaba al cliente.
+        raise LLMCallError("default", None, e) from e
 
 
 def should_continue(state: ReactAgentState, ctx: TenantContext) -> Literal["tools", "end"]:
@@ -313,8 +311,8 @@ def create_react_agent(ctx: TenantContext) -> StateGraph:
     llm = get_llm(ctx)
     tools = load_tools(ctx, agent_name="default")
     
-    # Bindear tools al LLM
-    llm_with_tools = llm.bind_tools(tools) if tools else llm
+    # Bindear tools al LLM y encadenar los fallbacks del agente (si los hay)
+    llm_with_tools = chain_fallbacks(ctx, "default", llm, tools)
     
     logger.info(
         f"[{ctx.workflow_id}] Loaded {len(tools)} tools for ReAct agent"

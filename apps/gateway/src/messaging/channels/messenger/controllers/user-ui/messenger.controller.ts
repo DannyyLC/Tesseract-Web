@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -15,13 +16,16 @@ import {
 } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import { ChatRole, MessengerConfig } from '@tesseract/database';
-import { ApiResponse, ApiResponseBuilder } from '@tesseract/types';
+import { mediaPlaceholder } from '@/automation/media-processing/media-placeholders';
+import { ApiResponse, ApiResponseBuilder, UserRole } from '@tesseract/types';
 import { Response } from 'express';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 import { WorkflowsService } from '@/automation/workflows/workflows.service';
 import { CurrentUser } from '@/identity/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '@/identity/auth/guards/jwt-auth.guard';
+import { RolesGuard } from '@/identity/auth/guards/roles.guard';
+import { Roles } from '@/identity/auth/decorators/roles.decorator';
 import {
   ConversationsService,
   OutsideWorkflowReason,
@@ -117,7 +121,11 @@ export class MessengerController {
    */
   @SkipThrottle()
   @Post('webhook')
-  async handleWebhook(@Body() body: any, @Res() res: Response, @Headers() headers: any) {
+  async handleWebhook(
+    @Body() body: unknown,
+    @Res() res: Response,
+    @Headers() headers: Record<string, string | undefined>,
+  ) {
     const parsedBody = body as MessengerWebhookPayload;
 
     // Se firma sobre el body crudo: Meta escapa los caracteres no-ASCII a su manera y
@@ -127,17 +135,31 @@ export class MessengerController {
 
     if (!rawBody) {
       this.logger.error('Webhook de Messenger sin raw body; no se puede validar la firma');
-      await this.messengerConfigService.updateConnectionStatusByPageId(parsedBody?.entry?.[0]?.id ?? '', 'DISCONNECTED');
-      await this.messengerConfigService.updateConnectionErrorByPageId(parsedBody?.entry?.[0]?.id ?? '', 'Webhook de Messenger sin raw body; no se puede validar la firma');
+      await this.messengerConfigService.updateConnectionStatusByPageId(
+        parsedBody?.entry?.[0]?.id ?? '',
+        'DISCONNECTED',
+      );
+      await this.messengerConfigService.updateConnectionErrorByPageId(
+        parsedBody?.entry?.[0]?.id ?? '',
+        'Webhook de Messenger sin raw body; no se puede validar la firma',
+      );
       return res.status(HttpStatus.UNAUTHORIZED).send({ received: false });
     }
 
     if (parsedBody?.object !== 'page') {
       // Instagram y WhatsApp comparten el mecanismo de webhooks de Meta; si la app
       // llega a suscribirse a otro producto, esto evita procesarlo como Messenger.
-      this.logger.warn(`Webhook de Messenger con object inesperado, el object no es page: ${parsedBody?.object}`);
-      await this.messengerConfigService.updateConnectionStatusByPageId(parsedBody?.entry?.[0]?.id ?? '', 'DISCONNECTED');
-      await this.messengerConfigService.updateConnectionErrorByPageId(parsedBody?.entry?.[0]?.id ?? '', `Webhook de Messenger con object inesperado: ${parsedBody?.object}`);
+      this.logger.warn(
+        `Webhook de Messenger con object inesperado, el object no es page: ${parsedBody?.object}`,
+      );
+      await this.messengerConfigService.updateConnectionStatusByPageId(
+        parsedBody?.entry?.[0]?.id ?? '',
+        'DISCONNECTED',
+      );
+      await this.messengerConfigService.updateConnectionErrorByPageId(
+        parsedBody?.entry?.[0]?.id ?? '',
+        `Webhook de Messenger con object inesperado: ${parsedBody?.object}`,
+      );
       return res.status(HttpStatus.OK).send({ received: true, ignored: 'unsupported-object' });
     }
 
@@ -174,12 +196,16 @@ export class MessengerController {
       if (!account.signatureValid) {
         // Se valida por página, no por lote: aceptar el POST entero al primer acierto
         // dejaría que quien conoce el secreto de un tenant colase eventos de otro.
-        this.logger.warn(
-          `Firma inválida en webhook de Messenger para la página ${event.pageId}`,
-        );
+        this.logger.warn(`Firma inválida en webhook de Messenger para la página ${event.pageId}`);
         rejected++;
-        await this.messengerConfigService.updateConnectionStatusByPageId(event.pageId, 'DISCONNECTED');
-        await this.messengerConfigService.updateConnectionErrorByPageId(event.pageId, 'Firma inválida en webhook de Messenger');
+        await this.messengerConfigService.updateConnectionStatusByPageId(
+          event.pageId,
+          'DISCONNECTED',
+        );
+        await this.messengerConfigService.updateConnectionErrorByPageId(
+          event.pageId,
+          'Firma inválida en webhook de Messenger',
+        );
         results.push({ messageId: event.messageId, ignored: 'invalid-signature' });
         continue;
       }
@@ -350,7 +376,10 @@ export class MessengerController {
     }
 
     if (process.env.NODE_ENV !== 'production') {
-      this.logger.debug('Webhook de Messenger recibido, payload completo', JSON.stringify(event, null, 2));
+      this.logger.debug(
+        'Webhook de Messenger recibido, payload completo',
+        JSON.stringify(event, null, 2),
+      );
     }
 
     // Un workflow borrado no tiene a dónde rutear. No es transitorio: reintentar no lo
@@ -468,7 +497,16 @@ export class MessengerController {
     reason: OutsideWorkflowReason,
     knownConversation?: { id: string; organizationId: string; metadata?: unknown } | null,
   ): Promise<void> {
-    const content = messaging.message?.text;
+    // Los adjuntos (foto, sticker, ubicación...) quedan como marcador: sin él, un mensaje sin
+    // texto no se guardaba y desaparecía del historial. Ver `media-placeholders.ts`.
+    const content = [
+      ...(messaging.message?.attachments ?? []).map((attachment) =>
+        mediaPlaceholder(attachment.type),
+      ),
+      messaging.message?.text,
+    ]
+      .filter(Boolean)
+      .join('\n');
     if (!content) {
       this.logger.warn(
         `Messenger message without text for config ${messengerConfigId}, it's skipped`,
@@ -511,7 +549,8 @@ export class MessengerController {
   // ─── Config CRUD ──────────────────────────────────────────────────────
 
   @Post('create-config')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async createConfig(
     @CurrentUser() currUser: UserPayload,
     @Body() body: CreateConfigDto,
@@ -528,6 +567,29 @@ export class MessengerController {
         .setMessage('A Messenger config with this page id already exists');
       return res.status(HttpStatus.BAD_REQUEST).json(apiResponse.build());
     }
+
+    // El workflow llega del body: tiene que ser de esta organización.
+    const workflow = await this.workflowsService.getRoutingState(
+      currUser.organizationId,
+      body.workflowId,
+    );
+    if (!workflow) {
+      apiResponse
+        .setStatusCode(HttpStatus.BAD_REQUEST)
+        .setData(false)
+        .setMessage('Workflow not found in this organization');
+      return res.status(HttpStatus.BAD_REQUEST).json(apiResponse.build());
+    }
+
+    // Las credenciales tienen que ser de esa página (ver assertCredentialsOwnPage). Sin ellas ya
+    // no se cae a las de la plataforma: eso dejaba registrar cualquier página suscrita a la app.
+    // Va después de resolver el workflow porque esto sale a la red y aquello es una consulta.
+    const ownership = await this.checkOwnership(res, {
+      pageId: body.pageId,
+      pageAccessToken: body.pageAccessToken,
+      appSecret: body.appSecret,
+    });
+    if (ownership) return ownership;
 
     const response = await this.messengerConfigService.createRecord(
       currUser.organizationId,
@@ -554,13 +616,17 @@ export class MessengerController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async deleteConfig(
-    @CurrentUser() _currUser: UserPayload,
+    @CurrentUser() currUser: UserPayload,
     @Param('id') id: string,
     @Res() res: Response,
   ): Promise<Response<ApiResponse<boolean>>> {
     const apiResponse = new ApiResponseBuilder<boolean>();
+    if (!(await this.findOwnedConfig(currUser.organizationId, id))) {
+      return this.configNotFound(res);
+    }
     const deleted = await this.messengerConfigService.deleteRecord(id);
     if (deleted) {
       apiResponse
@@ -578,7 +644,8 @@ export class MessengerController {
   }
 
   @Get('list/:workflowId')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.VIEWER)
   async listConfigsByOrgAndWorkflow(
     @CurrentUser() currUser: UserPayload,
     @Param('workflowId') workflowId: string,
@@ -608,7 +675,8 @@ export class MessengerController {
    * cosa; este es el que respalda el formulario completo.
    */
   @Patch(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async updateConfig(
     @CurrentUser() currUser: UserPayload,
     @Param('id') id: string,
@@ -617,15 +685,24 @@ export class MessengerController {
   ): Promise<Response<ApiResponse<boolean>>> {
     const apiResponse = new ApiResponseBuilder<boolean>();
 
-    // El id viene de la URL, así que hay que comprobar que la fila es de la
-    // organización de quien llama antes de escribir en ella.
-    const config = await this.messengerConfigService.getMessengerConfigById(id);
-    if (!config || config.organizationId !== currUser.organizationId) {
-      apiResponse
-        .setStatusCode(HttpStatus.NOT_FOUND)
-        .setData(false)
-        .setMessage('Messenger config not found');
-      return res.status(HttpStatus.NOT_FOUND).json(apiResponse.build());
+    const config = await this.findOwnedConfig(currUser.organizationId, id);
+    if (!config) {
+      return this.configNotFound(res);
+    }
+
+    // Cambiar la página o cualquiera de sus credenciales vuelve a exigir que el par resultante
+    // sea de esa página: si no, bastaba editar el pageId para quedarse con la de otro.
+    if (body.pageId?.trim() || body.pageAccessToken?.trim() || body.appSecret?.trim()) {
+      const ownership = await this.checkOwnership(
+        res,
+        {
+          pageId: body.pageId?.trim() || config.pageId,
+          pageAccessToken: body.pageAccessToken,
+          appSecret: body.appSecret,
+        },
+        config,
+      );
+      if (ownership) return ownership;
     }
 
     const success = await this.messengerConfigService.updateConfig(id, body);
@@ -645,14 +722,18 @@ export class MessengerController {
   }
 
   @Patch(':id/isActive')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async setIsActive(
-    @CurrentUser() _currUser: UserPayload,
+    @CurrentUser() currUser: UserPayload,
     @Param('id') id: string,
     @Body('isActive') isActive: boolean,
     @Res() res: Response,
   ): Promise<Response<ApiResponse<boolean>>> {
     const apiResponse = new ApiResponseBuilder<boolean>();
+    if (!(await this.findOwnedConfig(currUser.organizationId, id))) {
+      return this.configNotFound(res);
+    }
     const success = await this.messengerConfigService.updateIsActive(id, isActive);
     if (success) {
       apiResponse
@@ -670,14 +751,25 @@ export class MessengerController {
   }
 
   @Patch(':id/page-access-token')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async updatePageAccessToken(
-    @CurrentUser() _currUser: UserPayload,
+    @CurrentUser() currUser: UserPayload,
     @Param('id') id: string,
     @Body() body: UpdatePageAccessTokenDto,
     @Res() res: Response,
   ): Promise<Response<ApiResponse<boolean>>> {
     const apiResponse = new ApiResponseBuilder<boolean>();
+    const config = await this.findOwnedConfig(currUser.organizationId, id);
+    if (!config) {
+      return this.configNotFound(res);
+    }
+    const ownership = await this.checkOwnership(
+      res,
+      { pageId: config.pageId, pageAccessToken: body.pageAccessToken },
+      config,
+    );
+    if (ownership) return ownership;
     const success = await this.messengerConfigService.updatePageAccessToken(
       id,
       body.pageAccessToken,
@@ -698,14 +790,25 @@ export class MessengerController {
   }
 
   @Patch(':id/app-secret')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
   async updateAppSecret(
-    @CurrentUser() _currUser: UserPayload,
+    @CurrentUser() currUser: UserPayload,
     @Param('id') id: string,
     @Body() body: UpdateAppSecretDto,
     @Res() res: Response,
   ): Promise<Response<ApiResponse<boolean>>> {
     const apiResponse = new ApiResponseBuilder<boolean>();
+    const config = await this.findOwnedConfig(currUser.organizationId, id);
+    if (!config) {
+      return this.configNotFound(res);
+    }
+    const ownership = await this.checkOwnership(
+      res,
+      { pageId: config.pageId, appSecret: body.appSecret },
+      config,
+    );
+    if (ownership) return ownership;
     const success = await this.messengerConfigService.updateAppSecret(id, body.appSecret);
     if (success) {
       apiResponse
@@ -720,5 +823,50 @@ export class MessengerController {
       .setData(false)
       .setMessage('Failed to update app secret');
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json(apiResponse.build());
+  }
+
+  // ─── Propiedad por organización ───────────────────────────────────────
+
+  /**
+   * El id de la config llega en la URL, así que ninguna ruta debe tocar la fila sin antes
+   * confirmar que es de la organización de quien llama. Una fila ajena se contesta igual que
+   * una inexistente (404), para no confirmar que el id existe.
+   */
+  private async findOwnedConfig(
+    organizationId: string,
+    configId: string,
+  ): Promise<MessengerConfig | null> {
+    const config = await this.messengerConfigService.getMessengerConfigById(configId);
+    return config?.organizationId === organizationId ? config : null;
+  }
+
+  /**
+   * Corre la prueba de propiedad y, si falla, contesta 400 con el motivo. Devuelve la respuesta
+   * ya enviada para que el handler la regrese, o `null` si las credenciales son de la página.
+   */
+  private async checkOwnership(
+    res: Response,
+    input: { pageId: string; pageAccessToken?: string; appSecret?: string },
+    current?: MessengerConfig,
+  ): Promise<Response | null> {
+    try {
+      await this.messengerConfigService.assertCredentialsOwnPage(input, current);
+      return null;
+    } catch (error) {
+      if (!(error instanceof BadRequestException)) throw error;
+      const apiResponse = new ApiResponseBuilder<boolean>()
+        .setStatusCode(HttpStatus.BAD_REQUEST)
+        .setData(false)
+        .setMessage(error.message);
+      return res.status(HttpStatus.BAD_REQUEST).json(apiResponse.build());
+    }
+  }
+
+  private configNotFound(res: Response): Response {
+    const apiResponse = new ApiResponseBuilder<boolean>()
+      .setStatusCode(HttpStatus.NOT_FOUND)
+      .setData(false)
+      .setMessage('Messenger config not found');
+    return res.status(HttpStatus.NOT_FOUND).json(apiResponse.build());
   }
 }

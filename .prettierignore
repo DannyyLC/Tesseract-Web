@@ -4,3 +4,10 @@
 /.nx/cache
 /.nx/workspace-data
 /apps/web-client
+# Plantillas de correo: el espaciado del HTML llega tal cual al cliente de correo.
+*.hbs
+# Generado por pnpm.
+pnpm-lock.yaml
+/.claude
+/infrastructure
+docker-compose.yml

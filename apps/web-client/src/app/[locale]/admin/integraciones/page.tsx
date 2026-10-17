@@ -9,9 +9,19 @@ import { Link } from '@/i18n/routing';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useInfiniteAdminOrganizations } from '@/hooks/automation/use-admin-workflows';
 import { useAdminTenantTools } from '@/hooks/automation/use-admin-tenant-tools';
-import { inputClass } from '../_styles';
+import {
+  emptyClass,
+  filterSelectClass,
+  pageSubtitleClass,
+  pageTitleClass,
+  rowClass,
+  searchClass,
+  searchIconClass,
+} from '../_styles';
 import { PagePager } from '@/components/ui/page-pager';
 import { usePageSize } from '@/hooks/shared/use-page-size';
+import { TenantToolsOverviewCards } from '@/components/admin/tools/tenant-tools-overview-cards';
+import type { AdminTenantToolSegment } from '@/lib/api/endpoints/automation/tools/tenant-tools-admin-api';
 
 const STATUS_STYLE: Record<string, string> = {
   CONNECTED: 'text-success-600',
@@ -35,6 +45,7 @@ export default function AdminIntegracionesPage() {
   const [organizationId, setOrganizationId] = useState('');
   const [orgSearchInput, setOrgSearchInput] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  const [segment, setSegment] = useState<AdminTenantToolSegment | null>(null);
   const { pageSize, setPageSize } = usePageSize('admin-integrations');
   const [page, setPage] = useState(1);
 
@@ -43,7 +54,7 @@ export default function AdminIntegracionesPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [organizationId, search]);
+  }, [organizationId, search, segment]);
 
   const {
     data: orgPages,
@@ -66,20 +77,36 @@ export default function AdminIntegracionesPage() {
   const { data, isLoading, error } = useAdminTenantTools({
     organizationId: organizationId || undefined,
     search: search || undefined,
+    segment: segment ?? undefined,
     page,
     limit: pageSize,
   });
 
   return (
-    <div className="w-full">
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-text-primary">{t('title')}</h1>
-        <p className="mt-1 text-sm text-text-secondary">{t('subtitle')}</p>
+    <div className="w-full space-y-6">
+      <div>
+        <h1 className={pageTitleClass}>{t('title')}</h1>
+        <p className={pageSubtitleClass}>{t('subtitle')}</p>
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-3">
+      <TenantToolsOverviewCards segment={segment} onSegmentChange={setSegment} />
+
+      {segment && (
+        <p className="flex flex-wrap items-center gap-2 text-sm text-text-secondary">
+          {t('filteringBy', { segment: t(`Overview.segments.${segment}`) })}
+          <button
+            onClick={() => setSegment(null)}
+            className="text-text-primary underline-offset-2 hover:underline"
+          >
+            {t('clearSegment')}
+          </button>
+        </p>
+      )}
+
+      <div className="flex flex-wrap items-center gap-3">
         <div className="min-w-[240px] flex-1">
           <InfiniteSelect
+            triggerClassName={filterSelectClass}
             value={organizationId}
             onChange={setOrganizationId}
             options={orgOptions}
@@ -94,12 +121,9 @@ export default function AdminIntegracionesPage() {
           />
         </div>
         <div className="relative min-w-[240px] flex-1">
-          <Search
-            size={16}
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary"
-          />
+          <Search size={16} className={searchIconClass} />
           <input
-            className={`${inputClass} pl-9`}
+            className={searchClass}
             placeholder={t('searchPlaceholder')}
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
@@ -107,21 +131,23 @@ export default function AdminIntegracionesPage() {
         </div>
       </div>
 
-      <section className="rounded-xl border border-border bg-surface">
+      <section>
         {isLoading ? (
           <div className="flex justify-center py-16">
             <LogoLoader text={t('loading')} />
           </div>
         ) : error ? (
-          <p className="px-4 py-10 text-center text-sm text-danger">{t('loadError')}</p>
+          <p className={`${emptyClass} text-danger`}>{t('loadError')}</p>
         ) : !data?.data.length ? (
-          <p className="px-4 py-10 text-center text-sm text-text-secondary">{t('empty')}</p>
+          <p className={emptyClass}>{t('empty')}</p>
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="space-y-1">
             {data.data.map((tool) => (
-              <li key={tool.id} className="px-4 py-3">
+              <li key={tool.id} className={`${rowClass} px-4 py-3.5`}>
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="truncate font-medium text-text-primary">{tool.displayName}</span>
+                  <span className="truncate font-semibold text-text-primary">
+                    {tool.displayName}
+                  </span>
                   <span className={`text-xs ${STATUS_STYLE[tool.status] ?? 'text-text-tertiary'}`}>
                     {tool.status}
                   </span>
@@ -158,7 +184,6 @@ export default function AdminIntegracionesPage() {
             totalPages: data.meta.totalPages,
             total: data.meta.total,
           })}
-          className="mt-4"
         />
       )}
     </div>

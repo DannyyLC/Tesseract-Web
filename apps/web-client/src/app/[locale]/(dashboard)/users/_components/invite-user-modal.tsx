@@ -6,6 +6,7 @@ import { useOrganizationMutations } from '@/hooks/identity/use-organizations';
 import { toast } from 'sonner';
 import { Modal } from '@/components/ui/modal';
 import { Loader2, Mail, Send } from 'lucide-react';
+import { toApiError } from '@/lib/api/api-error';
 
 interface InviteUserModalProps {
   isOpen: boolean;
@@ -17,9 +18,15 @@ export function InviteUserModal({ isOpen, onClose }: InviteUserModalProps) {
   const [email, setEmail] = useState('');
   const { inviteUser } = useOrganizationMutations();
 
-  const getErrorMessage = (error: any): string => {
-    const raw: string =
-      error?.response?.data?.errors?.[0] || error?.response?.data?.message || error?.message || '';
+  const getErrorMessage = (caught: unknown): string => {
+    const error = toApiError(caught);
+    const code = error.response?.data?.errors?.[0];
+    const serverMessage = error.response?.data?.message;
+    const raw =
+      (typeof code === 'string' && code) ||
+      (typeof serverMessage === 'string' && serverMessage) ||
+      error.message ||
+      '';
 
     const messages: Record<string, string> = {
       USER_ALREADY_REGISTERED: t('errorAlreadyMember'),
@@ -49,7 +56,8 @@ export function InviteUserModal({ isOpen, onClose }: InviteUserModalProps) {
       toast.success(t('successToast'));
       setEmail('');
       onClose();
-    } catch (error: any) {
+    } catch (caught) {
+      const error = toApiError(caught);
       toast.error(getErrorMessage(error));
     }
   };

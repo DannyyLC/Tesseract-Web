@@ -130,10 +130,27 @@ export class ListDatasetRecordsQueryDto {
   @ApiPropertyOptional({ default: 0 })
   offset?: number;
 
-  /** Texto libre: mismo motor que `search_dataset`, barre las columnas `text` del catálogo. */
+  /** Texto libre: mismo motor que `search_dataset`, barre las columnas `text` y `select` del catálogo. */
   @IsOptional()
   @IsString()
   @MaxLength(200)
   @ApiPropertyOptional()
   query?: string;
+
+  /**
+   * Filtros por columna en JSON: `{"select":{"marca":["Toyota"]},"range":{"precio":{"min":1}}}`.
+   * Viaja como un solo parámetro porque el query string no tiene una forma estándar de anidar.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  @ApiPropertyOptional()
+  filters?: string;
+
+  /** `precio` asciende, `-precio` desciende. */
+  @IsOptional()
+  @IsString()
+  @Matches(/^-?[a-z0-9_]{1,64}$/)
+  @ApiPropertyOptional()
+  sortBy?: string;
 }

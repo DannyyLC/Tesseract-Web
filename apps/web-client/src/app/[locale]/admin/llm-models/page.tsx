@@ -20,18 +20,124 @@ import type {
   CreateLlmModelInput,
 } from '@/lib/api/endpoints/automation/llm-models/llm-models-api';
 import type { LlmCategory } from '@/lib/api/endpoints/automation/llm-models/llm-categories-api';
+import { isToastHandled } from '@/lib/api/api-error';
 
 const TIERS: ModelTier[] = ['BASIC', 'STANDARD', 'PREMIUM'];
 
-const inputClass =
-  'w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary outline-none focus:border-border-focus';
-const labelClass = 'mb-1 block text-xs font-medium text-text-secondary';
-const btnPrimary =
-  'inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-text-inverse transition-opacity hover:opacity-90 disabled:opacity-50';
+import {
+  btnPrimary,
+  emptyClass,
+  filterSelectClass,
+  iconBtn,
+  iconBtnDanger,
+  inputClass,
+  labelClass,
+  pageSubtitleClass,
+  pageTitleClass,
+  searchClass,
+  searchIconClass,
+  sectionClass,
+  selectTriggerClass,
+} from '../_styles';
+import { LlmModelsOverviewCards } from '@/components/admin/llm-models/llm-models-overview-cards';
 
 function fmtPrice(v: string) {
   const n = Number(v);
   return Number.isFinite(n) ? `$${n.toFixed(2)}` : v;
+}
+
+/** `allowedParams` → texto editable: una línea `parametro: valor1, valor2` por parámetro. */
+function formatAllowedParams(params: Record<string, string[]> | undefined): string {
+  return Object.entries(params ?? {})
+    .map(([name, values]) => (values.length ? `${name}: ${values.join(', ')}` : `${name}:`))
+    .join('\n');
+}
+
+const PARAM_NAME = /^[a-z][a-z0-9_]{0,63}$/;
+
+/**
+ * Texto del formulario → `allowedParams`. Misma forma que valida el gateway
+ * (`IsAllowedParams`): nombres en snake_case y valores sin vacíos. Devuelve la línea
+ * (1-based) del primer error para señalarla en el formulario.
+ */
+function parseAllowedParams(
+  text: string,
+): { ok: true; value: Record<string, string[]> } | { ok: false; line: number } {
+  const value: Record<string, string[]> = {};
+  const lines = text.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i].trim();
+    if (!raw) continue;
+    const colon = raw.indexOf(':');
+    const name = (colon === -1 ? raw : raw.slice(0, colon)).trim();
+    if (!PARAM_NAME.test(name)) return { ok: false, line: i + 1 };
+    const values =
+      colon === -1
+        ? []
+        : raw
+            .slice(colon + 1)
+            .split(',')
+            .map((v) => v.trim())
+            .filter(Boolean);
+    value[name] = values;
+  }
+  return { ok: true, value };
+}
+
+/** Resumen en texto plano de las capacidades, para la tabla. */
+function capabilitiesSummary(m: LlmModel, noTemperatureLabel: string): string {
+  const parts: string[] = [];
+  if (m.supportsTemperature === false) parts.push(noTemperatureLabel);
+  parts.push(...Object.keys(m.allowedParams ?? {}));
+  return parts.join(' · ');
+}
+
+/** Campos de capacidades compartidos por los formularios de crear y editar. */
+function CapabilitiesFields({
+  supportsTemperature,
+  allowedParamsText,
+  invalidLine,
+  onChange,
+}: {
+  supportsTemperature: boolean;
+  allowedParamsText: string;
+  invalidLine: number | null;
+  onChange: (patch: { supportsTemperature?: boolean; allowedParamsText?: string }) => void;
+}) {
+  const tt = useTranslations('Admin.LlmModels');
+  return (
+    <div className="space-y-3 rounded-xl border border-border p-3">
+      <label className="flex items-start gap-2 text-sm text-text-primary">
+        <input
+          type="checkbox"
+          className="mt-0.5"
+          checked={supportsTemperature}
+          onChange={(e) => onChange({ supportsTemperature: e.target.checked })}
+        />
+        <span>
+          {tt('supportsTemperatureLabel')}
+          <span className="block text-xs text-text-secondary">{tt('supportsTemperatureHint')}</span>
+        </span>
+      </label>
+      <div>
+        <label className={labelClass}>{tt('allowedParamsLabel')}</label>
+        <textarea
+          className={`${inputClass} min-h-[72px] font-mono text-xs`}
+          value={allowedParamsText}
+          onChange={(e) => onChange({ allowedParamsText: e.target.value })}
+          placeholder="reasoning_effort: none, low, medium, high"
+          spellCheck={false}
+        />
+        {invalidLine !== null ? (
+          <p className="mt-1 text-xs text-danger-500">
+            {tt('allowedParamsInvalid', { line: invalidLine })}
+          </p>
+        ) : (
+          <p className="mt-1 text-xs text-text-secondary">{tt('allowedParamsHint')}</p>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default function LlmModelsAdminPage() {
@@ -68,7 +174,7 @@ export default function LlmModelsAdminPage() {
     hasNextPage: hasNextCategoryPage,
     isFetchingNextPage: isFetchingNextCategoryPage,
   } = useInfiniteLlmCategories({ isActive: true });
-  
+
   const categories = categoriesPages?.pages.flatMap((p) => p.data) ?? [];
   const categoryOptions = [
     { label: tt('allCategories'), value: '' },
@@ -86,33 +192,32 @@ export default function LlmModelsAdminPage() {
   const meta = data?.meta;
 
   return (
-    <div className="w-full">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+    <div className="w-full space-y-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-text-primary">{tt('title')}</h1>
-          <p className="text-sm text-text-secondary">{tt('subtitle')}</p>
+          <h1 className={pageTitleClass}>{tt('title')}</h1>
+          <p className={pageSubtitleClass}>{tt('subtitle')}</p>
         </div>
         <button className={btnPrimary} onClick={() => setCreateOpen(true)}>
           <Plus size={16} /> {tt('newModel')}
         </button>
       </div>
 
+      <LlmModelsOverviewCards />
+
       {/* Filtros */}
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[250px]">
-          <Search
-            size={16}
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary"
-          />
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative min-w-[250px] flex-1">
+          <Search size={16} className={searchIconClass} />
           <input
-            className={`${inputClass} pl-9 w-full`}
+            className={searchClass}
             placeholder={tt('searchPlaceholder')}
             value={searchFilter}
             onChange={(e) => setSearchFilter(e.target.value)}
           />
         </div>
         <select
-          className={inputClass + ' w-auto'}
+          className={`${filterSelectClass} w-auto`}
           value={tierFilter}
           onChange={(e) => setTierFilter(e.target.value as ModelTier | '')}
         >
@@ -124,7 +229,8 @@ export default function LlmModelsAdminPage() {
           ))}
         </select>
         <InfiniteSelect
-          className="flex-1 min-w-[200px]"
+          className="min-w-[200px] flex-1"
+          triggerClassName={filterSelectClass}
           value={categoryFilter}
           onChange={setCategoryFilter}
           options={categoryOptions}
@@ -135,7 +241,7 @@ export default function LlmModelsAdminPage() {
           isFetchingNextPage={isFetchingNextCategoryPage}
         />
         <select
-          className={inputClass + ' w-auto'}
+          className={`${filterSelectClass} w-auto`}
           value={activeFilter}
           onChange={(e) => setActiveFilter(e.target.value as typeof activeFilter)}
         >
@@ -146,7 +252,7 @@ export default function LlmModelsAdminPage() {
       </div>
 
       {/* Tabla */}
-      <div className="overflow-x-auto rounded-xl border border-border bg-surface">
+      <div className={`${sectionClass} overflow-hidden`}>
         {isLoading ? (
           <div className="flex justify-center py-16">
             <LogoLoader text={tt('loading')} />
@@ -154,78 +260,93 @@ export default function LlmModelsAdminPage() {
         ) : isError ? (
           <p className="py-16 text-center text-sm text-text-secondary">{tt('loadError')}</p>
         ) : models.length === 0 ? (
-          <p className="py-16 text-center text-sm text-text-secondary">{tt('empty')}</p>
+          <div className="p-6">
+            <p className={emptyClass}>{tt('empty')}</p>
+          </div>
         ) : (
-          <table className="w-full min-w-[760px] text-left text-sm">
-            <thead className="border-b border-border text-xs uppercase text-text-secondary">
-              <tr>
-                <th className="px-4 py-3">{tt('colProvider')}</th>
-                <th className="px-4 py-3">{tt('colModel')}</th>
-                <th className="px-4 py-3">{tt('colTier')}</th>
-                <th className="px-4 py-3">{tt('colCategory')}</th>
-                <th className="px-4 py-3">{tt('colInput')}</th>
-                <th className="px-4 py-3">{tt('colOutput')}</th>
-                <th className="px-4 py-3">{tt('colContext')}</th>
-                <th className="px-4 py-3">{tt('colStatus')}</th>
-                <th className="px-4 py-3 text-right">{tt('colActions')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {models.map((m) => (
-                <tr key={m.id} className="border-b border-border last:border-0">
-                  <td className="px-4 py-3 text-text-primary">{m.provider}</td>
-                  <td className="px-4 py-3 font-medium text-text-primary">{m.modelName}</td>
-                  <td className="px-4 py-3 text-text-secondary">{m.tier}</td>
-                  <td className="px-4 py-3 text-text-secondary">
-                    {m.llmCategory?.name ?? '—'}
-                  </td>
-                  <td className="px-4 py-3 text-text-secondary">{fmtPrice(m.inputPricePer1m)}</td>
-                  <td className="px-4 py-3 text-text-secondary">{fmtPrice(m.outputPricePer1m)}</td>
-                  <td className="px-4 py-3 text-text-secondary">
-                    {m.contextWindow.toLocaleString()}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs ${m.isActive
-                          ? 'bg-green-500/10 text-green-600'
-                          : 'bg-gray-500/10 text-text-secondary'
-                        }`}
-                    >
-                      {m.isActive ? tt('active') : tt('inactive')}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-1">
-                      <button
-                        title={tt('editTitle')}
-                        className="rounded-lg p-2 text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
-                        onClick={() => setEditModel(m)}
-                      >
-                        <Pencil size={16} />
-                      </button>
-                      <button
-                        title={tt('changePriceTitle')}
-                        className="rounded-lg p-2 text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
-                        onClick={() => setPriceModel(m)}
-                      >
-                        <DollarSign size={16} />
-                      </button>
-                      <button
-                        title={tt('deactivateTitle')}
-                        disabled={!m.isActive || deactivateModel.isPending}
-                        className="rounded-lg p-2 text-text-secondary hover:bg-red-500/10 hover:text-red-600 disabled:opacity-40"
-                        onClick={() => setDeactivateModelConfirm(m)}
-                      >
-                        <Power size={16} />
-                      </button>
-                    </div>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[760px] text-left text-sm">
+              <thead className="border-b border-border text-xs uppercase tracking-wide text-text-secondary">
+                <tr>
+                  <th className="px-4 py-3 font-medium">{tt('colProvider')}</th>
+                  <th className="px-4 py-3 font-medium">{tt('colModel')}</th>
+                  <th className="px-4 py-3 font-medium">{tt('colTier')}</th>
+                  <th className="px-4 py-3 font-medium">{tt('colCategory')}</th>
+                  <th className="px-4 py-3 font-medium">{tt('colInput')}</th>
+                  <th className="px-4 py-3 font-medium">{tt('colOutput')}</th>
+                  <th className="px-4 py-3 font-medium">{tt('colContext')}</th>
+                  <th className="px-4 py-3 font-medium">{tt('colStatus')}</th>
+                  <th className="px-4 py-3 text-right font-medium">{tt('colActions')}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {models.map((m) => (
+                  <tr
+                    key={m.id}
+                    className="border-b border-border transition-colors last:border-0 hover:bg-surface-panel"
+                  >
+                    <td className="px-4 py-3 text-text-primary">{m.provider}</td>
+                    <td className="px-4 py-3 font-medium text-text-primary">
+                      {m.modelName}
+                      {capabilitiesSummary(m, tt('capNoTemperature')) && (
+                        <span className="block text-xs font-normal text-text-secondary">
+                          {capabilitiesSummary(m, tt('capNoTemperature'))}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-text-secondary">{m.tier}</td>
+                    <td className="px-4 py-3 text-text-secondary">{m.llmCategory?.name ?? '—'}</td>
+                    <td className="px-4 py-3 text-text-secondary">{fmtPrice(m.inputPricePer1m)}</td>
+                    <td className="px-4 py-3 text-text-secondary">
+                      {fmtPrice(m.outputPricePer1m)}
+                    </td>
+                    <td className="px-4 py-3 text-text-secondary">
+                      {m.contextWindow.toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs ${
+                          m.isActive
+                            ? 'bg-[var(--badge-success-bg-solid)] text-[var(--badge-success-text-solid)]'
+                            : 'bg-[var(--surface-tint)] text-text-secondary'
+                        }`}
+                      >
+                        {m.isActive ? tt('active') : tt('inactive')}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          title={tt('editTitle')}
+                          className={iconBtn}
+                          onClick={() => setEditModel(m)}
+                        >
+                          <Pencil size={16} />
+                        </button>
+                        <button
+                          title={tt('changePriceTitle')}
+                          className={iconBtn}
+                          onClick={() => setPriceModel(m)}
+                        >
+                          <DollarSign size={16} />
+                        </button>
+                        <button
+                          title={tt('deactivateTitle')}
+                          disabled={!m.isActive || deactivateModel.isPending}
+                          className={iconBtnDanger}
+                          onClick={() => setDeactivateModelConfirm(m)}
+                        >
+                          <Power size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
-        
+
         {/* Paginación */}
         {meta && (
           <PagePager
@@ -238,7 +359,7 @@ export default function LlmModelsAdminPage() {
               setPage(1);
             }}
             summary={tt('pagerSummary', { page, totalPages: meta.totalPages })}
-            className="border-t border-border p-4"
+            className="border-t border-border px-6 py-4"
           />
         )}
       </div>
@@ -246,7 +367,11 @@ export default function LlmModelsAdminPage() {
       {/* Modal: crear */}
       <AnimatePresence>
         {createOpen && (
-          <Modal isOpen={createOpen} onClose={() => setCreateOpen(false)} title={tt('newModelModalTitle')}>
+          <Modal
+            isOpen={createOpen}
+            onClose={() => setCreateOpen(false)}
+            title={tt('newModelModalTitle')}
+          >
             <CreateForm
               categories={categories}
               isCategoriesLoading={isCategoriesLoading}
@@ -261,8 +386,7 @@ export default function LlmModelsAdminPage() {
                     toast.success(tt('modelCreated'));
                     setCreateOpen(false);
                   },
-                  onError: (e: any) =>
-                    !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+                  onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
                 })
               }
             />
@@ -295,8 +419,7 @@ export default function LlmModelsAdminPage() {
                       toast.success(tt('modelUpdated'));
                       setEditModel(null);
                     },
-                    onError: (e: any) =>
-                      !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+                    onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
                   },
                 )
               }
@@ -325,8 +448,7 @@ export default function LlmModelsAdminPage() {
                       toast.success(tt('priceUpdated'));
                       setPriceModel(null);
                     },
-                    onError: (e: any) =>
-                      !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+                    onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
                   },
                 )
               }
@@ -344,7 +466,7 @@ export default function LlmModelsAdminPage() {
             title={tt('confirmDeactivateTitle')}
           >
             <div className="space-y-4">
-              <div className="bg-danger/10 flex items-center gap-3 rounded-xl p-4 text-danger-600">
+              <div className="flex items-center gap-3 rounded-xl border border-[var(--danger-banner-border)] bg-[var(--danger-banner-bg)] p-4 text-[var(--danger-text-adaptive)]">
                 <AlertTriangle size={24} />
                 <p className="text-sm font-medium">{tt('confirmDeactivateWarning')}</p>
               </div>
@@ -373,7 +495,7 @@ export default function LlmModelsAdminPage() {
                         toast.success(tt('modelDeactivated'));
                         setDeactivateModelConfirm(null);
                       },
-                      onError: (e: any) => !e?.toastHandled && toast.error(tt('deactivateError')),
+                      onError: (e) => !isToastHandled(e) && toast.error(tt('deactivateError')),
                     });
                   }}
                 >
@@ -421,10 +543,18 @@ function CreateForm({
     recommendedMaxTokens: '',
     currency: 'USD',
     notes: '',
+    supportsTemperature: true,
+    allowedParamsText: '',
   });
+  const [invalidLine, setInvalidLine] = useState<number | null>(null);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
+    const allowedParams = parseAllowedParams(f.allowedParamsText);
+    if (!allowedParams.ok) {
+      setInvalidLine(allowedParams.line);
+      return;
+    }
     onSubmit({
       provider: f.provider.trim(),
       modelName: f.modelName.trim(),
@@ -436,6 +566,8 @@ function CreateForm({
       recommendedMaxTokens: Number(f.recommendedMaxTokens),
       currency: f.currency.trim() || 'USD',
       notes: f.notes.trim() || undefined,
+      supportsTemperature: f.supportsTemperature,
+      allowedParams: allowedParams.value,
     });
   };
 
@@ -476,9 +608,10 @@ function CreateForm({
             ))}
           </select>
         </div>
-        <div className="flex flex-col h-full">
+        <div className="flex h-full flex-col">
           <label className={labelClass}>{tt('categoryOptionalLabel')}</label>
           <InfiniteSelect
+            triggerClassName={selectTriggerClass}
             value={f.llmCategoryId}
             onChange={(val) => setF({ ...f, llmCategoryId: val })}
             options={[
@@ -539,6 +672,15 @@ function CreateForm({
           />
         </div>
       </div>
+      <CapabilitiesFields
+        supportsTemperature={f.supportsTemperature}
+        allowedParamsText={f.allowedParamsText}
+        invalidLine={invalidLine}
+        onChange={(patch) => {
+          setF({ ...f, ...patch });
+          if (patch.allowedParamsText !== undefined) setInvalidLine(null);
+        }}
+      />
       <div>
         <label className={labelClass}>{tt('notesOptionalLabel')}</label>
         <input
@@ -591,6 +733,8 @@ function EditForm({
     recommendedMaxTokens?: number;
     notes?: string;
     isActive?: boolean;
+    supportsTemperature?: boolean;
+    allowedParams?: Record<string, string[]>;
   }) => void;
   onCancel: () => void;
   pending: boolean;
@@ -603,10 +747,18 @@ function EditForm({
     recommendedMaxTokens: String(model.recommendedMaxTokens),
     notes: model.notes ?? '',
     isActive: model.isActive,
+    supportsTemperature: model.supportsTemperature !== false,
+    allowedParamsText: formatAllowedParams(model.allowedParams),
   });
+  const [invalidLine, setInvalidLine] = useState<number | null>(null);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
+    const allowedParams = parseAllowedParams(f.allowedParamsText);
+    if (!allowedParams.ok) {
+      setInvalidLine(allowedParams.line);
+      return;
+    }
     onSubmit({
       tier: f.tier,
       llmCategoryId: f.llmCategoryId || undefined,
@@ -614,12 +766,14 @@ function EditForm({
       recommendedMaxTokens: Number(f.recommendedMaxTokens),
       notes: f.notes.trim() || undefined,
       isActive: f.isActive,
+      supportsTemperature: f.supportsTemperature,
+      allowedParams: allowedParams.value,
     });
   };
 
   return (
     <form onSubmit={submit} className="space-y-3">
-      <p className="rounded-lg bg-surface-secondary p-2 text-xs text-text-secondary">
+      <p className="rounded-xl bg-[var(--surface-tint)] px-3 py-2 text-xs text-text-secondary">
         {tt('editPriceHint')}
       </p>
       <div className="grid grid-cols-2 gap-3">
@@ -637,9 +791,10 @@ function EditForm({
             ))}
           </select>
         </div>
-        <div className="flex flex-col h-full">
+        <div className="flex h-full flex-col">
           <label className={labelClass}>{tt('categoryLabel')}</label>
           <InfiniteSelect
+            triggerClassName={selectTriggerClass}
             value={f.llmCategoryId}
             onChange={(val) => setF({ ...f, llmCategoryId: val })}
             options={[
@@ -674,6 +829,15 @@ function EditForm({
           />
         </div>
       </div>
+      <CapabilitiesFields
+        supportsTemperature={f.supportsTemperature}
+        allowedParamsText={f.allowedParamsText}
+        invalidLine={invalidLine}
+        onChange={(patch) => {
+          setF({ ...f, ...patch });
+          if (patch.allowedParamsText !== undefined) setInvalidLine(null);
+        }}
+      />
       <div>
         <label className={labelClass}>{tt('notesLabel')}</label>
         <input
@@ -688,12 +852,14 @@ function EditForm({
           role="switch"
           aria-checked={f.isActive}
           onClick={() => setF({ ...f, isActive: !f.isActive })}
-          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${f.isActive ? 'bg-success-500' : 'bg-border-hover'
-            }`}
+          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+            f.isActive ? 'bg-success-500' : 'bg-border-hover'
+          }`}
         >
           <span
-            className={`inline-block h-4 w-4 transform rounded-full bg-surface-elevated transition-transform ${f.isActive ? 'translate-x-6' : 'translate-x-1'
-              }`}
+            className={`inline-block h-4 w-4 transform rounded-full bg-surface-elevated transition-transform ${
+              f.isActive ? 'translate-x-6' : 'translate-x-1'
+            }`}
           />
         </button>
         <span className="text-sm text-text-primary">
@@ -749,7 +915,7 @@ function PriceForm({
 
   return (
     <form onSubmit={submit} className="space-y-3">
-      <p className="rounded-lg bg-surface-secondary p-2 text-xs text-text-secondary">
+      <p className="rounded-xl bg-[var(--surface-tint)] px-3 py-2 text-xs text-text-secondary">
         {tt('priceChangeHint')}
       </p>
       <div className="grid grid-cols-2 gap-3">

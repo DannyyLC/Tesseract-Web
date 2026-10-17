@@ -1,6 +1,7 @@
 import type { WinstonModuleOptions } from 'nest-winston';
 import * as winston from 'winston';
 import 'winston-daily-rotate-file';
+import { toText } from '@/platform/common/utils/to-text';
 
 /**
  * Configuración de Winston del gateway.
@@ -66,7 +67,7 @@ const gcpSeverity = winston.format((info) => {
 
 const readableLogFormatter = winston.format.printf(
   ({ timestamp, level, message, context, stack, ...meta }) => {
-    const base = `${timestamp} [${level}]${context ? ` [${context}]` : ''} ${stack ?? message}`;
+    const base = `${toText(timestamp)} [${level}]${context ? ` [${toText(context)}]` : ''} ${toText(stack ?? message)}`;
     const metaKeys = Object.keys(meta);
     if (metaKeys.length === 0) {
       return base;

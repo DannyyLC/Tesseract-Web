@@ -9,6 +9,7 @@ import { GetToolsDto } from '@tesseract/types';
 import { toast } from 'sonner';
 import RootApi from '@/lib/api/endpoints/root-api';
 import { DynamicIcon } from '@/components/ui/dynamic-icon';
+import { toApiError } from '@/lib/api/api-error';
 
 interface ConnectIntegrationModalProps {
   isOpen: boolean;
@@ -45,6 +46,9 @@ export function ConnectIntegrationModal({
       setSelectedFunctions(functions.map((f) => f.functionName));
       setIsSuccess(false);
     }
+    // `functions` es un arreglo nuevo en cada render (sale de catalogTool, que ya está):
+    // como dependencia reiniciaría la selección en cada render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, catalogTool, existingToolDisplayName]);
 
   const toggleFunction = (name: string) => {
@@ -85,7 +89,7 @@ export function ConnectIntegrationModal({
         });
 
         if (!created) throw new Error('Error creating tool');
-        tenantToolId = (created as any).id;
+        tenantToolId = created.id;
       }
 
       if (!tenantToolId) throw new Error('No tenant tool ID found');
@@ -99,7 +103,8 @@ export function ConnectIntegrationModal({
         const oauthApi = RootApi.getInstance().getToolsOauthApi();
         oauthApi.redirectToGoogleAuth(tenantToolId);
       }
-    } catch (error: any) {
+    } catch (caught) {
+      const error = toApiError(caught);
       console.error('Connection error:', error);
 
       const statusCode = error?.response?.status;

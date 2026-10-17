@@ -19,25 +19,28 @@ interface Props {
 export function GraphTab({ config, tenantTools }: Props) {
   const t = useTranslations('Admin.GraphTab');
   const tLint = useTranslations('Admin.LintConfig');
-  const nodes: any[] = config.graph?.nodes ?? [];
-  const edges: any[] = config.graph?.edges ?? [];
+  // Memoizados: `?? []` crearía un arreglo nuevo en cada render y rompería los useMemo.
+  const nodes = useMemo(() => config.graph?.nodes ?? [], [config.graph?.nodes]);
+  const edges = useMemo(() => config.graph?.edges ?? [], [config.graph?.edges]);
 
-  const nodeTypeById = useMemo(
-    () => new Map(nodes.map((n) => [n?.id, n?.type])),
-    [nodes],
-  );
+  const nodeTypeById = useMemo(() => new Map(nodes.map((n) => [n?.id, n?.type])), [nodes]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, string[]>();
     for (const edge of edges) {
-      if (!edge?.from) continue;
+      if (!edge?.from || !edge.to) continue;
       map.set(edge.from, [...(map.get(edge.from) ?? []), edge.to]);
     }
     return Array.from(map.entries());
   }, [edges]);
 
   const issues = useMemo(
-    () => lintConfig(config, tenantTools.map((tool) => tool.id), tLint),
+    () =>
+      lintConfig(
+        config,
+        tenantTools.map((tool) => tool.id),
+        tLint,
+      ),
     [config, tenantTools, tLint],
   );
 
@@ -54,8 +57,8 @@ export function GraphTab({ config, tenantTools }: Props) {
       </div>
 
       {issues.length === 0 ? (
-        <p className="flex items-center gap-2 rounded-lg border border-border bg-surface-secondary px-3 py-2 text-xs text-text-primary">
-          <CheckCircle2 size={14} className="text-success-500" />
+        <p className="flex items-center gap-2 rounded-xl bg-[var(--badge-success-bg-solid)] px-4 py-3 text-xs font-medium text-[var(--badge-success-text-solid)]">
+          <CheckCircle2 size={14} />
           {t('noIssues')}
         </p>
       ) : (
@@ -63,9 +66,9 @@ export function GraphTab({ config, tenantTools }: Props) {
           {[...errors, ...warnings].map((issue, i) => (
             <p
               key={i}
-              className={`flex items-start gap-2 rounded-lg border px-3 py-2 text-xs ${
+              className={`flex items-start gap-2 rounded-xl border px-4 py-3 text-xs ${
                 issue.severity === 'error'
-                  ? 'border-danger/40 text-danger'
+                  ? 'border-[var(--danger-banner-border)] bg-[var(--danger-banner-bg)] text-[var(--danger-text-adaptive)]'
                   : 'border-border text-text-secondary'
               }`}
             >
@@ -79,13 +82,13 @@ export function GraphTab({ config, tenantTools }: Props) {
         </div>
       )}
 
-      <div className="rounded-lg border border-border">
-        <div className="border-b border-border px-3 py-2 text-xs font-medium text-text-primary">
+      <div className="overflow-hidden rounded-2xl border border-border">
+        <div className="border-b border-border px-4 py-3 text-sm font-semibold text-text-primary">
           {t('declaredEdges')}
         </div>
-        <ul className="divide-y divide-border">
+        <ul className="divide-y divide-[var(--border-subtle)]">
           {grouped.map(([from, targets]) => (
-            <li key={from} className="flex flex-wrap items-center gap-2 px-3 py-2 text-xs">
+            <li key={from} className="flex flex-wrap items-center gap-2 px-4 py-2.5 text-xs">
               <span className="inline-flex items-center gap-1 font-mono text-text-primary">
                 {from !== 'START' && <NodeIcon type={nodeTypeById.get(from)} size={12} />}
                 {from}
@@ -95,7 +98,7 @@ export function GraphTab({ config, tenantTools }: Props) {
                 {targets.map((to, i) => (
                   <span
                     key={i}
-                    className="inline-flex items-center gap-1 rounded bg-surface-secondary px-1.5 py-0.5 font-mono text-text-primary"
+                    className="inline-flex items-center gap-1 rounded-md bg-[var(--surface-tint)] px-1.5 py-0.5 font-mono text-text-primary"
                   >
                     {to !== 'END' && <NodeIcon type={nodeTypeById.get(to)} size={11} />}
                     {to}
@@ -107,14 +110,14 @@ export function GraphTab({ config, tenantTools }: Props) {
         </ul>
       </div>
 
-      {config.graph?.persist_variables?.length > 0 && (
-        <div className="rounded-lg border border-border px-3 py-2">
+      {config.graph?.persist_variables && config.graph.persist_variables.length > 0 && (
+        <div className="rounded-2xl border border-border px-4 py-3">
           <span className="text-xs font-medium text-text-primary">{t('persistedVariables')}</span>
           <div className="mt-1 flex flex-wrap gap-1">
-            {config.graph.persist_variables.map((v: string) => (
+            {config.graph.persist_variables.map((v) => (
               <span
                 key={v}
-                className="rounded bg-surface-secondary px-1.5 py-0.5 font-mono text-[11px] text-text-primary"
+                className="rounded-md bg-[var(--surface-tint)] px-1.5 py-0.5 font-mono text-[11px] text-text-primary"
               >
                 {v}
               </span>

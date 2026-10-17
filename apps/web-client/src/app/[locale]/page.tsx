@@ -1,9 +1,8 @@
 'use client';
 
 import { useRef, useState, useMemo, useEffect } from 'react';
-// @ts-ignore
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Segments, Segment, OrbitControls } from '@react-three/drei';
+import { Segments, Segment, OrbitControls, type SegmentObject } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
@@ -16,7 +15,7 @@ const PROJ_SCALE = 3; // Escala visual de la proyección
 // --- Componente Geométrico del Tesseract (4D real proyectado a 3D) ---
 function TesseractWireframe() {
   const groupRef = useRef<THREE.Group>(null);
-  const segRefs = useRef<any[]>([]);
+  const segRefs = useRef<Array<SegmentObject | null>>([]);
 
   // Vértices 4D (16) y aristas (32) del hipercubo.
   // Cada vértice es una combinación de ±1 en las 4 coordenadas (x, y, z, w).
@@ -24,12 +23,7 @@ function TesseractWireframe() {
   const { vertices4D, edges } = useMemo(() => {
     const verts: number[][] = [];
     for (let i = 0; i < 16; i++) {
-      verts.push([
-        i & 1 ? 1 : -1,
-        i & 2 ? 1 : -1,
-        i & 4 ? 1 : -1,
-        i & 8 ? 1 : -1,
-      ]);
+      verts.push([i & 1 ? 1 : -1, i & 2 ? 1 : -1, i & 4 ? 1 : -1, i & 8 ? 1 : -1]);
     }
     const eds: [number, number][] = [];
     for (let i = 0; i < 16; i++) {
@@ -43,16 +37,13 @@ function TesseractWireframe() {
   }, []);
 
   // Buffer reutilizable de posiciones 3D proyectadas (evita asignar memoria por frame)
-  const projected = useMemo(
-    () => vertices4D.map(() => new THREE.Vector3()),
-    [vertices4D],
-  );
+  const projected = useMemo(() => vertices4D.map(() => new THREE.Vector3()), [vertices4D]);
 
   // Cada frame: rotamos en 4D y proyectamos a 3D.
   // - La rotación en el plano XW es la que produce el efecto de la 4ª dimensión
   //   (el cubo interno se voltea de adentro hacia afuera).
   // - La rotación en el plano YZ añade un giro 3D para un movimiento más rico.
-  useFrame((state: any) => {
+  useFrame((state) => {
     const t = state.clock.elapsedTime;
     const cosXW = Math.cos(t * 0.45);
     const sinXW = Math.sin(t * 0.45);
@@ -99,7 +90,9 @@ function TesseractWireframe() {
         {edges.map((_, i) => (
           <Segment
             key={i}
-            ref={(el: any) => (segRefs.current[i] = el)}
+            ref={(el) => {
+              segRefs.current[i] = el;
+            }}
             start={[0, 0, 0]}
             end={[0, 0, 0]}
             color="white"

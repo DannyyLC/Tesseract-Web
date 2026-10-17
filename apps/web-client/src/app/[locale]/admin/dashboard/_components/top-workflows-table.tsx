@@ -2,6 +2,7 @@ import { useTranslations } from 'next-intl';
 import { ListOrdered } from 'lucide-react';
 import type { AdminAnalyticsTopWorkflow } from '@/lib/api/endpoints/billing/analytics-admin-api';
 import { formatUSD } from './format';
+import { segmentedItemClass, segmentedTrackClass } from '../../_styles';
 
 interface Props {
   items: AdminAnalyticsTopWorkflow[];
@@ -12,10 +13,10 @@ interface Props {
 export function TopWorkflowsTable({ items, metric, onMetricChange }: Props) {
   const t = useTranslations('Admin.Dashboard.TopWorkflows');
   return (
-    <section className="rounded-xl border border-border bg-surface">
-      <div className="flex items-center justify-between gap-3 border-b border-border p-4">
-        <h3 className="text-sm font-semibold text-text-primary">{t('title')}</h3>
-        <div className="flex items-center gap-1 rounded-lg bg-surface-secondary p-1">
+    <section className="rounded-2xl border border-border bg-surface">
+      <div className="flex items-center justify-between gap-3 border-b border-border p-5">
+        <h3 className="text-lg font-semibold text-text-primary">{t('title')}</h3>
+        <div className={segmentedTrackClass}>
           {(
             [
               { value: 'cost', label: t('byCost') },
@@ -25,11 +26,7 @@ export function TopWorkflowsTable({ items, metric, onMetricChange }: Props) {
             <button
               key={option.value}
               onClick={() => onMetricChange(option.value)}
-              className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-                metric === option.value
-                  ? 'bg-surface text-text-primary shadow-sm'
-                  : 'text-text-tertiary hover:text-text-secondary'
-              }`}
+              className={segmentedItemClass(metric === option.value)}
             >
               {option.label}
             </button>
@@ -45,9 +42,14 @@ export function TopWorkflowsTable({ items, metric, onMetricChange }: Props) {
       ) : (
         <ul className="divide-y divide-border">
           {items.map((item) => (
-            <li key={item.workflowId} className="flex items-center justify-between gap-3 px-4 py-3">
+            <li
+              key={item.workflowId}
+              className="flex items-center justify-between gap-3 px-5 py-3.5"
+            >
               <div className="min-w-0">
-                <p className="truncate text-sm text-text-primary">{item.workflowName}</p>
+                <p className="truncate text-sm font-medium text-text-primary">
+                  {item.workflowName}
+                </p>
                 <p className="text-xs text-text-secondary">
                   {item.organizationName} · {item.category}
                 </p>

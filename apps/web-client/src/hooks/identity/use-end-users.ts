@@ -10,7 +10,13 @@ import {
 
 /** Listado paginado de contactos, con filtro por estado de bloqueo y búsqueda. */
 export function useEndUsers(query: EndUsersQuery = {}) {
-  const { cursor = null, action = null, pageSize = DEFAULT_PAGE_SIZE, search, blocked = 'all' } = query;
+  const {
+    cursor = null,
+    action = null,
+    pageSize = DEFAULT_PAGE_SIZE,
+    search,
+    blocked = 'all',
+  } = query;
 
   return useQuery({
     queryKey: ['end-users', 'list', { cursor, action, pageSize, search, blocked }],

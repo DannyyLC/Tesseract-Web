@@ -110,6 +110,119 @@ describe('OrganizationsService invite', () => {
   });
 });
 
+/**
+ * Aceptar una invitación no puede mudar a una cuenta viva, y menos conservando su rol: con Google
+ * se fabricaba un OWNER de su propia organización entre el envío y la aceptación, y al aceptar se
+ * llevaba ese OWNER a la organización que lo invitó.
+ */
+describe('OrganizationsService createUserFromInvitation', () => {
+  const invitingOrg = 'org-b';
+  const invitation = {
+    email: 'invitado@fractal.com',
+    verificationCode: '123456',
+    organizationName: invitingOrg,
+    isFromInvitation: true,
+    expiresAt: new Date(Date.now() + 60_000),
+  };
+
+  const createService = () => {
+    const prisma = {
+      userVerification: {
+        findFirst: jest.fn().mockResolvedValue({ ...invitation, id: 'v-1', failedAttempts: 0 }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      user: {
+        findUnique: jest.fn(),
+        update: jest.fn(),
+        create: jest.fn(),
+      },
+      refreshToken: { updateMany: jest.fn().mockResolvedValue({ count: 2 }) },
+    };
+    const utilityService = {
+      sendNotificationToAppClients: jest.fn(),
+      hashPassword: jest.fn().mockResolvedValue('hash'),
+    };
+    const logger = { error: jest.fn(), info: jest.fn(), warn: jest.fn(), debug: jest.fn() };
+    const service = new OrganizationsService(
+      prisma as any,
+      logger as any,
+      {} as any,
+      utilityService as any,
+      { verifySecondFactor: jest.fn() } as any,
+    );
+    return { service, prisma };
+  };
+
+  it('rechaza una cuenta viva de otra organización sin tocar su rol ni su organización', async () => {
+    const { service, prisma } = createService();
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'u-1',
+      email: invitation.email,
+      role: 'OWNER',
+      organizationId: 'org-a',
+      deletedAt: null,
+    });
+
+    const result = await service.createUserFromInvitation(
+      'x',
+      'password123',
+      invitation.email,
+      '123456',
+    );
+
+    expect(result.success).toBeNull();
+    expect(result.error).toBeDefined();
+    expect(prisma.user.update).not.toHaveBeenCalled();
+    // La invitación se consume: no queda un código vivo que reintentar.
+    expect(prisma.userVerification.deleteMany).toHaveBeenCalled();
+  });
+
+  it('reactiva una cuenta borrada como VIEWER y cierra sus sesiones', async () => {
+    const { service, prisma } = createService();
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'u-2',
+      email: invitation.email,
+      role: 'OWNER',
+      organizationId: 'org-a',
+      deletedAt: new Date(),
+    });
+    prisma.user.update.mockResolvedValue({ email: invitation.email, role: 'VIEWER' });
+
+    const result = await service.createUserFromInvitation(
+      'x',
+      'password123',
+      invitation.email,
+      '123456',
+    );
+
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { email: invitation.email },
+      data: expect.objectContaining({
+        role: 'VIEWER',
+        deletedAt: null,
+        organizationId: invitingOrg,
+      }),
+    });
+    expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { userId: 'u-2', revokedAt: null } }),
+    );
+    expect(result.success?.role).toBe('VIEWER');
+  });
+
+  it('crea al invitado nuevo sin rol explícito (default VIEWER del schema)', async () => {
+    const { service, prisma } = createService();
+    prisma.user.findUnique.mockResolvedValue(null);
+    prisma.user.create.mockResolvedValue({ email: invitation.email, role: 'VIEWER' });
+
+    await service.createUserFromInvitation('Nombre', 'password123', invitation.email, '123456');
+
+    const data = prisma.user.create.mock.calls[0][0].data;
+    expect(data.organizationId).toBe(invitingOrg);
+    expect(data.role).toBeUndefined();
+  });
+});
+
 describe('OrganizationsService', () => {
   let service: OrganizationsService;
 
@@ -214,7 +327,9 @@ describe('OrganizationsService', () => {
         expect.objectContaining({ where: { id: 'org-1' }, include: expect.any(Object) }),
       );
       expect(mockPrismaService.datasetRecord.count).toHaveBeenCalledWith(
-        expect.objectContaining({ where: expect.objectContaining({ dataset: expect.any(Object) }) }),
+        expect.objectContaining({
+          where: expect.objectContaining({ dataset: expect.any(Object) }),
+        }),
       );
     });
 

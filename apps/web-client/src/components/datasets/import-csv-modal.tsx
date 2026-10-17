@@ -133,7 +133,8 @@ export function ImportCsvModal({ isOpen, onClose, fields, onImport }: ImportCsvM
       : undefined;
 
   const hasHeaderWarnings =
-    !!headerMatch && (headerMatch.unknownHeaders.length > 0 || headerMatch.missingFields.length > 0);
+    !!headerMatch &&
+    (headerMatch.unknownHeaders.length > 0 || headerMatch.missingFields.length > 0);
 
   return (
     <Modal isOpen={isOpen} onClose={close} title={t('importTitle')} size="lg">
@@ -146,7 +147,9 @@ export function ImportCsvModal({ isOpen, onClose, fields, onImport }: ImportCsvM
             Las columnas calculadas no van: su valor sale de la fórmula al importar cada fila, así
             que pedirlas en el archivo sería pedir un dato que se va a descartar. */}
         <div className="rounded-xl bg-[var(--surface-tint)] p-3">
-          <p className="mb-1 text-xs font-medium text-text-secondary">{t('importExpectedHeader')}</p>
+          <p className="mb-1 text-xs font-medium text-text-secondary">
+            {t('importExpectedHeader')}
+          </p>
           <code className="block overflow-x-auto whitespace-nowrap text-xs text-text-primary">
             {expectedHeaders.map((field) => field.label).join(',')}
           </code>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { useLocale, useTranslations } from 'next-intl';
 import { Loader2, Plus } from 'lucide-react';
@@ -13,13 +13,16 @@ import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import { toIntlLocale } from '@/lib/intl-locale';
 import type { AdminOrganizationDetail } from '@/lib/api/endpoints/identity/organizations/organizations-admin-api';
 import { btnGhost, btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
+import { isToastHandled } from '@/lib/api/api-error';
 
 interface Props {
   organizationId: string;
   org: AdminOrganizationDetail;
+  /** Contenido entre el balance y el historial (la suscripción, en la pestaña fusionada). */
+  afterBalance?: ReactNode;
 }
 
-export function CreditsTab({ organizationId, org }: Props) {
+export function CreditsTab({ organizationId, org, afterBalance }: Props) {
   const t = useTranslations('Admin.CreditsTab');
   const intlLocale = toIntlLocale(useLocale());
   const getApiErrorMessage = useApiErrorMessage();
@@ -40,7 +43,11 @@ export function CreditsTab({ organizationId, org }: Props) {
   };
 
   const amountValue = Number(amount);
-  const canAdjust = amount.trim() !== '' && Number.isInteger(amountValue) && amountValue !== 0 && reason.trim().length >= 3;
+  const canAdjust =
+    amount.trim() !== '' &&
+    Number.isInteger(amountValue) &&
+    amountValue !== 0 &&
+    reason.trim().length >= 3;
 
   const handleAdjust = () => {
     if (!canAdjust) return;
@@ -53,7 +60,7 @@ export function CreditsTab({ organizationId, org }: Props) {
           setCursor(undefined);
           setDirection(undefined);
         },
-        onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+        onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
       },
     );
   };
@@ -84,13 +91,15 @@ export function CreditsTab({ organizationId, org }: Props) {
 
   return (
     <div className="w-full space-y-6">
-      <section className="p-4">
-        <div className="flex items-center justify-between">
+      <section className="px-2">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h2 className="text-sm font-semibold text-text-primary">{t('balanceTitle')}</h2>
-            <p className="mt-1 flex items-baseline gap-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
+              {t('balanceTitle')}
+            </span>
+            <p className="mt-2 flex items-baseline gap-2">
               <span
-                className={`text-2xl font-semibold ${
+                className={`font-geist-mono text-4xl font-light tracking-tight ${
                   data.balance < 0 ? 'text-danger' : 'text-text-primary'
                 }`}
               >
@@ -104,7 +113,7 @@ export function CreditsTab({ organizationId, org }: Props) {
                 })}
               </span>
             </p>
-            <p className="text-xs text-text-secondary">
+            <p className="mt-1 text-xs font-medium text-text-tertiary">
               {t('spentThisMonth', { amount: data.currentMonthSpent.toLocaleString(intlLocale) })}
             </p>
           </div>
@@ -112,65 +121,61 @@ export function CreditsTab({ organizationId, org }: Props) {
             <Plus size={16} /> {t('adjustCredits')}
           </button>
         </div>
-      </section>
 
-      {/* Sobregiro. Se edita en la pestaña Límites, pero se muestra acá porque es el único
-          lugar donde un balance negativo tiene sentido: sin el límite al lado no se sabe
-          cuánto le queda antes del corte. */}
-      <section className="rounded-xl border border-border bg-surface p-4">
-        <h2 className="mb-3 text-sm font-semibold text-text-primary">{t('overageTitle')}</h2>
-        {org.allowOverages ? (
-          <dl className="grid gap-3 sm:grid-cols-3">
-            <div>
-              <dt className="text-xs text-text-secondary">{t('statusLabel')}</dt>
-              <dd className="text-sm text-success-600">{t('statusAllowed')}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-text-secondary">{t('limitLabel')}</dt>
-              <dd className="text-sm text-text-primary">
-                {overageLimit === -1
-                  ? '∞'
-                  : t('limitCredits', { limit: overageLimit.toLocaleString(intlLocale) })}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs text-text-secondary">{t('usedLabel')}</dt>
-              <dd className={`text-sm ${overageUsed > 0 ? 'text-danger' : 'text-text-primary'}`}>
+        {/* Sobregiro. Se edita en la pestaña Límites y la pestaña General ya lo destaca; aquí va
+            en segundo plano, junto al balance, porque es el único lugar donde un balance
+            negativo tiene sentido: sin el límite al lado no se sabe cuánto le queda antes del
+            corte. */}
+        <p className="mt-5 border-t border-[var(--border-subtle)] pt-4 text-xs text-text-secondary">
+          <span className="font-semibold text-text-primary">{t('overageTitle')}:</span>{' '}
+          {org.allowOverages ? (
+            <>
+              <span className="text-[var(--success-text-adaptive)]">{t('statusAllowed')}</span>
+              {' · '}
+              {t('limitLabel')}{' '}
+              {overageLimit === -1
+                ? '∞'
+                : t('limitCredits', { limit: overageLimit.toLocaleString(intlLocale) })}
+              {' · '}
+              {t('usedLabel')}{' '}
+              <span className={overageUsed > 0 ? 'text-danger' : undefined}>
                 {overageUsed > 0
                   ? t('usedCredits', { used: overageUsed.toLocaleString(intlLocale) }) +
                     (overageRemaining === null
                       ? ''
-                      : t('usedRemaining', { remaining: overageRemaining.toLocaleString(intlLocale) }))
+                      : t('usedRemaining', {
+                          remaining: overageRemaining.toLocaleString(intlLocale),
+                        }))
                   : t('usedNone')}
-              </dd>
-            </div>
-          </dl>
-        ) : (
-          <p className="text-sm text-text-secondary">{t('overageNotAllowed')}</p>
-        )}
+              </span>
+            </>
+          ) : (
+            t('overageNotAllowed')
+          )}
+        </p>
       </section>
 
-      <section className="rounded-xl border border-border bg-surface">
-        <div className="border-b border-border p-4">
-          <h2 className="text-sm font-semibold text-text-primary">{t('historyTitle')}</h2>
+      {afterBalance}
+
+      <section className="rounded-2xl border border-border">
+        <div className="border-b border-border px-6 py-4">
+          <h2 className="text-base font-semibold text-text-primary">{t('historyTitle')}</h2>
         </div>
         {items.length === 0 ? (
-          <p className="px-4 py-10 text-center text-sm text-text-secondary">{t('historyEmpty')}</p>
+          <p className="px-6 py-10 text-center text-sm text-text-secondary">{t('historyEmpty')}</p>
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="divide-y divide-[var(--border-subtle)]">
             {items.map((tx) => (
-              <li key={tx.id} className="flex items-center justify-between gap-3 px-4 py-3">
+              <li key={tx.id} className="flex items-center justify-between gap-3 px-6 py-3.5">
                 <div className="min-w-0">
-                  <p className="truncate text-sm text-text-primary">
-                    {tx.description ?? tx.type}
-                  </p>
+                  <p className="truncate text-sm text-text-primary">{tx.description ?? tx.type}</p>
                   <p className="text-xs text-text-secondary">
                     {new Date(tx.createdAt).toLocaleString(intlLocale)} · {tx.type}
                   </p>
                 </div>
                 <span
                   className={`shrink-0 text-sm font-medium ${
-                    tx.amount >= 0 ? 'text-success-500' : 'text-danger'
+                    tx.amount >= 0 ? 'text-[var(--success-text-adaptive)]' : 'text-danger'
                   }`}
                 >
                   {tx.amount >= 0 ? '+' : ''}
@@ -194,7 +199,7 @@ export function CreditsTab({ organizationId, org }: Props) {
             setCursor(undefined);
             setDirection(undefined);
           }}
-          className="border-t border-border p-3"
+          className="border-t border-border px-6 py-3"
         />
       </section>
 

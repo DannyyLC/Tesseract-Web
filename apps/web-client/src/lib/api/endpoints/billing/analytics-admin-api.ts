@@ -1,3 +1,4 @@
+import { unwrapData } from '@/lib/api/unwrap-data';
 import ApiRequestManager from '../../api-request-manager';
 import type { ApiResponse } from '@tesseract/types';
 
@@ -81,6 +82,137 @@ export interface AdminAnalyticsOrganizationsMargin {
   total: number;
 }
 
+export interface AdminAnalyticsDistribution {
+  avg: number | null;
+  p50: number | null;
+  p95: number | null;
+  max: number | null;
+}
+
+export interface AdminWorkflowAnalyticsKpis {
+  executions: number;
+  completed: number;
+  failed: number;
+  /** Ejecuciones cobradas: las únicas con tokens y costo por ejecución. */
+  charged: number;
+  successRate: number;
+  creditsCharged: number;
+  costUSD: number;
+  estimatedRevenueUSD: number | null;
+  marginUSD: number | null;
+  marginPct: number | null;
+  costPerExecution: AdminAnalyticsDistribution;
+  inputTokens: AdminAnalyticsDistribution;
+  outputTokens: AdminAnalyticsDistribution;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  inputOutputRatio: number | null;
+  durationMs: AdminAnalyticsDistribution;
+}
+
+export interface AdminWorkflowAnalyticsModelRow {
+  model: string;
+  executions: number;
+  inputTokens: number;
+  outputTokens: number;
+  costUSD: number;
+  costSharePct: number;
+  estimated: boolean;
+}
+
+export interface AdminWorkflowAnalyticsPoint {
+  date: string;
+  executions: number;
+  costUSD: number;
+  estimatedRevenueUSD: number | null;
+  avgCostUSD: number | null;
+  avgInputTokens: number | null;
+  avgOutputTokens: number | null;
+}
+
+export interface AdminWorkflowAnalyticsCostBucket {
+  fromUSD: number;
+  /** `null` en el último rango, que acumula todo lo que queda por encima del p99. */
+  toUSD: number | null;
+  count: number;
+}
+
+export interface AdminWorkflowAnalyticsTopExecution {
+  id: string;
+  startedAt: string;
+  status: string;
+  costUSD: number;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  durationMs: number | null;
+  conversationId: string | null;
+}
+
+export interface AdminWorkflowAnalytics {
+  period: string;
+  timezone: string;
+  workflow: {
+    id: string;
+    name: string;
+    category: WorkflowCategory;
+    organizationId: string;
+    organizationName: string;
+    plan: string;
+    creditValueUSD: number | null;
+  };
+  kpis: AdminWorkflowAnalyticsKpis;
+  byModel: AdminWorkflowAnalyticsModelRow[];
+  timeseries: AdminWorkflowAnalyticsPoint[];
+  costDistribution: AdminWorkflowAnalyticsCostBucket[];
+  topExecutions: AdminWorkflowAnalyticsTopExecution[];
+}
+
+export interface AdminOrganizationsOverview {
+  organizations: { active: number; inactive: number; paying: number; free: number };
+  /** Ingreso mensual recurrente por moneda, en unidades; no se convierte entre monedas. */
+  mrr: { mxn: number; usd: number; priced: number; unpriced: number; manual: number };
+  attention: {
+    total: number;
+    negativeBalance: number;
+    lowCredits: number;
+    paymentIssue: number;
+    manualRenewalDue: number;
+  };
+  idle: { total: number; days: number };
+}
+
+export interface AdminWorkflowsOverview {
+  workflows: { active: number; paused: number; inactive: number; internal: number };
+  failing: {
+    total: number;
+    failedExecutions: number;
+    days: number;
+    minExecutions: number;
+    thresholdPct: number;
+  };
+  negativeMargin: { total: number; lossUSD: number; days: number };
+  idle: { total: number; days: number };
+}
+
+export interface AdminWhatsappOverview {
+  numbers: { total: number; connected: number; down: number; byProvider: Record<string, number> };
+  templates: { active: number; numbersWithTemplates: number; connectedWithoutTemplates: number };
+  conversations: { total: number; numbers: number };
+  days: number;
+}
+
+export interface AdminLlmModelsOverview {
+  active: number;
+  providers: number;
+  byTier: Record<string, number>;
+  used: number;
+  activeUnused: number;
+  usedNotInCatalog: number;
+  totalCostUSD: number;
+  top: { model: string; costUSD: number; sharePct: number } | null;
+  days: number;
+}
+
 class AnalyticsAdminApi {
   public apiRequestManager: ApiRequestManager;
   private static BASE_URL = '/admin/analytics';
@@ -93,14 +225,14 @@ class AnalyticsAdminApi {
     const result = await this.apiRequestManager.get<ApiResponse<AdminAnalyticsOverview>>(
       `${AnalyticsAdminApi.BASE_URL}/overview?period=${period}`,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async getTimeseries(period: string): Promise<AdminAnalyticsTimeseries> {
     const result = await this.apiRequestManager.get<ApiResponse<AdminAnalyticsTimeseries>>(
       `${AnalyticsAdminApi.BASE_URL}/timeseries?period=${period}`,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async getTopWorkflows(
@@ -111,7 +243,7 @@ class AnalyticsAdminApi {
     const result = await this.apiRequestManager.get<ApiResponse<AdminAnalyticsTopWorkflows>>(
       `${AnalyticsAdminApi.BASE_URL}/top-workflows?period=${period}&metric=${metric}&limit=${limit}`,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   public async getOrganizationsMargin(
@@ -123,7 +255,41 @@ class AnalyticsAdminApi {
     const result = await this.apiRequestManager.get<ApiResponse<AdminAnalyticsOrganizationsMargin>>(
       `${AnalyticsAdminApi.BASE_URL}/organizations-margin?period=${period}&page=${page}&limit=${limit}&sortBy=${sortBy}`,
     );
-    return result.data.data!;
+    return unwrapData(result);
+  }
+  public async getOrganizationsOverview(): Promise<AdminOrganizationsOverview> {
+    const result = await this.apiRequestManager.get<ApiResponse<AdminOrganizationsOverview>>(
+      `${AnalyticsAdminApi.BASE_URL}/organizations-overview`,
+    );
+    return unwrapData(result);
+  }
+
+  public async getWorkflowsOverview(): Promise<AdminWorkflowsOverview> {
+    const result = await this.apiRequestManager.get<ApiResponse<AdminWorkflowsOverview>>(
+      `${AnalyticsAdminApi.BASE_URL}/workflows-overview`,
+    );
+    return unwrapData(result);
+  }
+
+  public async getWhatsappOverview(): Promise<AdminWhatsappOverview> {
+    const result = await this.apiRequestManager.get<ApiResponse<AdminWhatsappOverview>>(
+      `${AnalyticsAdminApi.BASE_URL}/whatsapp-overview`,
+    );
+    return unwrapData(result);
+  }
+
+  public async getLlmModelsOverview(): Promise<AdminLlmModelsOverview> {
+    const result = await this.apiRequestManager.get<ApiResponse<AdminLlmModelsOverview>>(
+      `${AnalyticsAdminApi.BASE_URL}/llm-models-overview`,
+    );
+    return unwrapData(result);
+  }
+
+  public async getWorkflowAnalytics(id: string, period: string): Promise<AdminWorkflowAnalytics> {
+    const result = await this.apiRequestManager.get<ApiResponse<AdminWorkflowAnalytics>>(
+      `${AnalyticsAdminApi.BASE_URL}/workflows/${id}?period=${period}`,
+    );
+    return unwrapData(result);
   }
 }
 

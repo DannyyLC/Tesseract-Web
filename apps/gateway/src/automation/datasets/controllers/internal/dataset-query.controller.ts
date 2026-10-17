@@ -1,11 +1,25 @@
-import { Body, Controller, Get, NotFoundException, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  NotFoundException,
+  Param,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import {
   DatasetFieldValuesResponse,
   DatasetRecordDto,
   DatasetSearchResponse,
 } from '@tesseract/types';
-import { DatasetAccessGuard, DatasetRequest } from '../../core/dataset-access.guard';
+import {
+  DatasetAccessGuard,
+  DatasetRequest,
+  datasetClaimsOf,
+} from '../../core/dataset-access.guard';
 import { DatasetsService } from '../../core/datasets.service';
 import { SearchDatasetDto } from '../../dto/search-dataset.dto';
 
@@ -38,7 +52,7 @@ export class DatasetQueryController {
     @Req() request: DatasetRequest,
     @Body() body: SearchDatasetDto,
   ): Promise<DatasetSearchResponse> {
-    const { organizationId, datasetId } = request.datasetClaims!;
+    const { organizationId, datasetId } = datasetClaimsOf(request);
 
     return this.datasetsService.search(organizationId, datasetId, body);
   }
@@ -49,7 +63,7 @@ export class DatasetQueryController {
     @Query('field') field: string,
     @Query('limit') limit?: string,
   ): Promise<DatasetFieldValuesResponse> {
-    const { organizationId, datasetId } = request.datasetClaims!;
+    const { organizationId, datasetId } = datasetClaimsOf(request);
 
     return this.datasetsService.fieldValues(
       organizationId,
@@ -64,7 +78,7 @@ export class DatasetQueryController {
     @Req() request: DatasetRequest,
     @Param('recordId') recordId: string,
   ): Promise<DatasetRecordDto> {
-    const { organizationId, datasetId } = request.datasetClaims!;
+    const { organizationId, datasetId } = datasetClaimsOf(request);
     const record = await this.datasetsService.getRecord(organizationId, datasetId, recordId);
 
     if (!record) {

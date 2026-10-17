@@ -148,13 +148,15 @@ class DatasetsApi {
 
   public async listRecords(
     id: string,
-    params: { limit?: number; offset?: number; query?: string } = {},
+    params: { limit?: number; offset?: number; query?: string; filters?: string; sortBy?: string } = {},
   ): Promise<{ total: number; items: DatasetRecordDto[] }> {
     const query = new URLSearchParams();
 
     if (params.limit !== undefined) query.append('limit', String(params.limit));
     if (params.offset !== undefined) query.append('offset', String(params.offset));
     if (params.query) query.append('query', params.query);
+    if (params.filters) query.append('filters', params.filters);
+    if (params.sortBy) query.append('sortBy', params.sortBy);
 
     const queryString = query.toString();
     const result = await this.apiRequestManager.get<
@@ -243,10 +245,7 @@ class DatasetsApi {
 
   // ─── Consulta (mismo motor que usa el agente) ──────────────────────────────
 
-  public async search(
-    id: string,
-    request: DatasetSearchRequest,
-  ): Promise<DatasetSearchResponse> {
+  public async search(id: string, request: DatasetSearchRequest): Promise<DatasetSearchResponse> {
     const result = await this.apiRequestManager.post<ApiResponse<DatasetSearchResponse>>(
       `${DatasetsApi.BASE_URL}/${id}/search`,
       request,

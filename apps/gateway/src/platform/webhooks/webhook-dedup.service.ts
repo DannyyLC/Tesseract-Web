@@ -38,7 +38,10 @@ export class WebhookDedupService {
       });
       return true;
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === UNIQUE_VIOLATION) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === UNIQUE_VIOLATION
+      ) {
         this.logger.log(`Evento duplicado ${provider}/${eventId}, se omite`);
         return false;
       }

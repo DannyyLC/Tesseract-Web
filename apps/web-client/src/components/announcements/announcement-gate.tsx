@@ -2,7 +2,10 @@
 
 import { useLocale } from 'next-intl';
 import { useAuth } from '@/hooks/identity/use-auth';
-import { usePendingAnnouncements, useAnnouncementMutations } from '@/hooks/platform/use-announcements';
+import {
+  usePendingAnnouncements,
+  useAnnouncementMutations,
+} from '@/hooks/platform/use-announcements';
 import { AnnouncementModal } from './announcement-modal';
 
 /**

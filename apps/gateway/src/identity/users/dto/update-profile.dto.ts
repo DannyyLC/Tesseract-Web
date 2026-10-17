@@ -10,5 +10,4 @@ export class UpdateProfileDto implements IUpdateProfileDto {
   @IsUrl({}, { message: 'Avatar must be a valid URL' })
   @IsOptional()
   avatar?: string;
-
 }

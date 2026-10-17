@@ -257,6 +257,36 @@ describe('LlmModelsService', () => {
       expect(result).toEqual({ id: 'm2' });
     });
 
+    it('copies the capabilities to the new price row', async () => {
+      // Las capacidades son del modelo: un cambio de precio no debe regresarlas al default.
+      mockPrismaService.llmModel.findUnique.mockResolvedValue({
+        id: 'm1',
+        provider: 'anthropic',
+        modelName: 'claude-sonnet-5-5',
+        tier: ModelTier.STANDARD,
+        llmCategoryId: null,
+        contextWindow: 1000000,
+        recommendedMaxTokens: 128000,
+        currency: 'USD',
+        notes: null,
+        supportsTemperature: false,
+        allowedParams: { reasoning_effort: ['low', 'medium'] },
+      });
+      mockPrismaService.llmModel.update.mockResolvedValue({ id: 'm1' });
+      mockPrismaService.llmModel.create.mockResolvedValue({ id: 'm2' });
+
+      await service.supersedePricing('m1', { inputPricePer1m: 2, outputPricePer1m: 10 });
+
+      expect(mockPrismaService.llmModel.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            supportsTemperature: false,
+            allowedParams: { reasoning_effort: ['low', 'medium'] },
+          }),
+        }),
+      );
+    });
+
     it('should throw NotFoundException if model does not exist', async () => {
       mockPrismaService.llmModel.findUnique.mockResolvedValue(null);
 
@@ -364,15 +394,15 @@ describe('LlmModelsService', () => {
 
       const calcA = result.find((c) => c.model === 'model-a');
       expect(calcA).toBeDefined();
-      expect(calcA!.totalCost).toBe(5); // (0.5 * 2) + (1 * 4) = 1 + 4 = 5
+      expect(calcA?.totalCost).toBe(5); // (0.5 * 2) + (1 * 4) = 1 + 4 = 5
 
       const calcB = result.find((c) => c.model === 'model-b');
       expect(calcB).toBeDefined();
-      expect(calcB!.totalCost).toBe(2); // (2 * 1) + 0 = 2
+      expect(calcB?.totalCost).toBe(2); // (2 * 1) + 0 = 2
 
       const calcUnknown = result.find((c) => c.model === 'unknown-model');
       expect(calcUnknown).toBeDefined();
-      expect(calcUnknown!.provider).toBe('unknown'); // Used fallback
+      expect(calcUnknown?.provider).toBe('unknown'); // Used fallback
     });
 
     it('should return empty array if provided empty object', async () => {

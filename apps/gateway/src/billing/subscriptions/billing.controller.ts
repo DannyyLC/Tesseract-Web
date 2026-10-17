@@ -41,7 +41,7 @@ import {
   isValidTopUpQuantity,
   CREDIT_TOPUP_LIMITS,
 } from '@tesseract/types';
-import { Organization, SubscriptionPlan, SubscriptionStatus } from '@tesseract/database';
+import { Organization, SubscriptionStatus } from '@tesseract/database';
 import { UserPayload } from '@/platform/common/types/jwt-payload.type';
 import { CurrentUser } from '@/identity/auth/decorators/current-user.decorator';
 import { Response } from 'express';
@@ -422,6 +422,18 @@ export class BillingController {
 
     await this.billingService.changePlan(organizationId, body.plan);
     return { message: 'Plan update initiated successfully' };
+  }
+
+  /** Proyección del saldo de créditos: cuándo se acaban a este ritmo (dashboard del cliente). */
+  @Get('credits/projection')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  async getCreditsProjection(@Req() req: Request & { user: UserPayload }) {
+    const organizationId = req.user.organizationId;
+    if (!organizationId) {
+      throw new BadRequestException('User does not belong to an organization');
+    }
+    return this.billingService.getCreditsProjection(organizationId);
   }
 
   @Get('dashboard')

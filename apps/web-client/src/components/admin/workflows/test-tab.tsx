@@ -34,6 +34,8 @@ import type {
   AdminTestExecutionDetail,
   AdminWorkflowDetail,
 } from '@/lib/api/endpoints/automation/workflows/workflows-admin-api';
+import { toApiError } from '@/lib/api/api-error';
+import { eventString } from '@/lib/api/endpoints/automation/workflows/stream-types';
 
 interface Props {
   workflow: AdminWorkflowDetail;
@@ -54,12 +56,27 @@ interface ExecRecord {
 }
 
 const STATUS_STYLE_KEY: Record<string, { labelKey: string; className: string }> = {
-  COMPLETED: { labelKey: 'statusCompleted', className: 'bg-success/10 text-success-600' },
-  FAILED: { labelKey: 'statusFailed', className: 'bg-danger/10 text-danger-600' },
-  RUNNING: { labelKey: 'statusRunning', className: 'bg-warning/10 text-warning-600' },
-  PENDING: { labelKey: 'statusPending', className: 'bg-warning/10 text-warning-600' },
-  CANCELLED: { labelKey: 'statusCancelled', className: 'bg-neutral-500/10 text-neutral-600' },
-  TIMEOUT: { labelKey: 'statusTimeout', className: 'bg-neutral-500/10 text-neutral-600' },
+  COMPLETED: {
+    labelKey: 'statusCompleted',
+    className: 'bg-[var(--badge-success-bg-solid)] text-[var(--badge-success-text-solid)]',
+  },
+  FAILED: {
+    labelKey: 'statusFailed',
+    className: 'bg-[var(--badge-danger-bg-solid)] text-[var(--badge-danger-text-solid)]',
+  },
+  RUNNING: {
+    labelKey: 'statusRunning',
+    className: 'bg-[var(--badge-warning-bg-solid)] text-[var(--badge-warning-text-solid)]',
+  },
+  PENDING: {
+    labelKey: 'statusPending',
+    className: 'bg-[var(--badge-warning-bg-solid)] text-[var(--badge-warning-text-solid)]',
+  },
+  CANCELLED: {
+    labelKey: 'statusCancelled',
+    className: 'bg-[var(--surface-tint)] text-text-secondary',
+  },
+  TIMEOUT: { labelKey: 'statusTimeout', className: 'bg-[var(--surface-tint)] text-text-secondary' },
 };
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -95,8 +112,13 @@ export function TestTab({ workflow }: Props) {
   const [title, setTitle] = useState<string | null>(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
-  const { execute, messages: streamContent, isStreaming, error, clear } =
-    useAdminTestExecuteStream();
+  const {
+    execute,
+    messages: streamContent,
+    isStreaming,
+    error,
+    clear,
+  } = useAdminTestExecuteStream();
   const { getTestExecution } = useAdminWorkflowMutations();
   const loadConversation = useLoadAdminConversation();
   const renameConversation = useRenameAdminConversation();
@@ -138,9 +160,10 @@ export function TestTab({ workflow }: Props) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [thread.length, isStreaming]);
 
+  const lastExecStatus = execHistory[execHistory.length - 1]?.status;
   useEffect(() => {
     panelBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [execHistory.length, execHistory[execHistory.length - 1]?.status]);
+  }, [execHistory.length, lastExecStatus]);
 
   if (!workflow.isInternal) {
     return (
@@ -196,11 +219,12 @@ export function TestTab({ workflow }: Props) {
       { message: trimmed },
       conversationId ? { conversationId } : undefined,
       (event, data) => {
-        if (event === 'conversation_id') setConversationId(data);
+        const value = eventString(data);
+        if (event === 'conversation_id') setConversationId(value);
         if (event === 'execution_id') {
-          executionId = data;
+          executionId = value;
           setExecHistory((prev) =>
-            prev.map((rec) => (rec.turnId === turnId ? { ...rec, executionId: data } : rec)),
+            prev.map((rec) => (rec.turnId === turnId ? { ...rec, executionId: value } : rec)),
           );
         }
       },
@@ -268,7 +292,8 @@ export function TestTab({ workflow }: Props) {
           detail: e,
         })),
       );
-    } catch (err: any) {
+    } catch (caught) {
+      const err = toApiError(caught);
       toast.error(getApiErrorMessage(err));
     }
   };
@@ -291,7 +316,7 @@ export function TestTab({ workflow }: Props) {
           setTitle(trimmed);
           setIsEditingTitle(false);
         },
-        onError: (err: any) => {
+        onError: (err) => {
           toast.error(getApiErrorMessage(err));
           setIsEditingTitle(false);
         },
@@ -303,16 +328,18 @@ export function TestTab({ workflow }: Props) {
 
   return (
     // La altura fija en móvil (70vh) es un fallback nomás — ahí no es prioridad.
-    // En desktop (lg+) sí importa: `lg:h-[calc(100vh-9rem)]` resta la barra sticky
+    // En desktop (lg+) sí importa: `lg:h-[calc(100vh-11rem)]` resta la barra sticky
     // de arriba (título + tabs, ~93px con su margen) y el padding inferior del
     // layout de admin (lg:p-8, 32px), para que el chat ocupe todo lo que queda del
     // viewport en vez de quedarse corto con un porcentaje arbitrario.
-    <div className="flex h-[70vh] w-full gap-4 lg:h-[calc(100vh-9rem)]">
+    <div className="flex h-[70vh] w-full gap-4 lg:h-[calc(100vh-11rem)]">
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="mb-3 flex items-center justify-between gap-2">
           <div className="min-w-0 flex-1">
             {!conversationId ? (
-              <span className="text-sm font-medium text-text-secondary">{t('newConversation')}</span>
+              <span className="text-sm font-medium text-text-secondary">
+                {t('newConversation')}
+              </span>
             ) : isEditingTitle ? (
               <input
                 value={titleDraft}
@@ -353,7 +380,7 @@ export function TestTab({ workflow }: Props) {
               disabled={thread.length === 0 && !conversationId}
               title={t('newTestConversation')}
               aria-label={t('newTestConversation')}
-              className="flex-shrink-0 rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-30"
+              className="flex-shrink-0 rounded-xl p-2 text-text-secondary transition-colors hover:bg-[var(--surface-tint)] hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-30"
             >
               <SquarePen size={18} />
             </button>
@@ -420,7 +447,7 @@ export function TestTab({ workflow }: Props) {
             </div>
           )}
           {error && (
-            <p className="mt-3 rounded-lg bg-danger/10 px-3 py-2 text-xs text-danger-600">
+            <p className="mt-3 rounded-xl border border-[var(--danger-banner-border)] bg-[var(--danger-banner-bg)] px-3 py-2 text-xs text-[var(--danger-text-adaptive)]">
               {error ? getApiErrorMessage(error) : t('executeError')}
             </p>
           )}
@@ -454,7 +481,7 @@ export function TestTab({ workflow }: Props) {
                 disabled={isStreaming}
                 title={t('dictateByVoice')}
                 aria-label={t('dictateByVoice')}
-                className="flex-shrink-0 rounded-full p-2 text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-30"
+                className="flex-shrink-0 rounded-full p-2 text-text-secondary transition-colors hover:bg-[var(--surface-tint)] hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-30"
               >
                 <Mic size={20} />
               </button>
@@ -477,13 +504,15 @@ export function TestTab({ workflow }: Props) {
           para leer un stack trace sin que se vuelva un scroll horizontal. */}
       <div className="hidden w-96 shrink-0 flex-col lg:flex">
         <p className="mb-3 text-xs font-medium text-text-secondary">{t('sessionExecutions')}</p>
-        <div className="flex-1 space-y-2 overflow-y-auto rounded-lg border border-border p-3">
+        <div className="flex-1 space-y-2 overflow-y-auto rounded-xl border border-border p-4">
           {execHistory.length === 0 ? (
             <p className="flex h-full items-center justify-center text-center text-xs text-text-secondary">
               {t('noExecutionsYet')}
             </p>
           ) : (
-            execHistory.map((rec, i) => <ExecutionCard key={rec.turnId} record={rec} turn={i + 1} />)
+            execHistory.map((rec, i) => (
+              <ExecutionCard key={rec.turnId} record={rec} turn={i + 1} />
+            ))
           )}
           <div ref={panelBottomRef} />
         </div>
@@ -499,7 +528,7 @@ function ExecutionCard({ record, turn }: { record: ExecRecord; turn: number }) {
   const cost = detail ? Number(detail.cost) : 0;
 
   return (
-    <div className="rounded-lg border border-border bg-surface-secondary/40 p-2.5 text-xs">
+    <div className="rounded-xl border border-border p-3 text-xs">
       <div className="flex items-center justify-between gap-2">
         <span className="font-medium text-text-primary">{t('turnLabel', { turn })}</span>
         {status !== 'done' ? (
@@ -534,14 +563,14 @@ function ExecutionCard({ record, turn }: { record: ExecRecord; turn: number }) {
           </div>
 
           {detail.status === 'FAILED' && detail.error && (
-            <div className="mt-2 rounded-md bg-danger/10 p-2 text-danger-600">
+            <div className="mt-2 rounded-lg border border-[var(--danger-banner-border)] bg-[var(--danger-banner-bg)] p-2 text-[var(--danger-text-adaptive)]">
               <p className="break-words">{detail.error}</p>
               {detail.errorStack && (
                 <details className="mt-1">
-                  <summary className="flex cursor-pointer items-center gap-1 text-[10px] font-medium select-none">
+                  <summary className="flex cursor-pointer select-none items-center gap-1 text-[10px] font-medium">
                     <ChevronDown size={10} /> {t('stackTrace')}
                   </summary>
-                  <pre className="mt-1 max-h-40 overflow-auto rounded bg-surface-secondary p-1.5 text-[10px] whitespace-pre-wrap text-text-secondary">
+                  <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap rounded-lg bg-[var(--surface-tint)] p-1.5 text-[10px] text-text-secondary">
                     {detail.errorStack}
                   </pre>
                 </details>

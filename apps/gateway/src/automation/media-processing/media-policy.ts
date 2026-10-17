@@ -44,9 +44,7 @@ export interface MediaPolicy {
  * `message_attachments`, se puede calcular el bitrate real con datos propios y ajustar
  * esta variable sin recompilar.
  */
-const ASSUMED_AUDIO_BITRATE_KBPS = Number(
-  process.env.WHATSAPP_ASSUMED_AUDIO_BITRATE_KBPS ?? 32,
-);
+const ASSUMED_AUDIO_BITRATE_KBPS = Number(process.env.WHATSAPP_ASSUMED_AUDIO_BITRATE_KBPS ?? 32);
 
 export const DEFAULT_MEDIA_POLICY: MediaPolicy = {
   audio: { enabled: false, maxSeconds: 300 },

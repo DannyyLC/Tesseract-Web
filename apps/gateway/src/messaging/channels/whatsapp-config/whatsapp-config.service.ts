@@ -1,5 +1,16 @@
-import { HttpService } from '@nestjs/axios';
+import { SecretFieldsCipher } from '@/automation/tools/core/secret-fields-cipher.service';
+import { ConversationsService } from '@/messaging/conversations/conversations.service';
+import {
+  PostTurnAction,
+  PostTurnActionHandler,
+  runPostTurnActions,
+} from '@/messaging/post-turn-actions';
+import { GoogleDriveService } from '@/platform/cloud/google-drive/google-drive.service';
+import { maskPhone } from '@/platform/common/utils/mask-phone';
+import { normalizePhone, phoneNumberVariants } from '@/platform/common/utils/normalize-phone';
+import { PrismaService } from '@/platform/database/prisma.service';
 import { Inject, Injectable } from '@nestjs/common';
+import { JsonObject } from '@prisma/client/runtime/client';
 import {
   ChatRole,
   WhatsAppConfig,
@@ -8,20 +19,24 @@ import {
 } from '@tesseract/database';
 import * as crypto from 'crypto';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
-import { firstValueFrom } from 'rxjs';
 import { Logger } from 'winston';
-import { PrismaService } from '@/platform/database/prisma.service';
-import { GoogleDriveService } from '@/platform/cloud/google-drive/google-drive.service';
-import { JsonObject } from '@prisma/client/runtime/client';
-import { WhatsAppInboundEvent } from './dto';
-import { maskPhone } from '@/platform/common/utils/mask-phone';
-import { normalizePhone, phoneNumberVariants } from '@/platform/common/utils/normalize-phone';
-import { ConversationsService } from '@/messaging/conversations/conversations.service';
+import { IWBPayloadConsumer } from './payload-consumers/wb-payload-consumer.interface';
 import {
-  PostTurnAction,
-  PostTurnActionHandler,
-  runPostTurnActions,
-} from '@/messaging/post-turn-actions';
+  IWBTransporter,
+  WBFile,
+  WBSender,
+  WBTemplateVariables, WhatsAppProvider
+} from './transporters/wb-transporter.interface';
+import { WBTransporterResolver } from './transporters/wb-transporter.resolver';
+import {
+  MetaSessionData,
+  WHATSAPP_SESSION_SECRET_FIELDS,
+  whatsappSessionContext,
+} from './whatsapp-session-data';
+import { WhatsAppInboundEvent } from './dto';
+import { EmailService } from '@/messaging/notifications/email/email.service';
+import { toText } from '@/platform/common/utils/to-text';
+import { httpErrorDetail } from '@/platform/common/utils/error-message';
 
 const YCLOUD_API_BASE = process.env.YCLOUD_API_BASE ?? 'https://api.ycloud.com/v2';
 
@@ -30,13 +45,14 @@ const WEBHOOK_SIGNATURE_TOLERANCE_SECONDS = 300;
 
 @Injectable()
 export class WhatsappConfigService {
-  private readonly yCloudApiKey: string = process.env.Y_CLOUD_API_KEY || '';
   constructor(
     private readonly prismaService: PrismaService,
-    private readonly httpService: HttpService,
+    private readonly transporterResolver: WBTransporterResolver,
     private readonly driveService: GoogleDriveService,
     private readonly conversationsService: ConversationsService,
+    private readonly secretFieldsCipher: SecretFieldsCipher,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
+    private readonly emailService: EmailService,
   ) {}
 
   async getWhatsappConfigById(id: string) {
@@ -96,22 +112,42 @@ export class WhatsappConfigService {
     }
   }
 
+  /**
+   * @param approved `true` solo desde el panel de super admin. El alta que hace el cliente nace
+   * pendiente (`approvedAt` NULL) y no recibe ni envía nada hasta que un super admin la aprueba
+   * (ver el comentario de `approvedAt` en schema.prisma).
+   */
   async createRecordAndgenerateWebhookSecret(
     organizationId: string,
     workflowId: string,
     phoneNumber: string,
     presentation?: { displayName?: string; description?: string },
+    // Sin esto el número nace en YCloud, como siempre. `sessionData` solo lo usa Meta.
+    channel?: { provider: WhatsAppProvider; sessionData?: JsonObject },
+    approved = false,
   ): Promise<WhatsAppConfig | null> {
     try {
+      // El id se genera aquí (y no con el `@default(uuid())` de la base) porque el cifrado de
+      // `sessionData` queda atado a él: hace falta antes del INSERT.
+      const id = crypto.randomUUID();
       const newRecord = await this.prismaService.whatsAppConfig.create({
         data: {
-          provider: 'ycloud',
+          id,
+          provider: channel?.provider ?? 'ycloud',
+          ...(channel?.sessionData && {
+            sessionData: await this.secretFieldsCipher.encryptFields(
+              channel.sessionData,
+              WHATSAPP_SESSION_SECRET_FIELDS,
+              whatsappSessionContext(id),
+            ),
+          }),
           organizationId: organizationId,
           // Canónico, nunca una variante: este valor es el remitente que sale hacia YCloud.
           phoneNumber: normalizePhone(phoneNumber) ?? phoneNumber,
           webhookUrl: `${process.env.DOMAIN_BASE_URL}/whatsapp-config/whatsapp-webhook`,
           defaultWorkflowId: workflowId,
           isActive: true,
+          approvedAt: approved ? new Date() : null,
           displayName: presentation?.displayName?.trim() || undefined,
           description: presentation?.description?.trim() || undefined,
         },
@@ -139,6 +175,22 @@ export class WhatsappConfigService {
       this.logger.error('Error fetching WhatsApp configs by organization:', error);
       return [];
     }
+  }
+
+  /**
+   * ¿Ya hay OTRA config con este número (o una variante equivalente, ver `phoneNumberVariants`)?
+   * `excludeConfigId` deja fuera la propia fila: editar sin tocar el teléfono no es un duplicado.
+   * A diferencia de `getWhatsappConfigByPhoneNumber`, no traga errores: si la base falla, la
+   * edición no debe seguir como si el número estuviera libre.
+   */
+  async isPhoneNumberTaken(phoneNumber: string, excludeConfigId: string): Promise<boolean> {
+    const variants = phoneNumberVariants(phoneNumber);
+    if (variants.length === 0) return false;
+    const other = await this.prismaService.whatsAppConfig.findFirst({
+      where: { phoneNumber: { in: variants }, id: { not: excludeConfigId } },
+      select: { id: true },
+    });
+    return other !== null;
   }
 
   async updatePhoneNumber(configId: string, phoneNumber: string): Promise<void> {
@@ -202,15 +254,29 @@ export class WhatsappConfigService {
       description?: string;
       workflowId?: string | null;
       isDefaultForOutbound?: boolean;
+      phoneNumber?: string;
+      /** Parcial: se mezcla con lo ya guardado. Ver `mergeSessionData`. */
+      sessionData?: Partial<MetaSessionData>;
     },
   ): Promise<boolean> {
     try {
       const data: {
+        phoneNumber?: string;
+        sessionData?: JsonObject;
         displayName?: string | null;
         description?: string | null;
         defaultWorkflowId?: string | null;
         isDefaultForOutbound?: boolean;
       } = {};
+
+      if (fields.phoneNumber !== undefined) {
+        // Canónico, nunca una variante: es el remitente que sale hacia el proveedor.
+        data.phoneNumber = normalizePhone(fields.phoneNumber) ?? fields.phoneNumber;
+      }
+
+      if (fields.sessionData && Object.keys(fields.sessionData).length > 0) {
+        data.sessionData = await this.mergeSessionData(configId, fields.sessionData);
+      }
 
       if (fields.displayName !== undefined) {
         data.displayName = fields.displayName.trim() || null;
@@ -267,6 +333,99 @@ export class WhatsappConfigService {
       return true;
     } catch (error) {
       this.logger.error('Error updating WhatsApp config:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Mezcla `patch` sobre el `sessionData` guardado y devuelve el objeto completo listo para
+   * escribir. Se cifra el resultado entero, no solo el parche: lo que ya estaba cifrado se
+   * conserva tal cual (el cifrado lo salta) y un valor guardado en claro antes de existir esa capa
+   * queda cifrado en cuanto se toca la config.
+   *
+   * Es leer-modificar-escribir sin bloqueo; aceptable para una edición manual del super admin.
+   */
+  private async mergeSessionData(
+    configId: string,
+    patch: Partial<MetaSessionData>,
+  ): Promise<JsonObject> {
+    const current = await this.prismaService.whatsAppConfig.findUnique({
+      where: { id: configId },
+      select: { sessionData: true },
+    });
+    const existing =
+      current?.sessionData && typeof current.sessionData === 'object' && !Array.isArray(current.sessionData)
+        ? (current.sessionData as JsonObject)
+        : {};
+
+    return (await this.secretFieldsCipher.encryptFields(
+      { ...existing, ...patch },
+      WHATSAPP_SESSION_SECRET_FIELDS,
+      whatsappSessionContext(configId),
+    )) as JsonObject;
+  }
+
+  /** 
+   * Avisa a soporte que un cliente pidió dar de alta un número. Es la señal para terminar la
+   * integración en YCloud y aprobarlo desde el panel de super admin. No lanza: si el correo
+   * falla, la solicitud sigue viva y visible como pendiente en ese panel.
+   */
+  async notifyNumberRequested(
+    config: WhatsAppConfig,
+    requester: { name: string; email: string },
+  ): Promise<void> {
+    try {
+      const organization = await this.prismaService.organization.findUnique({
+        where: { id: config.organizationId },
+        select: { name: true },
+      });
+      const workflow = config.defaultWorkflowId
+        ? await this.prismaService.workflow.findUnique({
+            where: { id: config.defaultWorkflowId },
+            select: { name: true },
+          })
+        : null;
+      const now = new Date();
+      const dateTime = `${now.toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })} a las ${now.toLocaleTimeString('es-ES')}`;
+
+      const sent = await this.emailService.sendServiceRequestEmail(
+        process.env.SMTP_EMAIL_FROM ?? 'no-reply@fractalops.com.mx',
+        process.env.SUPPORT_EMAIL_TO ?? 'support@fractalops.com.mx',
+        requester.email,
+        requester.name,
+        'Solicitud de alta de número de WhatsApp',
+        `Número: ${config.phoneNumber}\n` +
+          `Workflow: ${workflow?.name ?? 'sin asignar'} (${config.defaultWorkflowId ?? '-'})\n` +
+          'Queda pendiente: termina la integración en YCloud y apruébalo en el panel de super ' +
+          'admin (Organizaciones → Canales).',
+        organization?.name ?? 'Organización desconocida',
+        config.organizationId,
+        dateTime,
+      );
+      if (!sent) {
+        this.logger.error(
+          `No se pudo avisar a soporte del número ${maskPhone(config.phoneNumber)}`,
+        );
+      }
+    } catch (error) {
+      this.logger.error('Error avisando a soporte de un número nuevo:', error);
+    }
+  }
+
+  /** Marca el número como verificado por un super admin. Idempotente: no pisa la fecha original. */
+  async approve(configId: string): Promise<boolean> {
+    try {
+      await this.prismaService.whatsAppConfig.updateMany({
+        where: { id: configId, approvedAt: null },
+        data: { approvedAt: new Date() },
+      });
+      return true;
+    } catch (error) {
+      this.logger.error('Error approving WhatsApp config:', error);
       return false;
     }
   }
@@ -367,18 +526,16 @@ export class WhatsappConfigService {
   // ─── Outbound messaging ───────────────────────────────────────────────
 
   async sendTextMessage(from: string, to: string, message: string): Promise<void> {
-    await firstValueFrom(
-      this.httpService.post(
-        `${YCLOUD_API_BASE}/whatsapp/messages/sendDirectly`,
-        {
-          from,
-          to,
-          type: 'text',
-          text: { body: await this.sanitizeOutput(message), preview_url: false },
-        },
-        { headers: { 'X-API-Key': this.yCloudApiKey, 'Content-Type': 'application/json' } },
-      ),
-    );
+    const { transporter, sender } = await this.resolveTransporter(from);
+    await transporter.sendTxtMessage(sender, to, await this.sanitizeOutput(message));
+  }
+
+  /** Marca como leídos los mensajes entrantes y dispara el "escribiendo...", vía el
+   * transporter del proveedor que le corresponde a `from`. */
+  async markMessagesAsRead(from: string, messageIds: string[]): Promise<void> {
+    if (messageIds.length === 0) return;
+    const { transporter, sender } = await this.resolveTransporter(from);
+    await transporter.markMessagesAsRead(sender, messageIds);
   }
 
   /**
@@ -393,50 +550,42 @@ export class WhatsappConfigService {
     to: string,
     templateName: string,
     language: string,
-    variables: { body?: string[]; header?: string[]; buttons?: string[] },
+    variables: WBTemplateVariables,
   ): Promise<void> {
-    const components: object[] = [];
+    const { transporter, sender } = await this.resolveTransporter(from);
+    await transporter.sendTemplate(sender, to, { name: templateName, language, variables });
+  }
 
-    if (variables.header?.length) {
-      components.push({
-        type: 'header',
-        parameters: variables.header.map((text) => ({ type: 'text', text })),
-      });
+  /** El proveedor sale de la config del número remitente (`WhatsAppConfig.provider`). */
+  private async resolveTransporter(
+    from: string,
+  ): Promise<{ transporter: IWBTransporter; sender: WBSender }> {
+    const config = await this.getWhatsappConfigByPhoneNumber(from);
+    if (!config) {
+      throw new Error(`No hay WhatsAppConfig para el remitente ${maskPhone(from)}`);
     }
+    return {
+      transporter: this.transporterResolver.forProvider(config.provider),
+      sender: {
+        configId: config.id,
+        phoneNumber: from,
+        sessionData: await this.decryptSessionData(config),
+      },
+    };
+  }
 
-    if (variables.body?.length) {
-      components.push({
-        type: 'body',
-        parameters: variables.body.map((text) => ({ type: 'text', text })),
-      });
-    }
-
-    if (variables.buttons?.length) {
-      variables.buttons.forEach((payload, index) => {
-        components.push({
-          type: 'button',
-          sub_type: 'quick_reply',
-          index,
-          parameters: [{ type: 'payload', payload }],
-        });
-      });
-    }
-
-    await firstValueFrom(
-      this.httpService.post(
-        `${YCLOUD_API_BASE}/whatsapp/messages/sendDirectly`,
-        {
-          from,
-          to,
-          type: 'template',
-          template: {
-            name: templateName,
-            language: { code: language, policy: 'deterministic' },
-            components,
-          },
-        },
-        { headers: { 'X-API-Key': this.yCloudApiKey, 'Content-Type': 'application/json' } },
-      ),
+  /**
+   * `sessionData` de la config con sus credenciales en claro, para usarlas en el momento (firmar,
+   * llamar a Meta) y no guardarlas ni loguearlas. Todo lector de `sessionData` pasa por aquí (o por
+   * `SecretFieldsCipher` cuando no puede depender de este servicio). Lanza si KMS no responde.
+   */
+  async decryptSessionData(
+    config: Pick<WhatsAppConfig, 'id' | 'sessionData'>,
+  ): Promise<WhatsAppConfig['sessionData']> {
+    return this.secretFieldsCipher.decryptFields(
+      config.sessionData,
+      WHATSAPP_SESSION_SECRET_FIELDS,
+      whatsappSessionContext(config.id),
     );
   }
 
@@ -500,7 +649,7 @@ export class WhatsappConfigService {
    * citas, líneas horizontales) se degradan a texto plano o a una aproximación
    * visual cercana.
    */
-  async sanitizeOutput(text: string): Promise<string> {
+  sanitizeOutput(text: string): string {
     if (!text) return text;
 
     // Marcadores temporales para no reprocesar segmentos ya resueltos.
@@ -560,17 +709,19 @@ export class WhatsappConfigService {
     conversationId: string,
     organizationId: string,
     executionMetadata: JsonObject,
-    whatsappInboundMessagePayload: WhatsAppInboundEvent,
+    whatsappInboundMessagePayload: IWBPayloadConsumer,
     workflowId?: string,
   ): Promise<void> {
-    const clientNumber = whatsappInboundMessagePayload.whatsappInboundMessage.from;
-    const ownerNumber = whatsappInboundMessagePayload.whatsappInboundMessage.to;
+    const clientNumber = whatsappInboundMessagePayload.getFromNumber();
+    const ownerNumber = whatsappInboundMessagePayload.getToNumber();
     if (clientNumber === undefined || ownerNumber === undefined) {
-      this.logger.error('Client number or owner number is undefined in the WhatsApp inbound message payload.');
+      this.logger.error(
+        'Client number or owner number is undefined in the WhatsApp inbound message payload.',
+      );
       return;
     }
 
-    const variables = (((executionMetadata ?? {}))?.variables ?? {}) as Record<string, unknown>;
+    const variables = ((executionMetadata ?? {})?.variables ?? {}) as Record<string, unknown>;
     if (Object.keys(variables).length === 0) {
       return;
     }
@@ -594,7 +745,13 @@ export class WhatsappConfigService {
 
     if (declaredActions === null) {
       // Legacy: workflow sin post_turn_actions declaradas → comportamiento histórico
-      await this.legacyMediaUrlAction(conversationId, organizationId, executionMetadata, ownerNumber, clientNumber);
+      await this.legacyMediaUrlAction(
+        conversationId,
+        organizationId,
+        executionMetadata,
+        ownerNumber,
+        clientNumber,
+      );
       return;
     }
 
@@ -621,10 +778,8 @@ export class WhatsappConfigService {
     // Handlers que este canal (WhatsApp) ofrece a las acciones declaradas
     const handlers: Record<string, PostTurnActionHandler> = {
       send_drive_folder_media: async (triggerValue, params, actionId) => {
-        const urls = Array.isArray(triggerValue)
-          ? triggerValue
-          : String(triggerValue ?? '').split(',');
-        const intro = params.intro_message ? String(params.intro_message) : '';
+        const urls = Array.isArray(triggerValue) ? triggerValue : toText(triggerValue).split(',');
+        const intro = toText(params.intro_message);
         if (intro) {
           await sendAndRecord(actionId, intro);
         }
@@ -635,15 +790,14 @@ export class WhatsappConfigService {
         }
       },
       send_text_message: async (_triggerValue, params, actionId) => {
-        const text = params.text ? String(params.text) : '';
+        const text = toText(params.text);
         if (text) {
           await sendAndRecord(actionId, text);
         }
       },
     };
 
-    const previousFlags =
-      ((executionMetadata)?.postTurnActions as Record<string, boolean>) ?? {};
+    const previousFlags = (executionMetadata?.postTurnActions as Record<string, boolean>) ?? {};
 
     const updatedFlags = await runPostTurnActions({
       actions: declaredActions,
@@ -671,8 +825,8 @@ export class WhatsappConfigService {
     ownerNumber: string,
     clientNumber: string,
   ): Promise<void> {
-    const variables = ((executionMetadata ?? {}))?.variables;
-    if ((variables as JsonObject)?.media_url && !(executionMetadata)?.media_url_sent) {
+    const variables = (executionMetadata ?? {})?.variables;
+    if ((variables as JsonObject)?.media_url && !executionMetadata?.media_url_sent) {
       const mediaUrlValue = (variables as JsonObject)?.media_url;
       const mediaUrls = Array.isArray(mediaUrlValue)
         ? mediaUrlValue
@@ -683,10 +837,18 @@ export class WhatsappConfigService {
       let firstTime = true;
       for (const mediaUrl of mediaUrls) {
         if (firstTime) {
-          this.sendTextMessage(ownerNumber, clientNumber, 'Te tratare de compartir algúnos archivos que son relevantes en relación a lo mencionado anteriormente.');
+          // Sin await a propósito (el aviso no bloquea el envío de archivos), pero con catch:
+          // sendTextMessage no atrapa sus errores y un rechazo sin manejar tumba el proceso.
+          this.sendTextMessage(
+            ownerNumber,
+            clientNumber,
+            'Te tratare de compartir algúnos archivos que son relevantes en relación a lo mencionado anteriormente.',
+          ).catch((error: unknown) =>
+            this.logger.error('No se pudo enviar el aviso de archivos por WhatsApp', error),
+          );
           firstTime = false;
         }
-        const normalizedMediaUrl = String(mediaUrl).trim();
+        const normalizedMediaUrl = toText(mediaUrl).trim();
         if (!normalizedMediaUrl) {
           continue;
         }
@@ -702,55 +864,31 @@ export class WhatsappConfigService {
     }
   }
 
-  private async sendFolderMediaToUser(folderUrl: string, fromPhoneNumber: string, toPhoneNumber: string) {
+  private async sendFolderMediaToUser(
+    folderUrl: string,
+    fromPhoneNumber: string,
+    toPhoneNumber: string,
+  ) {
     // 1. Obtener todos los archivos clasificados
     const files = await this.driveService.getFilesFromPublicFolder(folderUrl);
-    
+
     this.logger.info(`Procesando ${files.length} archivos para el cliente.`);
 
-    // 2. Recorrer y enviar secuencialmente (evita saturar la API)
+    // 2. Descartar formatos no soportados y enviar el resto
+    const sendable: WBFile[] = [];
     for (const file of files) {
       if (file.type === 'unknown') {
-        this.logger.warn(`Archivo ignorado por formato no soportado: ${file.name} (${file.mimeType})`);
+        this.logger.warn(
+          `Archivo ignorado por formato no soportado: ${file.name} (${file.mimeType})`,
+        );
         continue;
       }
-
-      try {
-        this.logger.info(`Enviando ${file.type}: ${file.name}...`);
-        // yCloud usa `link` (no `url`). WhatsApp exige `filename` para documentos.
-        const media =
-          file.type === 'document'
-            ? { link: file.downloadUrl, filename: file.name }
-            : { link: file.downloadUrl };
-
-        await firstValueFrom(
-          this.httpService.post(
-            `${YCLOUD_API_BASE}/whatsapp/messages/sendDirectly`,
-            {
-              from: fromPhoneNumber,
-              to: toPhoneNumber,
-              type: file.type,
-              [file.type]: media,
-            },
-            { headers: { 'X-API-Key': this.yCloudApiKey, 'Content-Type': 'application/json' } },
-          ),
-        );
-
-        this.logger.info(`Enviado con éxito: ${file.name}`);
-        
-        // Opcional: Pequeño delay de 500ms entre envíos para respetar límites de tasa (rate limiting)
-        await new Promise((resolve) => setTimeout(resolve, 500));
-
-      } catch (error: any) {
-        // El detalle real del rechazo de yCloud viene en la respuesta, no en el message.
-        const detail = error?.response?.data
-          ? JSON.stringify(error.response.data)
-          : error?.message;
-        this.logger.error(`Error enviando archivo ${file.name}: ${detail}`);
-        // Decisión arquitectónica: Continuar con el siguiente archivo aunque falle uno
-      }
+      sendable.push({ type: file.type, name: file.name, link: file.downloadUrl });
     }
-  } 
+
+    const { transporter, sender } = await this.resolveTransporter(fromPhoneNumber);
+    await transporter.sendFiles(sender, toPhoneNumber, sendable);
+  }
 
   async updateConnectionStatusByPhoneNumber(
     phoneNumber: string,

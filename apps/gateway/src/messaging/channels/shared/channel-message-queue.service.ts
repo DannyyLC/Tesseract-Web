@@ -1,22 +1,22 @@
 import { Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 
-export type ChannelBufferedMessage<TEvent> = {
+export interface ChannelBufferedMessage<TEvent> {
   messageId: string;
   sendTime: string;
   /** Hora de llegada según nuestro reloj. La ventana se mide con esto, no con
    *  `sendTime`, que viene del proveedor y puede traer desfase. */
   bufferedAt: number;
   event: TEvent;
-};
+}
 
-export type ChannelDrainedWindow<TEvent> = {
+export interface ChannelDrainedWindow<TEvent> {
   messages: ChannelBufferedMessage<TEvent>[];
   /** Clave temporal que sostiene los mensajes hasta confirmar el procesamiento. */
   processingKey: string | null;
-};
+}
 
-export type ChannelTurn = {
+export interface ChannelTurn {
   /** `false` si otro turno de la misma conversación sigue en curso. */
   acquired: boolean;
   /**
@@ -24,7 +24,7 @@ export type ChannelTurn = {
    * sin marca (Redis no disponible): no hay nada que soltar.
    */
   token: string | null;
-};
+}
 
 /**
  * Vida máxima de la marca de "turno en curso". Tiene que cubrir la ejecución más larga
@@ -252,11 +252,7 @@ export abstract class ChannelMessageQueueService<TEvent> {
     return String(Math.floor(sendTimeMs / 1000 / this.windowSeconds));
   }
 
-  private getConversationKey(
-    organizationId: string,
-    accountId: string,
-    senderId: string,
-  ): string {
+  private getConversationKey(organizationId: string, accountId: string, senderId: string): string {
     return `${this.keyPrefix}:inbox:${organizationId}:${accountId}:${senderId}`;
   }
 

@@ -12,6 +12,7 @@ import { toIntlLocale } from '@/lib/intl-locale';
 import type { AdminWorkflowDetail } from '@/lib/api/endpoints/automation/workflows/workflows-admin-api';
 import { btnGhost, btnPrimary, inputClass, labelClass } from '@/app/[locale]/admin/_styles';
 import { WorkflowChannelsSection } from './workflow-channels-section';
+import { isToastHandled, toApiError } from '@/lib/api/api-error';
 
 interface Props {
   workflow: AdminWorkflowDetail;
@@ -78,15 +79,16 @@ export function SettingsTab({ workflow }: Props) {
       await removeWorkflow.mutateAsync(workflow.id);
       toast.success(t('workflowDeleted'));
       setConfirmDeleteOpen(false);
-    } catch (e: any) {
-      if (!e?.toastHandled) toast.error(getApiErrorMessage(e));
+    } catch (caught) {
+      const e = toApiError(caught);
+      if (!e.toastHandled) toast.error(getApiErrorMessage(e));
     }
   };
 
   const handleRestore = () => {
     restoreWorkflow.mutate(workflow.id, {
       onSuccess: () => toast.success(t('workflowRestored')),
-      onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+      onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
     });
   };
 
@@ -100,7 +102,7 @@ export function SettingsTab({ workflow }: Props) {
       },
       {
         onSuccess: () => toast.success(t('settingsSaved')),
-        onError: (e: any) => !e?.toastHandled && toast.error(getApiErrorMessage(e)),
+        onError: (e) => !isToastHandled(e) && toast.error(getApiErrorMessage(e)),
       },
     );
   };
@@ -111,7 +113,11 @@ export function SettingsTab({ workflow }: Props) {
 
       <div>
         <label className={labelClass}>{t('nameLabel')}</label>
-        <input className={inputClass} value={form.name} onChange={(e) => set('name', e.target.value)} />
+        <input
+          className={inputClass}
+          value={form.name}
+          onChange={(e) => set('name', e.target.value)}
+        />
       </div>
 
       <div>
@@ -173,7 +179,7 @@ export function SettingsTab({ workflow }: Props) {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="rounded-lg border border-border p-3">
+        <div className="rounded-xl border border-transparent p-4 transition-all duration-200 hover:border-border hover:shadow-sm">
           <Switch
             checked={form.isActive}
             onChange={(v) => set('isActive', v)}
@@ -181,7 +187,7 @@ export function SettingsTab({ workflow }: Props) {
             hint={t('activeHint')}
           />
         </div>
-        <div className="rounded-lg border border-border p-3">
+        <div className="rounded-xl border border-transparent p-4 transition-all duration-200 hover:border-border hover:shadow-sm">
           <Switch
             checked={form.isPaused}
             onChange={(v) => set('isPaused', v)}
@@ -189,7 +195,7 @@ export function SettingsTab({ workflow }: Props) {
             hint={t('pausedHint')}
           />
         </div>
-        <div className="rounded-lg border border-border p-3 sm:col-span-2">
+        <div className="rounded-xl border border-transparent p-4 transition-all duration-200 hover:border-border hover:shadow-sm sm:col-span-2">
           <Switch
             checked={form.isInternal}
             onChange={setIsInternal}
@@ -201,8 +207,8 @@ export function SettingsTab({ workflow }: Props) {
 
       <WorkflowChannelsSection workflowId={workflow.id} organizationId={workflow.organization.id} />
 
-      <div className="rounded-lg border border-danger p-3">
-        <p className="text-xs font-medium text-danger">{t('dangerZone')}</p>
+      <div className="rounded-2xl border border-danger-500 p-5">
+        <p className="text-sm font-semibold text-danger-500">{t('dangerZone')}</p>
         {workflow.deletedAt ? (
           <>
             <p className="mt-1 text-xs text-text-secondary">
@@ -225,7 +231,7 @@ export function SettingsTab({ workflow }: Props) {
           <>
             <p className="mt-1 text-xs text-text-secondary">{t('stopsImmediatelyHint')}</p>
             <button
-              className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-danger px-3 py-1.5 text-xs font-medium text-danger transition-colors hover:bg-danger/10 disabled:opacity-50"
+              className="mt-2 inline-flex items-center gap-1.5 rounded-xl border border-danger-500 px-3 py-1.5 text-xs font-medium text-danger-500 transition-colors hover:bg-[var(--danger-tint-hover)] disabled:opacity-50"
               onClick={() => setConfirmDeleteOpen(true)}
               disabled={removeWorkflow.isPending}
             >
@@ -241,8 +247,16 @@ export function SettingsTab({ workflow }: Props) {
       </div>
 
       <div className="flex justify-end pt-2">
-        <button className={btnPrimary} onClick={handleSave} disabled={!dirty || updateMeta.isPending}>
-          {updateMeta.isPending ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+        <button
+          className={btnPrimary}
+          onClick={handleSave}
+          disabled={!dirty || updateMeta.isPending}
+        >
+          {updateMeta.isPending ? (
+            <Loader2 size={14} className="animate-spin" />
+          ) : (
+            <Save size={14} />
+          )}
           {t('saveSettings')}
         </button>
       </div>

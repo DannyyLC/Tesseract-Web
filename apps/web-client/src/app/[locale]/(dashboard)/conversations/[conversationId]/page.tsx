@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
-import { useRouter } from '@/i18n/routing';
+import { Link, useRouter } from '@/i18n/routing';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Send,
@@ -16,6 +16,7 @@ import {
   BellRing,
   Mic,
   ShieldBan,
+  Pencil,
 } from 'lucide-react';
 import Image from 'next/image';
 import { useWorkflow, useExecuteStream } from '@/hooks/automation/use-workflows';
@@ -34,6 +35,7 @@ import ConversationChannelMeta from '../_components/conversation-channel-meta';
 import { useDictation } from '@/hooks/use-dictation';
 import { useEndUserMutations } from '@/hooks/identity/use-end-users';
 import { BlockContactModal } from '@/components/contacts';
+import { eventString } from '@/lib/api/endpoints/automation/workflows/stream-types';
 
 interface Message {
   id: string;
@@ -90,6 +92,20 @@ export default function WorkflowChatPage() {
   const { data: conversationData } = useConversation(isNewConversation ? '' : conversationId);
   const { unblockEndUser } = useEndUserMutations();
   const isContactBlocked = conversationData?.endUserBlockedAt != null;
+
+  // Lo que se escribe aquí solo se guarda en el historial: el gateway no lo reenvía a
+  // WhatsApp ni a Messenger, y fuera de la ventana de 24 h Meta exige plantilla. Se
+  // bloquea el input para no dejar en el historial respuestas que el cliente nunca recibió.
+  const channelLabelKey =
+    conversationData?.channel === 'WHATSAPP'
+      ? 'channelWhatsapp'
+      : conversationData?.channel === 'MESSENGER'
+        ? 'channelMessenger'
+        : null;
+  const channelName = channelLabelKey ? t(channelLabelKey) : null;
+  const isAwaitingTakeControl =
+    !!conversationData && !conversationData.userId && !conversationData.isHumanInTheLoop;
+  const isInputLocked = isAwaitingTakeControl || channelName !== null;
 
   // Gestión de URL y router (Moved up for early access)
   const searchParams = useSearchParams();
@@ -169,7 +185,7 @@ export default function WorkflowChatPage() {
       // Si estamos haciendo streaming, NO sobrescribir con datos del servidor
       if (isStreaming) return;
 
-      const serverMessages: Message[] = conversationData.messages.map((msg: any) => ({
+      const serverMessages: Message[] = conversationData.messages.map((msg) => ({
         id: msg.id || Date.now().toString(),
         role: (msg.role as string).toLowerCase() as 'user' | 'assistant',
         content: msg.content,
@@ -259,6 +275,9 @@ export default function WorkflowChatPage() {
         setTimeout(scrollToBottom, 100);
       }
     }
+    // `messages.length` solo decide el scroll inicial; como dependencia volvería a mezclar
+    // con los datos del servidor cada vez que cambia un mensaje local.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationData, isStreaming]);
 
   useEffect(() => {
@@ -309,7 +328,7 @@ export default function WorkflowChatPage() {
       setThinkingIndex((prev) => (prev + 1) % THINKING_WORDS.length);
     }, 2000);
     return () => clearInterval(interval);
-  }, [isStreaming]);
+  }, [isStreaming, THINKING_WORDS.length]);
 
   const handleChatScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
@@ -416,15 +435,15 @@ export default function WorkflowChatPage() {
         { message: userMsg.content },
         isNewConversation ? undefined : { conversationId }, // Metadata only if existing conversation
         (event, data) => {
-          // Si recibimos el ID
-          if (event === 'conversation_id') {
+          const receivedId = eventString(data);
+          if (event === 'conversation_id' && receivedId) {
             // Si es una conversacion nueva (ID recibido != ID actual URL)
-            if (data !== conversationId) {
-              pendingConversationId.current = data;
+            if (receivedId !== conversationId) {
+              pendingConversationId.current = receivedId;
 
               // Migrar borrador si venimos de 'new'
               if (isNewConversation) {
-                migrateDraft(data);
+                migrateDraft(receivedId);
               }
             }
 
@@ -453,6 +472,12 @@ export default function WorkflowChatPage() {
   }
 
   const isEmpty = messages.length === 0;
+  /**
+   * Con la conversación vacía el encabezado muestra el nombre del workflow, no un asunto:
+   * ahí el relieve de campo editable prometería renombrar algo que no es el título. El
+   * click sigue haciendo lo mismo que antes, solo se calla el relieve.
+   */
+  const isTopicEditable = canUpdate && !isEmpty;
 
   return (
     <PermissionGuard permissions="conversations:read" redirect={true} fallbackRoute="/dashboard">
@@ -481,6 +506,16 @@ export default function WorkflowChatPage() {
                       <ArrowLeft size={20} />
                     </button>
                     <div>
+                      {/* Mismo tratamiento que la tarjeta del listado: etiqueta que
+                          nombra el campo y hueco con sombra interior al pasar por
+                          encima. Con la conversación vacía el encabezado muestra el
+                          nombre del workflow, no un asunto, así que ahí no va la
+                          etiqueta. */}
+                      {!isEmpty && (
+                        <span className="block text-[10px] font-medium uppercase tracking-wide text-text-tertiary">
+                          {t('topicLabel')}
+                        </span>
+                      )}
                       {isEditing ? (
                         <input
                           value={renameValue}
@@ -516,7 +551,7 @@ export default function WorkflowChatPage() {
                             }
                           }}
                           autoFocus
-                          className="w-full min-w-[200px] border-b border-border-hover bg-transparent p-0 text-lg font-bold text-text-primary outline-none"
+                          className="-mx-2 w-[calc(100%+1rem)] min-w-[200px] rounded-lg border border-border-hover bg-surface-secondary px-2 py-1 text-lg font-bold text-text-primary shadow-[inset_0_1px_3px_var(--shadow-sm)] outline-none"
                         />
                       ) : (
                         <h1
@@ -526,12 +561,24 @@ export default function WorkflowChatPage() {
                               setIsEditing(true);
                             }
                           }}
-                          className={`flex items-center gap-2 truncate text-base font-bold text-text-primary lg:text-lg ${canUpdate ? 'cursor-pointer transition-opacity hover:opacity-70' : ''}`}
+                          className={`group/topic -mx-2 flex items-center gap-2 rounded-lg border border-transparent px-2 py-1 text-base font-bold text-text-primary lg:text-lg ${
+                            isTopicEditable
+                              ? 'cursor-text transition-all duration-200 hover:border-border hover:bg-surface-secondary hover:shadow-[inset_0_1px_3px_var(--shadow-sm)]'
+                              : ''
+                          }`}
                           title={canUpdate ? t('editNameTitle') : undefined}
                         >
-                          {isEmpty
-                            ? workflow?.name
-                            : conversationData?.title || t('newConversation')}
+                          <span className="truncate">
+                            {isEmpty
+                              ? workflow?.name
+                              : conversationData?.title || t('newConversation')}
+                          </span>
+                          {isTopicEditable && (
+                            <Pencil
+                              size={12}
+                              className="shrink-0 text-text-tertiary opacity-0 transition-opacity group-hover/topic:opacity-100"
+                            />
+                          )}
                         </h1>
                       )}
                       <p className="max-w-[180px] truncate text-xs text-text-tertiary lg:max-w-md">
@@ -818,7 +865,7 @@ export default function WorkflowChatPage() {
                             <ReactMarkdown
                               remarkPlugins={[remarkGfm]}
                               components={{
-                                table: ({ node, ...props }) => (
+                                table: ({ node: _node, ...props }) => (
                                   <div className="my-4 overflow-x-auto rounded-lg border border-border">
                                     <table
                                       className="w-full border-collapse text-left text-text-primary"
@@ -826,19 +873,19 @@ export default function WorkflowChatPage() {
                                     />
                                   </div>
                                 ),
-                                thead: ({ node, ...props }) => (
+                                thead: ({ node: _node, ...props }) => (
                                   <thead
                                     className="border-b border-border bg-surface-secondary text-text-primary"
                                     {...props}
                                   />
                                 ),
-                                th: ({ node, ...props }) => (
+                                th: ({ node: _node, ...props }) => (
                                   <th
                                     className="p-3 text-sm font-semibold text-text-primary"
                                     {...props}
                                   />
                                 ),
-                                td: ({ node, ...props }) => (
+                                td: ({ node: _node, ...props }) => (
                                   <td
                                     className="border-b border-border p-3 text-sm text-text-primary last:border-0"
                                     {...props}
@@ -933,23 +980,23 @@ export default function WorkflowChatPage() {
                     error?.message?.includes('grace period has expired') ? (
                       <p className="opacity-90">
                         {t('subscriptionInactive')}{' '}
-                        <a
+                        <Link
                           href="/billing"
                           className="font-semibold underline underline-offset-2 hover:opacity-75"
                         >
                           {t('goToBilling')}
-                        </a>
+                        </Link>
                       </p>
                     ) : error?.statusCode === 403 ||
                       error?.message?.includes('Insufficient credits') ? (
                       <p className="opacity-90">
                         {t('insufficientCredits')}{' '}
-                        <a
+                        <Link
                           href="/billing"
                           className="font-semibold underline underline-offset-2 hover:opacity-75"
                         >
                           {t('buyCredits')}
-                        </a>
+                        </Link>
                       </p>
                     ) : (
                       <p className="opacity-90">
@@ -970,9 +1017,7 @@ export default function WorkflowChatPage() {
 
               <div
                 className={`flex items-end gap-2 rounded-[26px] border border-border bg-surface-chat p-2 pl-4 shadow-sm transition-shadow focus-within:shadow-md ${
-                  conversationData && !conversationData.userId && !conversationData.isHumanInTheLoop
-                    ? 'cursor-not-allowed opacity-50'
-                    : ''
+                  isInputLocked ? 'cursor-not-allowed opacity-50' : ''
                 }`}
               >
                 {dictation.isActive ? (
@@ -993,18 +1038,18 @@ export default function WorkflowChatPage() {
                       onChange={(e) => setInput(e.target.value)}
                       onKeyDown={handleKeyDown}
                       placeholder={
-                        conversationData && !conversationData.userId
-                          ? conversationData.isHumanInTheLoop
-                            ? t('writeResponse')
-                            : t('takeControlToRespond')
-                          : t('sendMessagePlaceholder', { name: workflow?.name ?? '' })
+                        channelName
+                          ? t('channelReplyBlocked', { channel: channelName })
+                          : conversationData && !conversationData.userId
+                            ? conversationData.isHumanInTheLoop
+                              ? t('writeResponse')
+                              : t('takeControlToRespond')
+                            : t('sendMessagePlaceholder', { name: workflow?.name ?? '' })
                       }
                       className="scrollbar-hide max-h-[120px] min-h-[44px] flex-1 resize-none overflow-y-auto bg-transparent py-3 text-[15px] leading-relaxed text-text-primary outline-none placeholder:text-input-placeholder disabled:cursor-not-allowed md:max-h-[280px]"
                       autoFocus
                       disabled={
-                        (conversationData &&
-                          !conversationData.userId &&
-                          !conversationData.isHumanInTheLoop) ||
+                        isInputLocked ||
                         (!!error &&
                           (error?.errorCode === 'WORKFLOW_2005' ||
                             error?.message?.includes('paused') ||
@@ -1019,12 +1064,7 @@ export default function WorkflowChatPage() {
                       onClick={dictation.start}
                       title={tDictation('startTitle')}
                       aria-label={tDictation('startTitle')}
-                      disabled={
-                        isStreaming ||
-                        (!!conversationData &&
-                          !conversationData.userId &&
-                          !conversationData.isHumanInTheLoop)
-                      }
+                      disabled={isStreaming || isInputLocked}
                       className="mb-1 flex-shrink-0 rounded-full p-2 text-text-secondary transition-colors hover:bg-surface-secondary hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-30"
                     >
                       <Mic size={18} />
@@ -1032,9 +1072,7 @@ export default function WorkflowChatPage() {
                     <button
                       onClick={handleSend}
                       disabled={
-                        (conversationData &&
-                          !conversationData.userId &&
-                          !conversationData.isHumanInTheLoop) ||
+                        isInputLocked ||
                         !input.trim() ||
                         isStreaming ||
                         (!!error &&
@@ -1057,7 +1095,11 @@ export default function WorkflowChatPage() {
                 )}
               </div>
               <div className="mt-2 text-center">
-                <p className="text-[10px] text-text-tertiary">{t('aiDisclaimer')}</p>
+                <p className="text-[10px] text-text-tertiary">
+                  {channelName
+                    ? t('channelReplyBlockedHint', { channel: channelName })
+                    : t('aiDisclaimer')}
+                </p>
               </div>
             </div>
           </div>

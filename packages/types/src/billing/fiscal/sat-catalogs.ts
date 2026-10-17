@@ -41,10 +41,18 @@ export const TAX_REGIMES: TaxRegimeOption[] = [
   },
   { code: '626', description: 'Régimen Simplificado de Confianza', appliesTo: 'ambas' },
   { code: '621', description: 'Incorporación Fiscal', appliesTo: 'fisica' },
-  { code: '625', description: 'Actividades Empresariales con ingresos a través de Plataformas Tecnológicas', appliesTo: 'fisica' },
+  {
+    code: '625',
+    description: 'Actividades Empresariales con ingresos a través de Plataformas Tecnológicas',
+    appliesTo: 'fisica',
+  },
   { code: '603', description: 'Personas Morales con Fines no Lucrativos', appliesTo: 'moral' },
   { code: '606', description: 'Arrendamiento', appliesTo: 'fisica' },
-  { code: '620', description: 'Sociedades Cooperativas de Producción que optan por diferir sus ingresos', appliesTo: 'moral' },
+  {
+    code: '620',
+    description: 'Sociedades Cooperativas de Producción que optan por diferir sus ingresos',
+    appliesTo: 'moral',
+  },
 ];
 
 export interface CfdiUseOption {

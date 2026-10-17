@@ -1,11 +1,5 @@
 import { ParsePageSizePipe } from '@/platform/common/pipes/parse-page-size.pipe';
-import {
-  Controller,
-  Get,
-  Query,
-  Res,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Query, Res, UseGuards } from '@nestjs/common';
 import { Locale } from '@/platform/common/decorators/locale.decorator';
 import { SupportedLocale } from '@/platform/common/types/locale.type';
 import {

@@ -929,6 +929,15 @@ model LlmModel {
   contextWindow        Int // Tokens máximos del modelo (ej: 128000 para GPT-4o)
   recommendedMaxTokens Int // Tokens recomendados para conversaciones (ej: 100000)
 
+  // Capacidades: qué parámetros acepta el modelo. El validador de workflows rechaza al
+  // guardar un agente que no las respete, y el motor manda tal cual lo que ya pasó por
+  // aquí, sin depender de que LiteLLM conozca el modelo.
+  // Los modelos de razonamiento (gpt-5+, claude 5.5) rechazan temperature != default.
+  supportsTemperature Boolean @default(true)
+  // { "<param>": ["valor", ...] }: lista vacía = cualquier valor. Ej:
+  // { "reasoning_effort": ["none", "low", "medium", "high"] }
+  allowedParams       Json    @default("{}")
+
   // Vigencia del precio
   effectiveFrom DateTime  @default(now()) // Desde cuándo aplica
   effectiveTo   DateTime? // Hasta cuándo (null = actual)
@@ -1648,6 +1657,13 @@ model WhatsAppConfig {
   // Estado
   isActive Boolean @default(true)
 
+  /// Cuándo un super admin confirmó que el número es de esta organización. NULL = pendiente:
+  /// no recibe ni envía nada. Todos los números viven en la cuenta compartida de YCloud y la
+  /// plataforma no puede probar por sí sola de quién es cada uno, así que el alta del cliente
+  /// es una solicitud; sin esto, el primero que registraba un número ajeno se quedaba con sus
+  /// mensajes. Separado de `isActive` a propósito: ese lo prende y apaga el cliente.
+  approvedAt DateTime?
+
   // Workflow por defecto para mensajes entrantes
   defaultWorkflowId String?
   defaultWorkflow   Workflow? @relation(fields: [defaultWorkflowId], references: [id])
@@ -1868,6 +1884,9 @@ model UserVerification {
   verificationCode String   @unique
   isEmailVerified  Boolean  @default(false)
   isFromInvitation Boolean  @default(false)
+  /// Códigos equivocados contra esta fila. Al llegar al tope la fila se borra: seis dígitos
+  /// solo resisten fuerza bruta si los intentos por código están acotados.
+  failedAttempts   Int      @default(0)
   expiresAt        DateTime
   createdAt        DateTime @default(now())
 

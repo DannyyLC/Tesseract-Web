@@ -1,3 +1,4 @@
+import { unwrapData } from '@/lib/api/unwrap-data';
 import { ApiResponse, CreateConfigDto, WhatsAppConfig, WhatsAppTemplate } from '@tesseract/types';
 import ApiRequestManager from '../../../api-request-manager';
 
@@ -91,7 +92,7 @@ class WhatsappConfigApi {
       `${WhatsappConfigApi.BASE_URL}/${configId}/templates`,
       data,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   async listTemplates(configId: string): Promise<WhatsAppTemplate[]> {
@@ -101,15 +102,12 @@ class WhatsappConfigApi {
     return result.data.data ?? [];
   }
 
-  async updateTemplate(
-    templateId: string,
-    data: UpdateTemplateInput,
-  ): Promise<WhatsAppTemplate> {
+  async updateTemplate(templateId: string, data: UpdateTemplateInput): Promise<WhatsAppTemplate> {
     const result = await this.apiRequestManager.patch<ApiResponse<WhatsAppTemplate>>(
       `${WhatsappConfigApi.BASE_URL}/templates/${templateId}`,
       data,
     );
-    return result.data.data!;
+    return unwrapData(result);
   }
 
   async deleteTemplate(templateId: string): Promise<boolean> {

@@ -39,6 +39,7 @@ import {
   TIMEZONE_GROUPS,
   formatTimezoneLabel,
 } from '@tesseract/types';
+import { toApiError } from '@/lib/api/api-error';
 
 const WHATSAPP_PHONE_REGEX = /^\+\d{8,15}$/;
 
@@ -253,7 +254,8 @@ export default function WorkflowDetailPage() {
       toast.success(t('whatsappLinkSuccess'));
       setIsWhatsappModalOpen(false);
       setWhatsappNumber('');
-    } catch (error: any) {
+    } catch (caught) {
+      const error = toApiError(caught);
       const statusCode = error?.response?.status;
       const backendMessage =
         (typeof error?.response?.data?.message === 'string' &&
@@ -371,17 +373,19 @@ export default function WorkflowDetailPage() {
                   </Link>
                 </PermissionGuard>
 
-                <ExpandingActionButton
-                  href={`/workflows/${workflow.id}/messenger`}
-                  label={t('linkMessenger')}
-                  icon={<FaFacebookMessenger className="h-4 w-4 text-[#0084FF]" />}
-                />
+                <PermissionGuard permissions="channels:manage">
+                  <ExpandingActionButton
+                    href={`/workflows/${workflow.id}/messenger`}
+                    label={t('linkMessenger')}
+                    icon={<FaFacebookMessenger className="h-4 w-4 text-[#0084FF]" />}
+                  />
 
-                <ExpandingActionButton
-                  onClick={() => setIsWhatsappModalOpen(true)}
-                  label={t('linkWhatsapp')}
-                  icon={<WhatsappIcon className="h-4 w-4" />}
-                />
+                  <ExpandingActionButton
+                    onClick={() => setIsWhatsappModalOpen(true)}
+                    label={t('linkWhatsapp')}
+                    icon={<WhatsappIcon className="h-4 w-4" />}
+                  />
+                </PermissionGuard>
 
                 <PermissionGuard permissions="workflows:update">
                   <ExpandingActionButton
@@ -435,7 +439,7 @@ export default function WorkflowDetailPage() {
             </div>
             <div className="mt-4 flex flex-wrap gap-4">
               {workflow.tenantTools && workflow.tenantTools.length > 0 ? (
-                workflow.tenantTools.map((tool: any) => (
+                workflow.tenantTools.map((tool) => (
                   <div
                     key={tool.id}
                     className={`flex min-w-[250px] flex-1 items-center gap-3 rounded-xl border bg-surface-elevated p-4 shadow-sm transition-all hover:shadow-md ${
@@ -549,6 +553,7 @@ export default function WorkflowDetailPage() {
                         connectionStatus: number.connectionStatus,
                         createdAt: number.createdAt.toString(),
                         isDefaultForOutbound: number.isDefaultForOutbound,
+                        approvedAt: number.approvedAt,
                       }}
                       index={index}
                       onDelete={handleWhatsappDelete}

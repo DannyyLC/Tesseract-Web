@@ -1,3 +1,4 @@
+import { Prisma } from '@tesseract/database';
 import { Inject, Injectable } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { MEDIA_PROCESSOR_ADAPTER, MediaProcessorAdapter } from './adapters/media-processor.adapter';
@@ -8,13 +9,19 @@ export interface IncomingAttachment {
   type: 'IMAGE' | 'AUDIO';
   mimeType: string;
   sourceUrl: string;
+  /**
+   * Headers para descargar `sourceUrl` cuando no es pública (la multimedia de la Cloud API
+   * de Meta pide `Authorization`). Son solo de trabajo: se quitan del resultado para que el
+   * token no llegue a la base ni a los logs.
+   */
+  sourceHeaders?: Record<string, string>;
   sha256?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   /** Tope de tamaño para este adjunto. Lo fija la política del workflow. */
   maxBytes?: number;
 }
 
-export type ProcessedAttachment = Omit<IncomingAttachment, 'maxBytes'> & {
+export type ProcessedAttachment = Omit<IncomingAttachment, 'maxBytes' | 'sourceHeaders'> & {
   contentHash: string;
   processingStatus: 'PENDING' | 'PROCESSING' | 'PROCESSED' | 'FAILED' | 'UNSUPPORTED';
   processedText?: string;
@@ -48,7 +55,8 @@ export function toAttachmentInput(attachment: ProcessedAttachment) {
     processor: attachment.processor,
     processorVersion: attachment.processorVersion,
     sizeBytes: attachment.sizeBytes,
-    metadata: attachment.metadata,
+    // Frontera con la base: la metadata calculada es JSON serializable.
+    metadata: attachment.metadata as Prisma.InputJsonObject | undefined,
   };
 }
 
@@ -111,7 +119,7 @@ export class MediaProcessingService {
         if (cached?.processedText?.trim()) {
           // Acierto de caché: el mismo audio ya fue transcrito (el hash sale del sha256
           // que manda WhatsApp). Se reutiliza sin volver a pagar la transcripción.
-          const { maxBytes: _ignored, ...persistable } = attachment;
+          const { maxBytes: _ignored, sourceHeaders: _headers, ...persistable } = attachment;
 
           return {
             ...persistable,
@@ -130,7 +138,7 @@ export class MediaProcessingService {
           };
         }
 
-        const { maxBytes, ...persistable } = attachment;
+        const { maxBytes, sourceHeaders, ...persistable } = attachment;
 
         const result = await this.adapter.process({
           ...attachment,
@@ -228,7 +236,11 @@ export class MediaProcessingService {
     }
 
     if (buffer.length > maxAudioBytes(policy)) {
-      return { status: 'REJECTED', reason: 'AUDIO_TOO_LONG', message: policy.messages.audioTooLong };
+      return {
+        status: 'REJECTED',
+        reason: 'AUDIO_TOO_LONG',
+        message: policy.messages.audioTooLong,
+      };
     }
 
     const result = await this.adapter.transcribeBuffer({

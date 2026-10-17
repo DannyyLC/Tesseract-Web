@@ -9,3 +9,6 @@ export const WHATSAPP_WORKER_PATH = '/api/whatsapp-config/internal/process-windo
 
 /** Identificador de proveedor para la tabla de deduplicación de webhooks. */
 export const WEBHOOK_PROVIDER_YCLOUD = 'ycloud';
+
+/** Identificador de la Cloud API de Meta en la tabla de deduplicación de webhooks. */
+export const WEBHOOK_PROVIDER_META_WHATSAPP = 'meta';

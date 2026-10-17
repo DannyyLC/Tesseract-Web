@@ -12,6 +12,55 @@ import * as protoLoader from '@grpc/proto-loader';
 import { GoogleAuth, IdTokenClient } from 'google-auth-library';
 import { join } from 'path';
 import { AgentExecutionRequestDto, AgentExecutionResponseDto } from './dto';
+import { Readable } from 'stream';
+import { errorMessage } from '@/platform/common/utils/error-message';
+import { AgentLlmFailedException } from '@/platform/common/exceptions';
+
+/** Respuesta de Execute tal como la decodifica proto-loader (con `keepCase`). */
+interface WireExecutionResponse {
+  conversation_id: string;
+  messages?: { role: AgentExecutionResponseDto['messages'][number]['role']; content: string }[];
+  metadata?: AgentExecutionResponseDto['metadata'];
+}
+
+type UnaryCallback<T> = (err: grpc.ServiceError | null, response: T) => void;
+
+/** Los métodos del cliente generado en runtime que usa este servicio. */
+interface AgentsGrpcClient {
+  execute(
+    request: Record<string, unknown>,
+    metadata: grpc.Metadata,
+    options: grpc.CallOptions,
+    callback: UnaryCallback<WireExecutionResponse>,
+  ): void;
+  executeStream(request: Record<string, unknown>, metadata: grpc.Metadata): Readable;
+  getNodeCatalog(
+    request: { graph_type: string },
+    metadata: grpc.Metadata,
+    options: grpc.CallOptions,
+    callback: UnaryCallback<{ catalog_json?: string }>,
+  ): void;
+  waitForReady(deadline: Date, callback: (err: Error | null) => void): void;
+}
+
+type AgentsGrpcClientConstructor = new (
+  address: string,
+  credentials: grpc.ChannelCredentials,
+) => AgentsGrpcClient;
+
+/** Código gRPC de un error, si lo trae. */
+function grpcCodeOf(err: unknown): number | undefined {
+  if (typeof err !== 'object' || err === null || !('code' in err)) return undefined;
+  return typeof err.code === 'number' ? err.code : undefined;
+}
+
+/** Texto que mandó el motor en el abort (`details`), sin el prefijo "9 FAILED_PRECONDITION:". */
+function grpcDetailsOf(err: unknown): string {
+  if (typeof err === 'object' && err !== null && 'details' in err && typeof err.details === 'string') {
+    return err.details;
+  }
+  return errorMessage(err);
+}
 
 @Injectable()
 export class AgentsService implements OnModuleInit {
@@ -19,14 +68,13 @@ export class AgentsService implements OnModuleInit {
   private readonly agentsGrpcUrl: string;
   private readonly agentsGrpcUseTls: boolean;
   private readonly agentsServiceTimeout: number;
-  private readonly internalSecret: string;
-  private grpcClient: any;
+  private grpcClient!: AgentsGrpcClient;
 
   /**
    * Identidad del Gateway frente a Cloud Run. Google emite un ID token firmado que dice a
    * nombre de quién va (la service account del servicio) y para qué URL sirve; Cloud Run lo
-   * valida en el borde, antes de que la petición llegue al proceso de Python. Sustituye al
-   * secreto compartido, que es un string sin caducidad ni identidad detrás.
+   * valida en el borde, antes de que la petición llegue al proceso de Python. Es la única
+   * autenticación del canal: el servicio está cerrado con IAM y solo esta cuenta lo invoca.
    */
   private readonly auth = new GoogleAuth();
   private readonly agentsAudience: string;
@@ -40,8 +88,9 @@ export class AgentsService implements OnModuleInit {
     // se cierra el servicio con IAM (hasta entonces la cabecera de más se ignora).
     this.agentsAudience = this.agentsGrpcUseTls ? new URL(configuredUrl).origin : '';
     this.agentsGrpcUrl = configuredUrl.replace(/^https?:\/\//, '');
-    this.agentsServiceTimeout = Number(this.configService.get<string>('AGENTS_SERVICE_TIMEOUT', '30000'));
-    this.internalSecret = this.configService.get<string>('AGENTS_INTERNAL_SECRET', '');
+    this.agentsServiceTimeout = Number(
+      this.configService.get<string>('AGENTS_SERVICE_TIMEOUT', '30000'),
+    );
     // Sin bandera aparte para local: si la URL no trae TLS es localhost, y ahí no hay metadata
     // server al que pedirle el token. El log deja el modo por escrito para que no sea magia
     // silenciosa, y la audiencia impresa es con la que se compara la URL real del servicio
@@ -58,7 +107,10 @@ export class AgentsService implements OnModuleInit {
       join(__dirname, '../../../../../packages/contracts/proto/agents/v1/agents.proto'),
       { keepCase: true, longs: Number, defaults: true, oneofs: true },
     );
-    const proto = grpc.loadPackageDefinition(packageDef) as any;
+    // proto-loader carga el servicio en runtime: su forma la declara AgentsGrpcClient.
+    const proto = grpc.loadPackageDefinition(packageDef) as unknown as {
+      tesseract: { agents: { v1: { AgentsService: AgentsGrpcClientConstructor } } };
+    };
     this.grpcClient = new proto.tesseract.agents.v1.AgentsService(
       this.agentsGrpcUrl,
       this.agentsGrpcUseTls ? grpc.credentials.createSsl() : grpc.credentials.createInsecure(),
@@ -67,7 +119,6 @@ export class AgentsService implements OnModuleInit {
 
   private async buildMetadata(): Promise<grpc.Metadata> {
     const metadata = new grpc.Metadata();
-    if (this.internalSecret) metadata.add('x-internal-token', this.internalSecret);
     if (!this.agentsAudience) return metadata;
 
     try {
@@ -94,15 +145,15 @@ export class AgentsService implements OnModuleInit {
    * de cada tool, y por agente: model_params + signal_tools) viajan como JSON string.
    * Aquí los serializamos antes de enviar.
    */
-  private toWireRequest(request: AgentExecutionRequestDto): Record<string, any> {
+  private toWireRequest(request: AgentExecutionRequestDto): Record<string, unknown> {
     const toJson = (value: unknown): string =>
       value === undefined || value === null ? '' : JSON.stringify(value);
 
     // El proto define agent_tool_instances como map<string, AgentToolMap>,
     // donde AgentToolMap = { tools: map<string, ToolInstance> }. Envolvemos bajo `tools`.
-    const agentToolInstances: Record<string, { tools: Record<string, any> }> = {};
+    const agentToolInstances: Record<string, { tools: Record<string, unknown> }> = {};
     for (const [agentName, tools] of Object.entries(request.agent_tool_instances ?? {})) {
-      const wrappedTools: Record<string, any> = {};
+      const wrappedTools: Record<string, unknown> = {};
       for (const [toolId, tool] of Object.entries(tools)) {
         wrappedTools[toolId] = {
           ...tool,
@@ -116,9 +167,9 @@ export class AgentsService implements OnModuleInit {
     // El proto AgentConfig no tiene campos para model_params ni signal_tools:
     // viajan como JSON string (model_params_json / signal_tools_json). temperature
     // se deja tal cual — si el agente no la trae, el campo `optional` queda ausente.
-    const agentsConfig: Record<string, any> = {};
+    const agentsConfig: Record<string, unknown> = {};
     for (const [agentName, cfg] of Object.entries(request.agents_config ?? {})) {
-      const { model_params, signal_tools, tools, ...rest } = (cfg ?? {}) as Record<string, any>;
+      const { model_params, signal_tools, tools, ...rest } = (cfg ?? {}) as Record<string, unknown>;
       void tools; // `tools` no viaja en AgentConfig (se resuelve vía agent_tool_instances)
       agentsConfig[agentName] = {
         ...rest,
@@ -130,22 +181,28 @@ export class AgentsService implements OnModuleInit {
     return {
       ...request,
       graph_config: toJson(request.graph_config),
-      user_metadata: toJson((request as Record<string, any>).user_metadata),
+      user_metadata: toJson(request.user_metadata),
       agent_tool_instances: agentToolInstances,
       agents_config: agentsConfig,
     };
   }
 
-  private isRetryableGrpcError(err: any): boolean {
-    return err?.code === grpc.status.UNAVAILABLE || err?.code === grpc.status.DEADLINE_EXCEEDED;
+  private isRetryableGrpcError(err: unknown): boolean {
+    const code = grpcCodeOf(err);
+    return code === grpc.status.UNAVAILABLE || code === grpc.status.DEADLINE_EXCEEDED;
   }
 
-  private toHttpException(err: any) {
-    if (err?.code === grpc.status.UNAVAILABLE)
+  private toHttpException(err: unknown) {
+    const code = grpcCodeOf(err);
+    if (code === grpc.status.UNAVAILABLE)
       return new ServiceUnavailableException('Agents service is not available');
-    if (err?.code === grpc.status.DEADLINE_EXCEEDED)
+    if (code === grpc.status.DEADLINE_EXCEEDED)
       return new RequestTimeoutException('Agent execution timed out');
-    return new InternalServerErrorException((err as Error)?.message ?? 'Unknown error');
+    // El motor usa FAILED_PRECONDITION solo para "el modelo no respondió" (LLMCallError,
+    // con reintentos y fallbacks agotados). Tipo propio para que nadie lo reintente.
+    if (code === grpc.status.FAILED_PRECONDITION)
+      return new AgentLlmFailedException(grpcDetailsOf(err));
+    return new InternalServerErrorException(errorMessage(err));
   }
 
   private async withRetry<T>(
@@ -187,7 +244,7 @@ export class AgentsService implements OnModuleInit {
           wireRequest,
           metadata,
           { deadline },
-          (err: any, response: any) => {
+          (err: grpc.ServiceError | null, response: WireExecutionResponse) => {
             if (err) return reject(err);
             resolve(this.mapExecutionResponse(response));
           },
@@ -200,10 +257,7 @@ export class AgentsService implements OnModuleInit {
     this.logger.debug(
       `Executing streaming agent for tenant: ${request.tenant_id}, workflow: ${request.workflow_id}`,
     );
-    return this.grpcClient.executeStream(
-      this.toWireRequest(request),
-      await this.buildMetadata(),
-    ) as NodeJS.ReadableStream;
+    return this.grpcClient.executeStream(this.toWireRequest(request), await this.buildMetadata());
   }
 
   /**
@@ -211,26 +265,30 @@ export class AgentsService implements OnModuleInit {
    * puertos, contrato de templates). Se usa para validar workflows al guardarlos
    * y será la fuente del futuro editor visual.
    */
-  async getNodeCatalog(graphType = 'pipeline'): Promise<Record<string, any>> {
-    return this.withRetry(async () => {
-      const metadata = await this.buildMetadata();
-      return new Promise<Record<string, any>>((resolve, reject) => {
-        const deadline = new Date(Date.now() + 10000);
-        this.grpcClient.getNodeCatalog(
-          { graph_type: graphType },
-          metadata,
-          { deadline },
-          (err: any, response: any) => {
-            if (err) return reject(err);
-            try {
-              resolve(JSON.parse(response.catalog_json ?? '{}'));
-            } catch (parseError) {
-              reject(parseError);
-            }
-          },
-        );
-      });
-    }, 'getNodeCatalog', 1);
+  async getNodeCatalog(graphType = 'pipeline'): Promise<Record<string, unknown>> {
+    return this.withRetry(
+      async () => {
+        const metadata = await this.buildMetadata();
+        return new Promise<Record<string, unknown>>((resolve, reject) => {
+          const deadline = new Date(Date.now() + 10000);
+          this.grpcClient.getNodeCatalog(
+            { graph_type: graphType },
+            metadata,
+            { deadline },
+            (err: grpc.ServiceError | null, response: { catalog_json?: string }) => {
+              if (err) return reject(err);
+              try {
+                resolve(JSON.parse(response.catalog_json ?? '{}'));
+              } catch (parseError) {
+                reject(parseError instanceof Error ? parseError : new Error(String(parseError)));
+              }
+            },
+          );
+        });
+      },
+      'getNodeCatalog',
+      1,
+    );
   }
 
   async healthCheck(): Promise<boolean> {
@@ -249,11 +307,11 @@ export class AgentsService implements OnModuleInit {
     }
   }
 
-  private mapExecutionResponse(response: any): AgentExecutionResponseDto {
+  private mapExecutionResponse(response: WireExecutionResponse): AgentExecutionResponseDto {
     const meta = response.metadata;
     return {
       conversation_id: response.conversation_id,
-      messages: (response.messages ?? []).map((m: any) => ({
+      messages: (response.messages ?? []).map((m) => ({
         role: m.role,
         content: m.content,
       })),

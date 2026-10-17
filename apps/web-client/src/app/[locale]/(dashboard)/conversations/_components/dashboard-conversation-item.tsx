@@ -1,7 +1,15 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { MessageSquare, User, Calendar, Trash2, Loader2, BellRing, ShieldBan } from 'lucide-react';
+import {
+  MessageSquare,
+  User,
+  Trash2,
+  Loader2,
+  BellRing,
+  ShieldBan,
+  Pencil,
+} from 'lucide-react';
 import { Link } from '@/i18n/routing';
 import { useState } from 'react';
 import { DashboardConversationDto } from '@tesseract/types';
@@ -130,34 +138,58 @@ export default function DashboardConversationItem({
                     <User size={14} />
                   </div>
 
-                  {isEditing ? (
-                    <div className="mr-4 flex-1" onClick={(e) => e.preventDefault()}>
-                      <input
-                        value={renameValue}
-                        onChange={(e) => setRenameValue(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        onBlur={handleRename}
-                        autoFocus
-                        onClick={(e) => e.stopPropagation()}
-                        className="border-primary w-full border-b-2 bg-transparent p-0 text-lg font-semibold text-text-primary outline-none focus:ring-0"
-                      />
-                    </div>
-                  ) : (
-                    <h3
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        if (canUpdate) {
-                          setRenameValue(conversation.title || '');
-                          setIsEditing(true);
-                        }
-                      }}
-                      className={`truncate text-base font-semibold text-text-primary ${canUpdate ? 'cursor-pointer transition-colors hover:opacity-70' : ''}`}
-                      title={canUpdate ? t('clickToEditName') : undefined}
-                    >
-                      {conversation.title || t('untitledConversation')}
-                    </h3>
-                  )}
+                  {/* El título es el asunto de la conversación y se puede renombrar: la
+                      etiqueta lo nombra y el hueco con sombra interior lo hace parecer
+                      lo que es —un campo— sin pintar una caja permanente que compita
+                      con el resto de la tarjeta. El padding va con `-mx-2` para que el
+                      texto en reposo siga alineado con la fila de metadatos de abajo y
+                      el relieve crezca hacia fuera al pasar por encima. */}
+                  <div className="mr-4 min-w-0 flex-1">
+                    <span className="block text-[10px] font-medium uppercase tracking-wide text-text-tertiary">
+                      {t('topicLabel')}
+                    </span>
+
+                    {isEditing ? (
+                      <div onClick={(e) => e.preventDefault()}>
+                        <input
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          onKeyDown={handleKeyDown}
+                          onBlur={handleRename}
+                          autoFocus
+                          onClick={(e) => e.stopPropagation()}
+                          className="-mx-2 w-[calc(100%+1rem)] rounded-lg border border-border-hover bg-surface-secondary px-2 py-1 text-base font-semibold text-text-primary shadow-[inset_0_1px_3px_var(--shadow-sm)] outline-none focus:border-border-focus focus:ring-0"
+                        />
+                      </div>
+                    ) : (
+                      <h3
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (canUpdate) {
+                            setRenameValue(conversation.title || '');
+                            setIsEditing(true);
+                          }
+                        }}
+                        className={`group/topic -mx-2 flex items-center gap-2 rounded-lg border border-transparent px-2 py-1 text-base font-semibold text-text-primary ${
+                          canUpdate
+                            ? 'cursor-text transition-all duration-200 hover:border-border hover:bg-surface-secondary hover:shadow-[inset_0_1px_3px_var(--shadow-sm)]'
+                            : ''
+                        }`}
+                        title={canUpdate ? t('clickToEditName') : undefined}
+                      >
+                        <span className="truncate">
+                          {conversation.title || t('untitledConversation')}
+                        </span>
+                        {canUpdate && (
+                          <Pencil
+                            size={12}
+                            className="shrink-0 text-text-tertiary opacity-0 transition-opacity group-hover/topic:opacity-100"
+                          />
+                        )}
+                      </h3>
+                    )}
+                  </div>
 
                   {/* Minimal Status Dot */}
                   <div className="flex items-center gap-1.5 rounded-full bg-surface-secondary px-2 py-0.5">
@@ -173,7 +205,7 @@ export default function DashboardConversationItem({
 
                   {conversation.needsFollowUp && (
                     <div
-                      className="flex shrink-0 items-center gap-1.5 rounded-full bg-info/10 px-2 py-0.5"
+                      className="bg-info/10 flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5"
                       title={conversation.followUpReason || t('followUpBadgeTitle')}
                     >
                       <BellRing size={10} className="text-info-600" />
@@ -211,12 +243,10 @@ export default function DashboardConversationItem({
                     endUserName={conversation.endUserName}
                     messengerPageName={conversation.messengerPageName}
                     messengerSenderId={conversation.messengerSenderId}
+                    lastMessagePreview={conversation.lastMessagePreview}
+                    lastMessageAuthor={conversation.lastMessageAuthor}
+                    lastMessageAtLabel={formatTimeAgo(conversation.lastMessageAt)}
                   />
-                  <span className="text-text-tertiary">•</span>
-                  <div className="flex items-center gap-1.5">
-                    <Calendar size={12} />
-                    <span className="text-xs">{formatTimeAgo(conversation.lastMessageAt)}</span>
-                  </div>
                 </div>
               </div>
 

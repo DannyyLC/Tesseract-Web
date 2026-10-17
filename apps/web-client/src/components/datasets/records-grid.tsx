@@ -2,10 +2,12 @@
 
 import { Fragment, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ChevronDown, Plus, Sigma } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronDown, Plus, Sigma } from 'lucide-react';
 import { DatasetField, DatasetRecordDto } from '@tesseract/types';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ColumnFilter } from './column-filter';
 import { RecordsSelection } from './use-record-selection';
+import { isFilterable, RecordFiltersState } from './use-record-filters';
 
 /**
  * Rejilla de captura generada desde el schema.
@@ -24,6 +26,10 @@ import { RecordsSelection } from './use-record-selection';
  * un `textarea` que crece para las columnas de texto: en un `input` de una línea había que
  * recorrer el valor con el cursor para ver lo que se estaba escribiendo.
  *
+ * Con `filterState`, cada encabezado ordena al hacer clic (ascendente, descendente, sin orden) y
+ * las columnas que no son de texto llevan un embudo con su filtro. El texto ya lo cubre la
+ * búsqueda libre de la barra.
+ *
  * El borrado no vive aquí. Se marcan filas con la casilla de la izquierda y se borran desde la
  * barra de la página, con confirmación: un botón de papelera por fila borraba al primer clic, sin
  * red, y obligaba a repetirlo una vez por fila.
@@ -41,6 +47,10 @@ interface RecordsGridProps {
   createDisabledReason?: string;
   /** Si viene y no es `readOnly`, la rejilla pinta la columna de casillas. */
   selection?: RecordsSelection;
+  /** Si viene, los encabezados ordenan y filtran. */
+  filterState?: RecordFiltersState;
+  /** Hay búsqueda o filtros activos: cambia el mensaje de tabla vacía. */
+  filtered?: boolean;
   onCreate: (data: Record<string, unknown>) => Promise<void>;
   onUpdate: (recordId: string, data: Record<string, unknown>) => Promise<void>;
 }
@@ -110,6 +120,8 @@ export function RecordsGrid({
   readOnly,
   createDisabledReason,
   selection,
+  filterState,
+  filtered,
   onCreate,
   onUpdate,
 }: RecordsGridProps) {
@@ -316,13 +328,29 @@ export function RecordsGrid({
                   className="whitespace-nowrap px-4 py-3 font-medium text-text-secondary"
                 >
                   <span className="inline-flex items-center gap-1">
-                    {field.label}
+                    {filterState ? (
+                      <button
+                        type="button"
+                        onClick={() => filterState.toggleSort(field.key)}
+                        title={t('sortBy', { column: field.label })}
+                        className="inline-flex items-center gap-1 rounded-md hover:text-text-primary"
+                      >
+                        {field.label}
+                        {filterState.sortBy === field.key && <ArrowUp size={12} />}
+                        {filterState.sortBy === `-${field.key}` && <ArrowDown size={12} />}
+                      </button>
+                    ) : (
+                      field.label
+                    )}
                     {field.formula && (
                       <Sigma
                         size={12}
                         className="text-text-tertiary"
                         aria-label={t('formulaCalculated')}
                       />
+                    )}
+                    {filterState && isFilterable(field) && (
+                      <ColumnFilter field={field} state={filterState} />
                     )}
                   </span>
                 </th>
@@ -421,7 +449,7 @@ export function RecordsGrid({
                   colSpan={columnCount}
                   className="px-4 py-10 text-center text-sm text-text-tertiary"
                 >
-                  {t('noRecords')}
+                  {filtered ? t('noRecordsFiltered') : t('noRecords')}
                 </td>
               </tr>
             )}

@@ -28,18 +28,18 @@ export class CreateConfigDto {
 
   /**
    * Token de acceso de la página. Se cifra antes de guardarse y nunca se devuelve.
-   * Opcional: sin él se usa MESSENGER_PAGE_ACCESS_TOKEN.
+   * Obligatorio: con él se prueba ante Meta que la página es de quien la da de alta
+   * (ver MessengerConfigService.assertCredentialsOwnPage).
    */
-  @IsOptional()
+  @IsNotEmpty()
   @IsString()
-  pageAccessToken?: string;
+  pageAccessToken: string;
 
   /**
    * App secret de Meta, con el que se valida la firma de los webhooks de esta página.
-   * Se cifra antes de guardarse y nunca se devuelve. Opcional: sin él se usa
-   * MESSENGER_APP_SECRET.
+   * Se cifra antes de guardarse y nunca se devuelve. Obligatorio por la misma razón.
    */
-  @IsOptional()
+  @IsNotEmpty()
   @IsString()
-  appSecret?: string;
+  appSecret: string;
 }

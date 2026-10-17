@@ -55,7 +55,9 @@ export type MessengerAttachmentType =
   | 'file'
   | 'location'
   | 'fallback'
-  | string;
+  // `string & {}` y no `string` a secas: acepta tipos nuevos de Meta sin perder el
+  // autocompletado de los conocidos (con `string` solo, la unión colapsa a string).
+  | (string & {});
 
 export interface MessengerAttachment {
   type?: MessengerAttachmentType;
