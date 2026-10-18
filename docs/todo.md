@@ -33,3 +33,26 @@ Levantado al migrar a Cloud Tasks. Nada urgente.
   la guarda de ventana de contexto: el umbral cuelga del límite **efectivo**, no del configurado,
   así que un workflow puede empezar a compactar antes que ayer sin que nadie haya tocado su
   configuración.
+
+## 9. Editor de workflows y capacidades de los modelos
+
+- **Guardar un config que el validador rechaza no muestra el motivo.** Reportado el 2026-10-18
+  en producción, tras el release de capacidades por modelo: el editor de super admin no deja
+  guardar el cambio, pero tampoco dice por qué. El gateway sí responde con el mensaje
+  (`Invalid workflow configuration: Agent "…": <modelo> does not accept …`, HTTP 400), así que
+  lo que falta es mostrarlo en el editor (toast o el mismo panel de errores que usa "Validar").
+  Hay que reproducirlo antes de tocarlo: confirmar qué devuelve el `PUT
+  /admin/workflows/:id/config` en ese caso y por qué el editor no lo pinta.
+
+- **Una lista vacía en `allowedParams` acepta cualquier valor, también los inventados.**
+  `gpt-6-luna` tiene `{"reasoning_effort": []}`, así que "Validar" da por bueno
+  `reasoning_effort: "turbo"` y el error aparece hasta ejecutar (ahora visible: FAILED +
+  `LLM_CALL_FAILED`). Es el comportamiento diseñado, no un bug: para que el editor lo rechace,
+  cada modelo debe declarar su lista explícita desde el panel de modelos (p.ej. `gpt-6-luna`:
+  `reasoning_effort: none, low, medium, high`). Pendiente decidir las listas de
+  `gpt-5.4-mini`, `gpt-5.6-luna` y `gpt-6-luna` contra la documentación de OpenAI.
+
+- **El editor no ofrece campos según el modelo.** `model_params` solo se edita en la pestaña
+  JSON y `temperature` se muestra aunque el modelo no la acepte. El editor ya recibe la lista
+  de modelos; faltaría incluir `supportsTemperature` y `allowedParams` en el contexto del
+  editor y pintar un selector por parámetro, deshabilitando `temperature` cuando no aplica.
