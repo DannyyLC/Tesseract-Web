@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -20,6 +21,20 @@ export default function IntegrationsPage() {
 
   // Count reported up by MyIntegrationsTab — no extra query needed here
   const [connectedCount, setConnectedCount] = useState(0);
+
+  // Vuelta de la conexión con Google: el gateway redirige aquí con `status=success` o
+  // `error=<motivo>`. Se avisa una vez y se limpia la URL para que refrescar no repita el aviso.
+  const oauthStatus = searchParams.get('status');
+  const oauthError = searchParams.get('error');
+  useEffect(() => {
+    if (!oauthStatus && !oauthError) return;
+    // `id` fijo: en desarrollo el efecto corre dos veces y sonner reemplaza en vez de apilar.
+    const id = 'google-oauth-result';
+    if (oauthStatus === 'success') toast.success(t('oauthConnected'), { id });
+    else if (oauthError === 'access_denied') toast.error(t('oauthDenied'), { id });
+    else toast.error(t('oauthFailed'), { id });
+    router.replace(pathname, { scroll: false });
+  }, [oauthStatus, oauthError, pathname, router, t]);
 
   // Read active tab from URL — persists on refresh
   const activeTab: Tab = searchParams.get('tab') === 'catalog' ? 'catalog' : 'my-integrations';

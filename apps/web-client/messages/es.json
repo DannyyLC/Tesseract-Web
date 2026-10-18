@@ -772,6 +772,9 @@
     }
   },
   "Integrations": {
+    "oauthConnected": "Cuenta de Google conectada.",
+    "oauthDenied": "No se dieron los permisos en Google, así que la integración no se conectó.",
+    "oauthFailed": "No se pudo completar la conexión con Google. Intenta de nuevo.",
     "heading": "Integraciones",
     "description": "Gestiona las integraciones conectadas a tu organización y explora el catálogo disponible.",
     "myIntegrationsTab": "Mis Integraciones",

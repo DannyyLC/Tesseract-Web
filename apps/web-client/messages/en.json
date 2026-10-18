@@ -772,6 +772,9 @@
     }
   },
   "Integrations": {
+    "oauthConnected": "Google account connected.",
+    "oauthDenied": "Permissions weren't granted in Google, so the integration wasn't connected.",
+    "oauthFailed": "The Google connection couldn't be completed. Please try again.",
     "heading": "Integrations",
     "description": "Manage the integrations connected to your organization and explore the available catalog.",
     "myIntegrationsTab": "My Integrations",

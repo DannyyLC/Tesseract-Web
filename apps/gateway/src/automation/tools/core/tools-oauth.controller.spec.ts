@@ -67,7 +67,7 @@ describe('ToolsOauthController · callback', () => {
       'user-1',
       expect.objectContaining({ provider: 'google', accessToken: 'a' }),
     );
-    expect(r.redirect).toHaveBeenCalledWith('https://app.test/tools?status=success');
+    expect(r.redirect).toHaveBeenCalledWith('https://app.test/integrations?status=success');
   });
 
   it('iniciar la conexión queda fuera de VIEWER', () => {
