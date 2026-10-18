@@ -13,6 +13,14 @@ import {
   type SignalTool,
   type WorkflowConfig,
 } from '@/lib/workflow-config/config-edit';
+import {
+  capabilitiesOf,
+  incompatibleFields,
+  modelParamsOf,
+  setModelParam,
+  stripIncompatible,
+  type IncompatibleFields,
+} from '@/lib/workflow-config/model-capabilities';
 import type {
   AdminTenantTool,
   EditorContext,
@@ -51,6 +59,9 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
   }, [agentKeys, selected]);
 
   const current = agents[selected];
+  // Lo que el modelo del agente permite configurar; null si no está en el catálogo activo.
+  const caps = capabilitiesOf(models, current?.model);
+  const notAccepted = caps ? incompatibleFields(current, caps) : null;
 
   const visible = useMemo(() => {
     const q = filter.trim().toLowerCase();
@@ -101,6 +112,33 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
     if (referencing.length) {
       toast.success(t('agentRenamedWithNodes', { count: referencing.length }));
     }
+  };
+
+  /** Nombres legibles de lo que se quitó o sobra, para toasts y avisos. */
+  const fieldNames = (fields: IncompatibleFields) => [
+    ...(fields.temperature ? ['temperature'] : []),
+    ...fields.params.map((param) => `model_params.${param}`),
+  ];
+
+  /**
+   * Cambiar de modelo quita lo que el modelo nuevo no acepta: de otro modo el guardado
+   * fallaría después por algo que el usuario no ve en el formulario.
+   */
+  const handleModelChange = (model: string) => {
+    let next = setAtPath(config, ['agents', selected, 'model'], model);
+    const nextCaps = capabilitiesOf(models, model);
+    if (nextCaps) {
+      const stripped = stripIncompatible(next, selected, nextCaps);
+      next = stripped.config;
+      const removed = fieldNames(stripped.removed);
+      if (removed.length) toast.info(t('removedOnModelChange', { model, fields: removed.join(', ') }));
+    }
+    onChange(next);
+  };
+
+  /** Quita a mano lo que un config viejo (o editado en JSON) trae y el modelo ya no acepta. */
+  const handleRemoveNotAccepted = () => {
+    if (caps) onChange(stripIncompatible(config, selected, caps).config);
   };
 
   const handleAdd = () => {
@@ -219,7 +257,7 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
               <select
                 className={inputClass}
                 value={current.model ?? ''}
-                onChange={(e) => setField('model', e.target.value)}
+                onChange={(e) => handleModelChange(e.target.value)}
               >
                 {/* Un modelo fuera de la lista haría fallar el guardado; conservarlo
                     visible evita cambiarlo sin querer al abrir el desplegable. */}
@@ -253,6 +291,7 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
                 min="0"
                 max="2"
                 className={inputClass}
+                disabled={caps?.supportsTemperature === false}
                 value={current.temperature ?? ''}
                 onChange={(e) => {
                   const raw = e.target.value;
@@ -265,8 +304,72 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
                   }
                 }}
               />
+              {caps?.supportsTemperature === false && (
+                <p className="mt-1 text-[11px] text-text-secondary">{t('temperatureUnsupported')}</p>
+              )}
             </div>
           </div>
+
+          {caps && Object.keys(caps.allowedParams).length > 0 && (
+            <div>
+              <span className={labelClass}>{t('modelParamsTitle')}</span>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {Object.entries(caps.allowedParams).map(([param, values]) => {
+                  const value = modelParamsOf(current)[param];
+                  const text = value === undefined || value === null ? '' : String(value);
+                  return (
+                    <div key={param}>
+                      <label className={labelClass} htmlFor={`model-param-${param}`}>
+                        {param}
+                      </label>
+                      {values.length > 0 ? (
+                        <select
+                          id={`model-param-${param}`}
+                          className={inputClass}
+                          value={values.includes(text) ? text : ''}
+                          onChange={(e) =>
+                            onChange(setModelParam(config, selected, param, e.target.value))
+                          }
+                        >
+                          <option value="">{t('modelParamUnset')}</option>
+                          {values.map((v) => (
+                            <option key={v} value={v}>
+                              {v}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          id={`model-param-${param}`}
+                          className={inputClass}
+                          value={text}
+                          placeholder={t('modelParamUnset')}
+                          onChange={(e) =>
+                            onChange(setModelParam(config, selected, param, e.target.value.trim()))
+                          }
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {notAccepted && fieldNames(notAccepted).length > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border px-3 py-2">
+              <p className="flex items-start gap-1 text-[11px] text-danger">
+                <AlertTriangle size={12} className="mt-0.5 shrink-0" />
+                {t('notAcceptedByModel', {
+                  model: current.model ?? '',
+                  fields: fieldNames(notAccepted).join(', '),
+                })}
+              </p>
+              <button type="button" className={btnGhost} onClick={handleRemoveNotAccepted}>
+                {t('removeNotAccepted')}
+              </button>
+            </div>
+          )}
 
           <PromptEditor
             value={current.system_prompt ?? ''}

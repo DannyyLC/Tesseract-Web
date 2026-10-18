@@ -78,7 +78,16 @@ export interface EditorContext {
     templates?: Record<string, unknown>;
     graph_config_keys?: Record<string, string>;
   } | null;
-  models: { id: string; modelName: string; provider: string; tier: string }[];
+  models: {
+    id: string;
+    modelName: string;
+    provider: string;
+    tier: string;
+    /** Si acepta `temperature` (los modelos de razonamiento rechazan valores ≠ default). */
+    supportsTemperature: boolean;
+    /** `model_params` aceptados: `{ param: [valores] }`, lista vacía = cualquier valor. */
+    allowedParams: Record<string, string[]>;
+  }[];
 }
 
 export interface WorkflowVersion {
