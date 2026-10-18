@@ -25,6 +25,7 @@ import {
 } from '@/platform/common/exceptions';
 import { CursorPaginatedResponseUtils } from '@/platform/common/responses/cursor-paginated-response';
 import { resolveTimezone } from '@/platform/common/utils/resolve-timezone';
+import { parseJsonObjectEnv } from '@/platform/common/utils/parse-json-env';
 import { toText } from '@/platform/common/utils/to-text';
 import {
   addDaysInZone,
@@ -158,6 +159,8 @@ export class WorkflowsService {
   private readonly compactionApiKey: string;
   private readonly compactionModel: string;
   private readonly compactionTimeoutMs: number;
+  /** Parámetros extra para el modelo de compactación (COMPACTION_EXTRA_PARAMS, JSON). */
+  private readonly compactionExtraParams: Record<string, unknown>;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -180,8 +183,12 @@ export class WorkflowsService {
       .get<string>('COMPACTION_API_BASE_URL', 'https://api.openai.com/v1')
       .replace(/\/$/, '');
     this.compactionApiKey = this.configService.get<string>('COMPACTION_API_KEY', '');
-    this.compactionModel = this.configService.get<string>('COMPACTION_MODEL', 'gpt-4o-mini');
+    this.compactionModel = this.configService.get<string>('COMPACTION_MODEL', 'gpt-6-luna');
     this.compactionTimeoutMs = this.configService.get<number>('COMPACTION_TIMEOUT_MS', 20000);
+    this.compactionExtraParams = parseJsonObjectEnv(
+      'COMPACTION_EXTRA_PARAMS',
+      this.configService.get<string>('COMPACTION_EXTRA_PARAMS', ''),
+    );
   }
 
   //==========================================================
@@ -2707,9 +2714,11 @@ export class WorkflowsService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          // Lo que haga falta ajustar del modelo (p.ej. reasoning_effort) va en
+          // COMPACTION_EXTRA_PARAMS. Sin temperature: los modelos de razonamiento (gpt-5+)
+          // rechazan cualquier valor distinto del default.
+          ...this.compactionExtraParams,
           model: this.compactionModel,
-          // Sin temperature: los modelos de razonamiento (gpt-5+) rechazan cualquier valor
-          // distinto del default, y COMPACTION_MODEL puede apuntar a uno.
           messages: [
             {
               role: 'system',

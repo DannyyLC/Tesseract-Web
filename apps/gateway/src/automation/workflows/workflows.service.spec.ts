@@ -927,4 +927,38 @@ describe('WorkflowsService', () => {
       await expect(service.assertInternalForTesting(orgId, wfId)).rejects.toThrow();
     });
   });
+
+  describe('compactación: request al modelo', () => {
+    const fetchBody = async (extraParams: Record<string, unknown>) => {
+      const internals = service as any;
+      internals.compactionApiKey = 'sk-test';
+      internals.compactionExtraParams = extraParams;
+      const fetchSpy = jest
+        .spyOn(global, 'fetch')
+        .mockResolvedValue(
+          new Response(JSON.stringify({ choices: [{ message: { content: 'resumen' } }] })),
+        );
+
+      const summary = await internals.summarizeArchivedConversation(null, [
+        { role: 'USER', content: 'hola' },
+      ]);
+
+      expect(summary).toBe('resumen');
+      const body = JSON.parse(String(fetchSpy.mock.calls[0][1]?.body));
+      fetchSpy.mockRestore();
+      return body;
+    };
+
+    it('usa el modelo vigente por default y no manda temperature', async () => {
+      const body = await fetchBody({});
+      expect(body.model).toBe('gpt-6-luna');
+      expect(body).not.toHaveProperty('temperature');
+    });
+
+    it('mezcla COMPACTION_EXTRA_PARAMS sin poder pisar el modelo', async () => {
+      const body = await fetchBody({ reasoning_effort: 'none', model: 'otro' });
+      expect(body).toMatchObject({ reasoning_effort: 'none', model: 'gpt-6-luna' });
+    });
+  });
 });
+
