@@ -27,7 +27,7 @@ El campo `config.graph.type` de un Workflow determina qué tipo de grafo ejecuta
   },
   "agents": {
     "default": {
-      "model": "gpt-4o",
+      "model": "gpt-6-luna",
       "temperature": 0.7,
       "system_prompt": "Eres un asistente de ventas...",
       "tools": ["uuid-tenant-tool-1", "uuid-tenant-tool-2"]
@@ -58,7 +58,7 @@ Un agente que puede agendar citas en Google Calendar y escalar a humano:
   },
   "agents": {
     "default": {
-      "model": "gpt-4o",
+      "model": "gpt-6-luna",
       "temperature": 0.5,
       "system_prompt": "Eres un asistente que agenda citas. Siempre confirma la disponibilidad antes de crear un evento.",
       "tools": ["uuid-google-calendar", "uuid-human-handoff"]
@@ -266,22 +266,22 @@ El agente clasificador escribe la intención en `variables.intent`. El nodo cond
   },
   "agents": {
     "classifier": {
-      "model": "gpt-4o-mini",
+      "model": "gpt-6-luna",
       "temperature": 0,
       "system_prompt": "Clasifica la intención del usuario. Responde SOLO con una palabra: ventas, soporte, o default."
     },
     "sales": {
-      "model": "gpt-4o",
+      "model": "gpt-6-luna",
       "temperature": 0.7,
       "system_prompt": "Eres un experto en ventas..."
     },
     "support": {
-      "model": "gpt-4o",
+      "model": "gpt-6-luna",
       "temperature": 0.5,
       "system_prompt": "Eres un agente de soporte técnico..."
     },
     "default": {
-      "model": "gpt-4o",
+      "model": "gpt-6-luna",
       "temperature": 0.7,
       "system_prompt": "Eres un asistente general..."
     }
@@ -325,7 +325,7 @@ Primero busca el perfil del usuario en HubSpot, luego el agente responde con esa
   },
   "agents": {
     "default": {
-      "model": "gpt-4o",
+      "model": "gpt-6-luna",
       "temperature": 0.7,
       "system_prompt": "Eres un asistente. Tienes acceso al perfil del usuario en el historial de mensajes."
     }
@@ -358,17 +358,17 @@ Primero busca el perfil del usuario en HubSpot, luego el agente responde con esa
   },
   "agents": {
     "extractor": {
-      "model": "gpt-4o-mini",
+      "model": "gpt-6-luna",
       "temperature": 0,
       "system_prompt": "Extrae la información clave del mensaje del usuario en formato JSON."
     },
     "analyzer": {
-      "model": "gpt-4o",
+      "model": "gpt-6-luna",
       "temperature": 0.3,
       "system_prompt": "Analiza la información extraída y genera un diagnóstico."
     },
     "responder": {
-      "model": "gpt-4o",
+      "model": "gpt-6-luna",
       "temperature": 0.7,
       "system_prompt": "Con base en el análisis anterior, redacta una respuesta clara para el usuario."
     }
@@ -399,17 +399,17 @@ Pipeline de análisis de contratos: extrae cláusulas, evalúa riesgos legales y
   },
   "agents": {
     "extractor": {
-      "model": "gpt-4o-mini",
+      "model": "gpt-6-luna",
       "temperature": 0,
       "system_prompt": "Eres un extractor de contratos. Identifica y lista todas las cláusulas relevantes del documento."
     },
     "legal": {
-      "model": "gpt-4o",
+      "model": "gpt-6-luna",
       "temperature": 0.2,
       "system_prompt": "Eres un asesor legal. Evalúa los riesgos de las cláusulas identificadas en la conversación."
     },
     "summarizer": {
-      "model": "gpt-4o",
+      "model": "gpt-6-luna",
       "temperature": 0.6,
       "system_prompt": "Eres un consultor ejecutivo. Redacta un resumen breve con las conclusiones del análisis legal para el cliente."
     }
@@ -442,24 +442,24 @@ Pipeline de análisis de contratos: extrae cláusulas, evalúa riesgos legales y
   },
   "agents": {
     "classifier": {
-      "model": "gpt-4o-mini",
+      "model": "gpt-6-luna",
       "temperature": 0,
       "system_prompt": "Clasifica la intención del usuario. Responde ÚNICAMENTE con una de estas palabras: ventas, soporte, default."
     },
     "sales": {
-      "model": "gpt-4o",
+      "model": "gpt-6-luna",
       "temperature": 0.7,
       "system_prompt": "Eres un experto en ventas...",
       "tools": ["uuid-crm-tool"]
     },
     "support": {
-      "model": "gpt-4o",
+      "model": "gpt-6-luna",
       "temperature": 0.5,
       "system_prompt": "Eres un agente de soporte técnico...",
       "tools": ["uuid-ticketing-tool", "uuid-human-handoff"]
     },
     "default": {
-      "model": "gpt-4o",
+      "model": "gpt-6-luna",
       "temperature": 0.7,
       "system_prompt": "Eres un asistente general..."
     }
@@ -500,30 +500,30 @@ Bot omnicanal para WhatsApp con tres especialidades:
   },
   "agents": {
     "classifier": {
-      "model": "gpt-4o-mini",
+      "model": "gpt-6-luna",
       "temperature": 0,
       "system_prompt": "Analiza el mensaje del usuario y clasifica su intención. Responde SOLO con una palabra: ventas, soporte, factura, o default."
     },
     "sales": {
-      "model": "gpt-4o",
+      "model": "gpt-6-luna",
       "temperature": 0.8,
       "system_prompt": "Eres un asesor comercial entusiasta. Tu objetivo es entender las necesidades del cliente y agendar una demo.",
       "tools": ["uuid-google-calendar", "uuid-crm"]
     },
     "support": {
-      "model": "gpt-4o",
+      "model": "gpt-6-luna",
       "temperature": 0.3,
       "system_prompt": "Eres un agente de soporte técnico. Diagnostica el problema y abre un ticket si no puedes resolverlo.",
       "tools": ["uuid-zendesk", "uuid-human-handoff"]
     },
     "billing": {
-      "model": "gpt-4o",
+      "model": "gpt-6-luna",
       "temperature": 0.2,
       "system_prompt": "Eres un agente de facturación. Ayuda con consultas de cobros, facturas y reembolsos.",
       "tools": ["uuid-billing-api"]
     },
     "default": {
-      "model": "gpt-4o",
+      "model": "gpt-6-luna",
       "temperature": 0.7,
       "system_prompt": "Eres un asistente general de la empresa. Responde amablemente y orienta al usuario."
     }
@@ -552,18 +552,18 @@ Bot omnicanal para WhatsApp con tres especialidades:
   },
   "agents": {
     "supervisor": {
-      "model": "gpt-4o",
+      "model": "gpt-6-luna",
       "temperature": 0,
       "system_prompt": "Eres un coordinador de tareas. Diriges a un equipo de especialistas para responder al usuario de la mejor manera posible."
     },
     "researcher": {
-      "model": "gpt-4o",
+      "model": "gpt-6-luna",
       "temperature": 0.3,
       "system_prompt": "Eres un investigador. Busca y recopila información relevante para la tarea.",
       "tools": ["uuid-web-search", "uuid-knowledge-base"]
     },
     "writer": {
-      "model": "gpt-4o",
+      "model": "gpt-6-luna",
       "temperature": 0.7,
       "system_prompt": "Eres un redactor experto. Con base en la investigación disponible, escribe una respuesta clara y profesional."
     }
@@ -603,23 +603,23 @@ Equipo de análisis de mercado: investigador, analista y redactor coordinados po
   },
   "agents": {
     "supervisor": {
-      "model": "gpt-4o",
+      "model": "gpt-6-luna",
       "temperature": 0,
       "system_prompt": "Eres el director de un equipo de análisis de mercado. Coordinas a un researcher (recopila datos), un analyst (interpreta datos) y un writer (redacta el informe final). Asigna tareas en el orden lógico para producir el mejor resultado para el usuario."
     },
     "researcher": {
-      "model": "gpt-4o",
+      "model": "gpt-6-luna",
       "temperature": 0.2,
       "system_prompt": "Eres un investigador de mercado. Recopila datos, estadísticas y tendencias relevantes sobre el tema solicitado.",
       "tools": ["uuid-web-search", "uuid-statista-api"]
     },
     "analyst": {
-      "model": "gpt-4o",
+      "model": "gpt-6-luna",
       "temperature": 0.3,
       "system_prompt": "Eres un analista de datos. Interpreta la información recopilada, identifica patrones y genera insights accionables."
     },
     "writer": {
-      "model": "gpt-4o",
+      "model": "gpt-6-luna",
       "temperature": 0.7,
       "system_prompt": "Eres un redactor de informes ejecutivos. Transforma el análisis en un documento claro, estructurado y profesional."
     }
@@ -637,12 +637,13 @@ Todos los agentes, independientemente del tipo de grafo, usan LiteLLM para inici
 {
   "agents": {
     "default": {
-      "model": "gpt-4o",
-      "temperature": 0.7,
+      "model": "gpt-6-luna",
+      "temperature": 1,
+      "model_params": { "reasoning_effort": "none" },
       "system_prompt": "...",
 
       "max_tokens": 2000,
-      "fallbacks": ["claude-3-5-sonnet-20241022", "gemini-pro"],
+      "fallbacks": ["gpt-5.6-luna"],
       "max_retries": 2,
       "timeout": 60,
       "api_base": "https://mi-proxy.com/v1"
@@ -653,8 +654,9 @@ Todos los agentes, independientemente del tipo de grafo, usan LiteLLM para inici
 
 | Campo           | Tipo     | Default | Descripción                                                                                                                                        |
 | --------------- | -------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `model`         | string   | —       | Modelo a usar. LiteLLM detecta el provider por el nombre: `"gpt-4o"` → OpenAI, `"claude-3-5-sonnet-20241022"` → Anthropic, `"gemini-pro"` → Google |
-| `temperature`   | float    | 0.7     | Temperatura del LLM (0 = determinista, 1 = creativo)                                                                                               |
+| `model`         | string   | —       | Modelo a usar; debe estar activo en el catálogo (`llm_models`). LiteLLM detecta el provider por el nombre: `"gpt-6-luna"` → OpenAI, `"claude-sonnet-5-5"` → Anthropic |
+| `temperature`   | float    | null    | Vacío = no se envía (default del proveedor). Solo si el modelo la acepta (`supportsTemperature` en el catálogo); los Claude 5.5 la rechazan y los de razonamiento solo aceptan 1 sin `reasoning_effort: none` |
+| `model_params`  | object   | null    | Parámetros extra del proveedor (p.ej. `reasoning_effort`). Cada llave y valor debe estar permitido en `allowedParams` del modelo |
 | `system_prompt` | string   | —       | Instrucciones base del agente                                                                                                                      |
 | `tools`         | string[] | []      | UUIDs de TenantTools habilitadas para este agente                                                                                                  |
 | `max_tokens`    | int      | null    | Límite de tokens en la respuesta                                                                                                                   |
@@ -663,16 +665,16 @@ Todos los agentes, independientemente del tipo de grafo, usan LiteLLM para inici
 | `timeout`       | int      | 60      | Timeout en segundos por request al LLM                                                                                                             |
 | `api_base`      | string   | null    | URL base personalizada. Útil para proxies o endpoints compatibles con OpenAI                                                                       |
 
-**Sobre `fallbacks`:** LiteLLM gestiona la conmutación automáticamente. Si `gpt-4o` devuelve error 429 o 503, pasa al siguiente modelo de la lista sin que el agente lo note. Permite combinar providers distintos como fallback:
+**Sobre `fallbacks`:** el motor encadena los fallbacks con LangChain (`with_fallbacks`): si el modelo principal falla después de sus reintentos, se intenta el siguiente de la lista con los mismos mensajes y los **mismos parámetros** (`temperature`, `model_params`). Por eso el validador revisa que cada fallback acepte esos parámetros. Si todos fallan, la ejecución queda FAILED (`LLM_CALL_FAILED`) y la conversación se marca para seguimiento; el cliente no recibe el error.
 
 ```json
-"fallbacks": ["claude-3-5-sonnet-20241022", "gemini-pro"]
+"fallbacks": ["gpt-5.6-luna"]
 ```
 
 **Sobre `api_base`:** Necesario cuando se usa un proxy de LLM (ej: LiteLLM Proxy, Azure OpenAI, o endpoints privados compatibles con OpenAI API):
 
 ```json
-"model": "gpt-4o",
+"model": "gpt-6-luna",
 "api_base": "https://mi-azure-endpoint.openai.azure.com/"
 ```
 

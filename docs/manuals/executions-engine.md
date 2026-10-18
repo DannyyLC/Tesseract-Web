@@ -13,7 +13,7 @@ Cuando un usuario manda un mensaje en el Chat de un Workflow:
 2.  **Validación Previa:**
     - Verificamos que el usuario tiene el _Rol/Permiso_ adecuado.
     - Se deduce la Organización y se pregunta la _Billetera de Créditos_ (`CreditTransactions`). ¿Tiene saldo? Si no, ¿tiene _Overage_ habilitado?
-3.  **Compilación del Agente:** El Gateway busca en la BD la configuración del Workflow. ¿Qué Prompt base ("System Prompt") tiene? ¿Qué modelo de LLM (ej. gpt-4o, claude-3-opus) se especificó en la interfaz?
+3.  **Compilación del Agente:** El Gateway busca en la BD la configuración del Workflow. ¿Qué Prompt base ("System Prompt") tiene? ¿Qué modelo de LLM (ej. gpt-6-luna, claude-sonnet-5-5) se especificó en la interfaz?
 4.  **Generación de la Ejecución:** Se guarda un registro en la base de datos de la "Ejecución" con estado `PENDING` o `IN_PROGRESS`.
 5.  **Llamada al LLM:** El servicio de _llm-models_ formatea el historial de la conversación, anexa el System Prompt y envía el _payload_ a la API del proveedor respectivo (OpenAI/Anthropic).
 6.  **Tool/Function Calling (Agentes Reales):** Si el LLM detecta que necesita usar una Herramienta del módulo `tools/` (ej: "Buscar en la base de datos de empleados" o "Crear una tabla en un PDF"), el Gateway interrumpe la respuesta, corre el código TypeScript de esa herramienta internamente, y le inyecta el resultado de nuevo al LLM para que pueda continuar su hilo de pensamiento de forma autónoma hasta llegar a una conclusión.

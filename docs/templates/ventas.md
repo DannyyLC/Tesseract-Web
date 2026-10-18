@@ -197,7 +197,7 @@ Preguntan si eres un robot:
   },
   "agents": {
     "default": {
-      "model": "gpt-4o",
+      "model": "gpt-6-luna",
       "temperature": 0.7,
       "system_prompt": "<el prompt de arriba, con voz elegida y variables resueltas>",
       "tools": ["uuid-human-handoff", "uuid-http-request-planes"]

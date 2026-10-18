@@ -122,7 +122,7 @@ export class AgentExecutionRequestDto {
   @ApiProperty({
     description: `Configuración del grafo - FLEXIBLE para soportar múltiples tipos:
             - react: { type: 'react', config: { max_iterations: 10, allow_interrupts: false } }
-            - supervisor: { type: 'supervisor', config: { supervisor_model: 'gpt-4o', members: [...] } }
+            - supervisor: { type: 'supervisor', config: { supervisor_model: 'gpt-6-luna', members: [...] } }
             - parallel: { type: 'parallel', config: { branches: [...], merge_strategy: 'first' } }
             - sequential: { type: 'sequential', config: { steps: [...] } }
             - router: { type: 'router', config: { routes: {...}, fallback: '...' } }`,

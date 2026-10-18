@@ -203,7 +203,7 @@ Pide precio de mayoreo:
   },
   "agents": {
     "default": {
-      "model": "gpt-4o",
+      "model": "gpt-6-luna",
       "temperature": 0.3,
       "system_prompt": "<el prompt de arriba, con voz elegida y variables resueltas>",
       "tools": ["uuid-dataset-catalogo", "uuid-human-handoff", "uuid-calculator"]

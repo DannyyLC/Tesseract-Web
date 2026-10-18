@@ -25,7 +25,7 @@ export class CreateLlmModelDto {
 
   @ApiProperty({
     description: 'Nombre del modelo',
-    example: 'gpt-4o',
+    example: 'gpt-6-luna',
   })
   @IsString()
   @MaxLength(100)

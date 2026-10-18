@@ -83,7 +83,7 @@ class TenantContext:
     
     # Configuración de agentes
     # Viene de: Workflow.config.agents
-    # Estructura: {"default": {"model": "gpt-4o", "temperature": 0.7, "system_prompt": "...", "tools": ["uuid1"]}}
+    # Estructura: {"default": {"model": "gpt-6-luna", "temperature": 1, "system_prompt": "...", "tools": ["uuid1"]}}
     agents_config: dict[str, Any] = field(default_factory=dict)
     
     # Tool instances por agente

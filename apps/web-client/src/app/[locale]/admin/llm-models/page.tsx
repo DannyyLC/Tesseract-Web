@@ -591,7 +591,7 @@ function CreateForm({
             required
             value={f.modelName}
             onChange={(e) => setF({ ...f, modelName: e.target.value })}
-            placeholder="gpt-4o"
+            placeholder="gpt-6-luna"
           />
         </div>
         <div>

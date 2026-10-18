@@ -51,7 +51,7 @@ Las tools se conectan al sistema como `TenantTool` y se asignan a agentes dentro
 {
   "agents": {
     "default": {
-      "model": "gpt-4o",
+      "model": "gpt-6-luna",
       "system_prompt": "Eres un asistente que agenda citas.",
       "tools": ["uuid-tenant-tool-google-calendar"]
     }
@@ -103,7 +103,7 @@ Ninguna.
 {
   "agents": {
     "default": {
-      "model": "gpt-4o",
+      "model": "gpt-6-luna",
       "system_prompt": "Eres un asistente financiero. Usa la calculadora cuando necesites hacer operaciones numericas.",
       "tools": ["uuid-tenant-tool-calculator"]
     }
@@ -151,7 +151,7 @@ El Gateway detecta este payload en la respuesta del agente y activa la bandera d
 {
   "agents": {
     "support": {
-      "model": "gpt-4o",
+      "model": "gpt-6-luna",
       "system_prompt": "Eres un agente de soporte. Si no puedes resolver el problema en 2 intentos, escala a un humano.",
       "tools": ["uuid-tenant-tool-human-handoff"]
     }
@@ -201,7 +201,7 @@ Ninguna desde el punto de vista del agente. El Gateway inyecta en runtime:
 {
   "agents": {
     "default": {
-      "model": "gpt-4o",
+      "model": "gpt-6-luna",
       "system_prompt": "Eres un asistente de recordatorios. Envia recordatorios a los pacientes usando los templates disponibles.",
       "tools": ["uuid-tenant-tool-whatsapp-outbound"]
     }
@@ -333,12 +333,12 @@ Las tools se configuran en dos capas:
 {
   "agents": {
     "default": {
-      "model": "gpt-4o",
+      "model": "gpt-6-luna",
       "system_prompt": "...",
       "tools": ["uuid-1", "uuid-2"]
     },
     "sales": {
-      "model": "gpt-4o",
+      "model": "gpt-6-luna",
       "system_prompt": "...",
       "tools": ["uuid-3"]
     }

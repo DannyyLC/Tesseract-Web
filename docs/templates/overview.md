@@ -161,7 +161,7 @@ O sea que un pipeline de un solo nodo agéntico **es** un agente ReAct, con la m
   },
   "agents": {
     "default": {
-      "model": "gpt-4o",
+      "model": "gpt-6-luna",
       "temperature": 0.7,
       "system_prompt": "...",
       "tools": ["uuid-..."]

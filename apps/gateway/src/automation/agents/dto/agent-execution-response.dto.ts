@@ -98,8 +98,8 @@ export class ExecutionMetadataDto {
             - output_tokens: Suma de todas las generaciones del modelo
             Ejemplo: Si un modelo se usa 3 veces, output_tokens = sum(gen1+gen2+gen3)`,
     example: {
-      'gpt-4o': { input_tokens: 350, output_tokens: 80, total_tokens: 430 },
-      'gpt-4o-mini': { input_tokens: 50, output_tokens: 20, total_tokens: 70 },
+      'gpt-6-luna': { input_tokens: 350, output_tokens: 80, total_tokens: 430 },
+      'gpt-5.6-luna': { input_tokens: 50, output_tokens: 20, total_tokens: 70 },
     },
   })
   @IsOptional()

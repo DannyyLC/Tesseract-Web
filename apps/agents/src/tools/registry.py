@@ -25,9 +25,9 @@ FLUJO DE LLM (con LiteLLM):
     TenantContext
     └─ model_configs: {
          "default": {
-           "model": "gpt-4o",
-           "temperature": 0.7,
-           "fallbacks": ["claude-3-5-sonnet-20241022"],
+           "model": "gpt-6-luna",
+           "temperature": 1,
+           "fallbacks": ["gpt-5.6-luna"],
            ...
          }
        }
@@ -140,9 +140,8 @@ def get_llm(ctx: TenantContext, model_key: str = "default") -> BaseChatModel:
     Inicializa el LLM usando LiteLLM 
     
     LiteLLM detecta el provider automáticamente por el nombre del modelo:
-    - "gpt-4o" → OpenAI
-    - "claude-3-5-sonnet-20241022" → Anthropic
-    - "gemini-pro" → Google
+    - "gpt-6-luna" → OpenAI
+    - "claude-sonnet-5-5" → Anthropic
     - "command-r-plus" → Cohere
     - Y 100+ más...
     
@@ -160,10 +159,10 @@ def get_llm(ctx: TenantContext, model_key: str = "default") -> BaseChatModel:
         ctx = TenantContext(
             model_configs={
                 "default": {
-                    "model": "gpt-4o",
-                    "temperature": 0.7,
+                    "model": "gpt-6-luna",
+                    "temperature": 1,
                     "max_tokens": 1000,
-                    "fallbacks": ["claude-3-5-sonnet-20241022"],  # Si OpenAI falla
+                    "fallbacks": ["gpt-5.6-luna"],  # Si el principal falla
                     "max_retries": 2
                 }
             },
@@ -175,12 +174,12 @@ def get_llm(ctx: TenantContext, model_key: str = "default") -> BaseChatModel:
     
     Configuración avanzada (opcional):
         {
-            "model": "gpt-4o",
-            "temperature": 0.7,
+            "model": "gpt-6-luna",
+            "temperature": 1,
             "max_tokens": 1000,
             
             # Fallbacks si el modelo principal falla
-            "fallbacks": ["claude-3-5-sonnet-20241022", "gemini-pro"],
+            "fallbacks": ["gpt-5.6-luna"],
             
             # Reintentos con exponential backoff
             "max_retries": 2,

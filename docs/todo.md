@@ -20,12 +20,6 @@ Levantado al migrar a Cloud Tasks. Nada urgente.
   media pero no se usan, porque con las imágenes apagadas nunca se descargan. Decidir si se
   quedan documentados para cuando se active el OCR o se quitan hasta entonces.
 
-- **El OCR le pasa la URL de la imagen directamente a OpenAI.** `extractImageText` manda el
-  `sourceUrl` de YCloud dentro del `image_url`, o sea que son los servidores de OpenAI los que
-  tienen que descargarla. Como los links son públicos probablemente funcione, pero si expiran
-  fallaría de forma intermitente. Solo importa el día que `image.enabled` se ponga en `true`;
-  el arreglo sería bajar el binario y mandarlo como data URI en base64.
-
 - **La compactación no se dispara nunca con la configuración actual.** El umbral es 80% de
   `maxHistoryTokens`, que en el workflow del RGM son ~80 000 tokens (~320 000 caracteres
   de historial). Sus cuatro defectos ya están corregidos, pero conviene revisar el umbral

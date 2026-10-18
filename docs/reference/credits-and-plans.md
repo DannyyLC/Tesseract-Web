@@ -59,9 +59,9 @@ Los modelos disponibles se agrupan en tiers. Todos los tiers estan disponibles e
 
 | Tier         | Modelos incluidos             | Descripcion                              |
 | ------------ | ----------------------------- | ---------------------------------------- |
-| **BASIC**    | `gpt-4o-mini`, `claude-haiku` | Rapidos y economicos, ideales para LIGHT |
-| **STANDARD** | `gpt-4o`, `claude-sonnet`     | Equilibrio entre calidad y velocidad     |
-| **PREMIUM**  | `gpt-4-turbo`, `claude-opus`  | Maxima capacidad de razonamiento         |
+| **BASIC**    | `gpt-6-luna`, `claude-haiku-5-5` | Rapidos y economicos, ideales para LIGHT |
+| **STANDARD** | `gpt-6.1-sol`, `claude-sonnet-5-5` | Equilibrio entre calidad y velocidad     |
+| **PREMIUM**  | `claude-opus-5-5`              | Maxima capacidad de razonamiento         |
 
 El costo en creditos no cambia segun el modelo — solo segun la categoria del Workflow. El costo real en USD si varia por modelo, pero eso es un calculo interno que no afecta al usuario.
 

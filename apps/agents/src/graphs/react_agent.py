@@ -22,8 +22,8 @@ CONFIGURACIÓN ESPERADA:
     "interrupts": ["before_tools"],  # Opcional: pausar antes de ejecutar tools
     "models": {
         "default": {
-            "model": "gpt-4o",
-            "temperature": 0.7,
+            "model": "gpt-6-luna",
+            "temperature": 1,
             "enabledFeatures": ["vision", "web_search"]
         }
     }

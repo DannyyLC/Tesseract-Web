@@ -213,7 +213,7 @@ La herramienta falla:
   },
   "agents": {
     "default": {
-      "model": "gpt-4o",
+      "model": "gpt-6-luna",
       "temperature": 0.3,
       "system_prompt": "<el prompt de arriba, con voz elegida y variables resueltas>",
       "tools": ["uuid-google-calendar", "uuid-human-handoff"]

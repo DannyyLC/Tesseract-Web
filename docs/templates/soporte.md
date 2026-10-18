@@ -219,7 +219,7 @@ Segundo intento fallido:
   },
   "agents": {
     "default": {
-      "model": "gpt-4o",
+      "model": "gpt-6-luna",
       "temperature": 0.2,
       "system_prompt": "<el prompt de arriba, con las variables resueltas>",
       "tools": ["uuid-human-handoff", "uuid-dataset-pedidos", "uuid-http-request-estado"]
