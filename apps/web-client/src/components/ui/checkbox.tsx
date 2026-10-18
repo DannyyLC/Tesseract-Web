@@ -21,6 +21,10 @@ interface CheckboxProps {
   disabled?: boolean;
   'aria-label': string;
   title?: string;
+  /** `md` para casillas sueltas en formularios; `sm` (default) para tablas y listas densas. */
+  size?: 'sm' | 'md';
+  /** Texto junto a la casilla; dentro del mismo `<label>`, así que también la activa. */
+  children?: React.ReactNode;
 }
 
 export function Checkbox({
@@ -29,14 +33,18 @@ export function Checkbox({
   onChange,
   disabled,
   title,
+  size = 'sm',
+  children,
   'aria-label': ariaLabel,
 }: CheckboxProps) {
   const marked = checked || indeterminate;
+  const box = size === 'md' ? 'size-5 rounded-md' : 'size-4 rounded';
+  const icon = size === 'md' ? 14 : 12;
 
   return (
     <label
       title={title}
-      className={`inline-flex items-center ${disabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'}`}
+      className={`inline-flex items-start gap-2 ${disabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'}`}
     >
       <input
         type="checkbox"
@@ -48,16 +56,17 @@ export function Checkbox({
       />
       <span
         aria-hidden
-        className={`flex size-4 shrink-0 items-center justify-center rounded border transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-accent peer-focus-visible:ring-offset-1 peer-focus-visible:ring-offset-[var(--surface)] ${
+        className={`flex ${box} shrink-0 items-center justify-center border transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-accent peer-focus-visible:ring-offset-1 peer-focus-visible:ring-offset-[var(--surface)] ${
           marked ? 'border-accent bg-accent' : 'border-border'
         }`}
       >
         {indeterminate ? (
-          <Minus size={12} className="text-text-inverse" />
+          <Minus size={icon} className="text-text-inverse" />
         ) : (
-          checked && <Check size={12} className="text-text-inverse" />
+          checked && <Check size={icon} className="text-text-inverse" />
         )}
       </span>
+      {children}
     </label>
   );
 }

@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { Plus, Pencil, DollarSign, Power, Search, AlertTriangle } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import { Modal } from '@/components/ui/modal';
+import { Checkbox } from '@/components/ui/checkbox';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { PagePager } from '@/components/ui/page-pager';
 import { usePageSize } from '@/hooks/shared/use-page-size';
@@ -107,18 +108,17 @@ function CapabilitiesFields({
   const tt = useTranslations('Admin.LlmModels');
   return (
     <div className="space-y-3 rounded-xl border border-border p-3">
-      <label className="flex items-start gap-2 text-sm text-text-primary">
-        <input
-          type="checkbox"
-          className="mt-0.5"
-          checked={supportsTemperature}
-          onChange={(e) => onChange({ supportsTemperature: e.target.checked })}
-        />
-        <span>
+      <Checkbox
+        size="md"
+        checked={supportsTemperature}
+        onChange={(checked) => onChange({ supportsTemperature: checked })}
+        aria-label={tt('supportsTemperatureLabel')}
+      >
+        <span className="text-sm text-text-primary">
           {tt('supportsTemperatureLabel')}
           <span className="block text-xs text-text-secondary">{tt('supportsTemperatureHint')}</span>
         </span>
-      </label>
+      </Checkbox>
       <div>
         <label className={labelClass}>{tt('allowedParamsLabel')}</label>
         <textarea
