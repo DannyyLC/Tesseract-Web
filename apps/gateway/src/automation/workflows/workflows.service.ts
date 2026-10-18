@@ -1338,8 +1338,8 @@ export class WorkflowsService {
         const inputTokens = responseMetadata.input_tokens ?? 0;
         const outputTokens = responseMetadata.output_tokens ?? 0;
         // El motor no reporta un modelo único cuando no hay usage_by_model: se costea con el
-        // modelo por defecto.
-        const modelUsed = 'gpt-4o-mini';
+        // modelo principal del workflow (ver `fallbackCostModel`).
+        const modelUsed = this.fallbackCostModel(workflow.config);
 
         if (totalTokens > 0) {
           try {
@@ -1474,6 +1474,17 @@ export class WorkflowsService {
 
       throw error;
     }
+  }
+
+  /**
+   * Modelo con el que se cobra una ejecución cuando el motor no reporta `usage_by_model`.
+   *
+   * Antes era `gpt-4o-mini` fijo: cobraba al precio de un modelo que el workflow ni usaba y
+   * que OpenAI retira. Ahora es el primer modelo configurado del workflow. Sin modelos, el
+   * nombre no existe en el catálogo y `calculateCost` aplica sus precios de respaldo.
+   */
+  private fallbackCostModel(config: unknown): string {
+    return collectConfiguredModels(config)[0] ?? 'unknown';
   }
 
   /**
@@ -1864,8 +1875,9 @@ export class WorkflowsService {
             // Fallback: usar tokens totales con modelo por defecto
             const inputTokens = metadataEvent?.input_tokens ?? 0;
             const outputTokens = metadataEvent?.output_tokens ?? 0;
-            // Sin usage_by_model el motor no reporta un modelo único: se costea con el default.
-            const modelUsed = 'gpt-4o-mini';
+            // Sin usage_by_model el motor no reporta un modelo único: se costea con el
+            // modelo principal del workflow (ver `fallbackCostModel`).
+            const modelUsed = this.fallbackCostModel(workflow.config);
 
             if (totalTokens > 0) {
               try {

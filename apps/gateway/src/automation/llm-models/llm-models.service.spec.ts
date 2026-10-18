@@ -349,9 +349,10 @@ describe('LlmModelsService', () => {
       const result = await service.calculateCost('unknown-model', usage);
 
       expect(result.provider).toBe('unknown');
-      expect(result.inputCost).toBe(0.15);
-      expect(result.outputCost).toBe(0.6);
-      expect(result.totalCost).toBe(0.75);
+      // Precios del modelo BASIC vigente (gpt-6-luna), ya no los de gpt-4o-mini.
+      expect(result.inputCost).toBe(0.1);
+      expect(result.outputCost).toBe(0.5);
+      expect(result.totalCost).toBe(0.6);
     });
 
     it('should throw error for invalid token counts', async () => {

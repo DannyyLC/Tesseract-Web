@@ -737,6 +737,40 @@ describe('WorkflowsService', () => {
         expect(result.id).toBe('exec1');
       });
 
+      it('sin usage_by_model cobra con el modelo principal del workflow, no con uno fijo', async () => {
+        prisma.workflow.findFirst = jest.fn().mockResolvedValue({
+          ...wfMock,
+          config: { ...wfMock.config, agents: { agent1: { model: 'gpt-6-luna' } } },
+        });
+        (mockCreditsService as any).canExecuteWorkflow = jest
+          .fn()
+          .mockResolvedValue({ allowed: true });
+        (mockExecutionsService as any).create = jest.fn().mockResolvedValue({ id: 'exec1' });
+        (mockExecutionsService as any).linkToConversation = jest.fn();
+        (mockExecutionsService as any).getByIdFull = jest.fn().mockResolvedValue({ id: 'exec1' });
+        (mockExecutionsService as any).updateStatus = jest.fn();
+        (mockConversationsService as any).findOrCreateConversation = jest
+          .fn()
+          .mockResolvedValue({ id: 'conv1', isHumanInTheLoop: false });
+        (mockConversationsService as any).getMessageHistory = jest.fn().mockResolvedValue([]);
+        (mockConversationsService as any).addMessage = jest.fn();
+        (mockLlmModelsService as any).calculateCost = jest
+          .fn()
+          .mockResolvedValue({ totalCost: 0.00001 });
+        (mockAgentsService as any).execute = jest.fn().mockResolvedValue({
+          messages: [{ role: 'assistant', content: 'ok' }],
+          metadata: { total_tokens: 30, input_tokens: 20, output_tokens: 10 },
+        });
+
+        await service.execute(orgId, wfId, { message: 'Hola' });
+
+        expect((mockLlmModelsService as any).calculateCost).toHaveBeenCalledWith('gpt-6-luna', {
+          inputTokens: 20,
+          outputTokens: 10,
+          totalTokens: 30,
+        });
+      });
+
       describe('cuando el modelo no responde (AgentLlmFailedException)', () => {
         const arrange = (isInternal: boolean) => {
           prisma.workflow.findFirst = jest.fn().mockResolvedValue({ ...wfMock, isInternal });

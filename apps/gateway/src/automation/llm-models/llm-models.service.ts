@@ -288,10 +288,11 @@ export class LlmModelsService {
   //==========================================================
   // CÁLCULO DE COSTOS Y FUNCIONES AUXILIARES
   //==========================================================
-  // Precios de fallback (basados en gpt-4o-mini a enero 2026)
+  // Precios de respaldo para un modelo que no está en el catálogo: los del modelo BASIC
+  // vigente (gpt-6-luna, octubre 2026). Antes eran los de gpt-4o-mini, que OpenAI retira.
   private readonly FALLBACK_PRICES = {
-    inputPricePer1m: 0.15, // $0.15 por 1M tokens input
-    outputPricePer1m: 0.6, // $0.60 por 1M tokens output
+    inputPricePer1m: 0.1, // $0.10 por 1M tokens input
+    outputPricePer1m: 0.5, // $0.50 por 1M tokens output
   } as const;
 
   /**
