@@ -283,7 +283,12 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
 
             <div>
               <label className={labelClass}>
-                {t('temperatureLabel')} <span className="font-normal">{t('temperatureHint')}</span>
+                {t('temperatureLabel')}{' '}
+                <span className="font-normal">
+                  {caps?.supportsTemperature === false
+                    ? t('temperatureUnsupported')
+                    : t('temperatureHint')}
+                </span>
               </label>
               <input
                 type="number"
@@ -304,9 +309,6 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
                   }
                 }}
               />
-              {caps?.supportsTemperature === false && (
-                <p className="mt-1 text-[11px] text-text-secondary">{t('temperatureUnsupported')}</p>
-              )}
             </div>
           </div>
 
