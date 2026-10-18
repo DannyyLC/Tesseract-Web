@@ -5,29 +5,78 @@ import {
   MediaProcessResult,
   MediaTooLargeError,
 } from './media-processor.adapter';
+import { parseJsonObjectEnv } from '@/platform/common/utils/parse-json-env';
+
+/**
+ * Un modelo de OCR con su propio proveedor: URL, llave y parámetros extra. Principal y
+ * fallback se configuran por separado, así que pueden ser de proveedores distintos (p.ej.
+ * OpenAI y Anthropic por su endpoint compatible con OpenAI) y cambiarlos es solo env.
+ */
+interface OcrSlot {
+  model: string;
+  baseUrl: string;
+  apiKey: string;
+  /** Se mezcla en el body: p.ej. `{"reasoning_effort":"none"}` (MEDIA_PROCESSING_OCR_EXTRA_PARAMS). */
+  extraParams: Record<string, unknown>;
+}
 
 @Injectable()
 export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdapter {
   private readonly apiBaseUrl: string;
   private readonly apiKey: string;
   private readonly sttModels: string[];
-  private readonly ocrModels: string[];
+  private readonly ocrSlots: OcrSlot[];
   private readonly timeoutMs: number;
 
   constructor(private readonly configService: ConfigService) {
-    this.apiBaseUrl = this.configService
-      .get<string>('MEDIA_PROCESSING_API_BASE_URL', 'https://api.openai.com/v1')
-      .replace(/\/$/, '');
+    this.apiBaseUrl = this.normalizeBaseUrl(
+      this.configService.get<string>('MEDIA_PROCESSING_API_BASE_URL', 'https://api.openai.com/v1'),
+    );
     this.apiKey = this.configService.get<string>('MEDIA_PROCESSING_API_KEY', '');
-    const sttPrimary = this.configService.get<string>('MEDIA_PROCESSING_STT_MODEL', 'whisper-1');
+    const sttPrimary = this.configService.get<string>('MEDIA_PROCESSING_STT_MODEL', 'gpt-transcribe');
     const sttFallback = this.configService.get<string>('MEDIA_PROCESSING_STT_FALLBACK_MODEL', '');
     this.sttModels = this.buildModelChain(sttPrimary, sttFallback);
 
-    const ocrPrimary = this.configService.get<string>('MEDIA_PROCESSING_OCR_MODEL', 'gpt-4o');
-    const ocrFallback = this.configService.get<string>('MEDIA_PROCESSING_OCR_FALLBACK_MODEL', '');
-    this.ocrModels = this.buildModelChain(ocrPrimary, ocrFallback);
+    this.ocrSlots = this.buildOcrSlots();
 
     this.timeoutMs = this.configService.get<number>('MEDIA_PROCESSING_TIMEOUT_MS', 30000);
+  }
+
+  /**
+   * Principal y fallback de OCR. Lo que no se configure por slot cae en lo general
+   * (`MEDIA_PROCESSING_API_BASE_URL` / `_API_KEY`), y el fallback en lo del principal, así que
+   * un despliegue que solo usa OpenAI no necesita ninguna variable nueva.
+   */
+  private buildOcrSlots(): OcrSlot[] {
+    const get = (name: string) => this.configService.get<string>(name, '')?.trim() ?? '';
+
+    const primary: OcrSlot = {
+      model: get('MEDIA_PROCESSING_OCR_MODEL') || 'gpt-6-luna',
+      baseUrl: this.normalizeBaseUrl(get('MEDIA_PROCESSING_OCR_API_BASE_URL') || this.apiBaseUrl),
+      apiKey: get('MEDIA_PROCESSING_OCR_API_KEY') || this.apiKey,
+      extraParams: parseJsonObjectEnv(
+        'MEDIA_PROCESSING_OCR_EXTRA_PARAMS',
+        get('MEDIA_PROCESSING_OCR_EXTRA_PARAMS'),
+      ),
+    };
+
+    const fallbackModel = get('MEDIA_PROCESSING_OCR_FALLBACK_MODEL');
+    if (!fallbackModel) return [primary];
+
+    const fallback: OcrSlot = {
+      model: fallbackModel,
+      baseUrl: this.normalizeBaseUrl(
+        get('MEDIA_PROCESSING_OCR_FALLBACK_API_BASE_URL') || primary.baseUrl,
+      ),
+      apiKey: get('MEDIA_PROCESSING_OCR_FALLBACK_API_KEY') || primary.apiKey,
+      extraParams: parseJsonObjectEnv(
+        'MEDIA_PROCESSING_OCR_FALLBACK_EXTRA_PARAMS',
+        get('MEDIA_PROCESSING_OCR_FALLBACK_EXTRA_PARAMS'),
+      ),
+    };
+
+    const same = fallback.model === primary.model && fallback.baseUrl === primary.baseUrl;
+    return same ? [primary] : [primary, fallback];
   }
 
   async process(media: {
@@ -40,10 +89,15 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
     customOcrPrompt?: string;
     maxBytes?: number;
   }): Promise<MediaProcessResult> {
-    if (!this.apiKey) {
+    const missingKey =
+      media.type === 'AUDIO' ? !this.apiKey : this.ocrSlots.every((slot) => !slot.apiKey);
+    if (missingKey) {
       return {
         status: 'FAILED',
-        error: 'MEDIA_PROCESSING_API_KEY is not configured',
+        error:
+          media.type === 'AUDIO'
+            ? 'MEDIA_PROCESSING_API_KEY is not configured'
+            : 'No OCR API key configured (MEDIA_PROCESSING_OCR_API_KEY / MEDIA_PROCESSING_API_KEY)',
         processor: 'openai-compatible-media-processor',
         processorVersion: '1.0.0',
       };
@@ -78,7 +132,10 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
 
       const { text: processedText, modelUsed } = await this.extractImageText(
         media.sourceUrl,
+        media.mimeType,
         media.customOcrPrompt,
+        media.maxBytes,
+        media.sourceHeaders,
       );
       return {
         status: 'PROCESSED',
@@ -88,7 +145,7 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
         metadata: {
           strategy: 'vision-ocr',
           model: modelUsed,
-          fallbackConfigured: this.ocrModels.length > 1,
+          fallbackConfigured: this.ocrSlots.length > 1,
           mimeType: media.mimeType,
         },
       };
@@ -209,26 +266,43 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
     throw new Error(lastError?.message || 'STT request failed for all configured models');
   }
 
+  /**
+   * La imagen se descarga aquí y viaja como data URI en base64. Antes se le pasaba al proveedor
+   * la URL de YCloud: si expiraba, o si el proveedor no podía descargarla (no todos lo hacen
+   * igual), el OCR fallaba de forma intermitente.
+   *
+   * Sin `temperature`: los modelos de razonamiento (gpt-5+) solo aceptan la default y los
+   * Claude 5.5 rechazan cualquiera. Lo que haga falta ajustar va en `extraParams`.
+   */
   private async extractImageText(
     sourceUrl: string,
+    mimeType: string,
     customPrompt?: string,
+    maxBytes?: number,
+    sourceHeaders?: Record<string, string>,
   ): Promise<{ text: string; modelUsed: string }> {
     let lastError: Error | null = null;
 
     const userPrompt =
       customPrompt?.trim() || 'Extrae texto y resume contenido visual clave en maximo 6 lineas.';
 
-    for (const model of this.ocrModels) {
+    const image = await this.downloadBinary(sourceUrl, maxBytes, sourceHeaders);
+    const dataUri = `data:${mimeType || 'image/jpeg'};base64,${image.toString('base64')}`;
+
+    for (const slot of this.ocrSlots) {
+      // Un slot sin llave no se puede usar, pero el otro quizá sí.
+      if (!slot.apiKey) continue;
+      const model = slot.model;
       try {
-        const response = await this.fetchWithTimeout(`${this.apiBaseUrl}/chat/completions`, {
+        const response = await this.fetchWithTimeout(`${slot.baseUrl}/chat/completions`, {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${this.apiKey}`,
+            Authorization: `Bearer ${slot.apiKey}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
+            ...slot.extraParams,
             model,
-            temperature: 0,
             messages: [
               {
                 role: 'system',
@@ -245,7 +319,7 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
                   {
                     type: 'image_url',
                     image_url: {
-                      url: sourceUrl,
+                      url: dataUri,
                     },
                   },
                 ],
@@ -363,6 +437,10 @@ export class OpenAiCompatibleMediaProcessorAdapter implements MediaProcessorAdap
     if (mimeType.includes('ogg')) return 'ogg';
     if (mimeType.includes('webm')) return 'webm';
     return 'bin';
+  }
+
+  private normalizeBaseUrl(url: string): string {
+    return url.replace(/\/$/, '');
   }
 
   private buildModelChain(primary: string, fallback?: string): string[] {
