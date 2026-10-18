@@ -110,7 +110,7 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
     onChange(
       setAtPath(config, ['agents', name], {
         model: models[0]?.modelName ?? '',
-        temperature: 0.7,
+        // Sin temperature: no todos los modelos la aceptan; vacía usa el default del proveedor.
         system_prompt: '',
       }),
     );

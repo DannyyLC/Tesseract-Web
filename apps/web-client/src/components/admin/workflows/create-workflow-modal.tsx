@@ -47,7 +47,8 @@ function blankConfig(model: string) {
     agents: {
       principal: {
         model,
-        temperature: 0.7,
+        // Sin temperature: no todos los modelos la aceptan (los de razonamiento la rechazan)
+        // y el validador no deja crear el workflow. Sin ella el proveedor usa su default.
         system_prompt: 'Eres un asistente que atiende a los clientes de la empresa.',
       },
     },
