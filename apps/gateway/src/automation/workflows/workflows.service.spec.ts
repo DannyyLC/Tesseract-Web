@@ -978,7 +978,7 @@ describe('WorkflowsService', () => {
       ]);
 
       expect(summary).toBe('resumen');
-      const body = JSON.parse(String(fetchSpy.mock.calls[0][1]?.body));
+      const body = JSON.parse(fetchSpy.mock.calls[0][1]?.body as string);
       fetchSpy.mockRestore();
       return body;
     };
@@ -995,4 +995,3 @@ describe('WorkflowsService', () => {
     });
   });
 });
-
