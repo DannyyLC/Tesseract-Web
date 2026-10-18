@@ -41,8 +41,12 @@ Levantado al migrar a Cloud Tasks. Nada urgente.
   guardar el cambio, pero tampoco dice por qué. El gateway sí responde con el mensaje
   (`Invalid workflow configuration: Agent "…": <modelo> does not accept …`, HTTP 400), así que
   lo que falta es mostrarlo en el editor (toast o el mismo panel de errores que usa "Validar").
-  Hay que reproducirlo antes de tocarlo: confirmar qué devuelve el `PUT
-  /admin/workflows/:id/config` en ese caso y por qué el editor no lo pinta.
+  Causa: `WorkflowsAdminService.updateConfig` lanza `InvalidWorkflowConfigException` con los
+  errores dentro de `metadata.config.errors`, pero el `GlobalExceptionFilter` solo reenvía
+  `metadata.errors`; el front recibe solo `WORKFLOW_2003` y `useApiErrorMessage` lo traduce al
+  genérico "La configuración del workflow no es válida". Arreglo simple: en el `onError` del
+  guardado (`app/[locale]/admin/workflows/[id]/page.tsx`), ante `WORKFLOW_2003`, correr la
+  validación y mostrar sus errores en el panel que ya usa "Validar".
 
 - **Una lista vacía en `allowedParams` acepta cualquier valor, también los inventados.**
   `gpt-6-luna` tiene `{"reasoning_effort": []}`, así que "Validar" da por bueno
@@ -51,8 +55,3 @@ Levantado al migrar a Cloud Tasks. Nada urgente.
   cada modelo debe declarar su lista explícita desde el panel de modelos (p.ej. `gpt-6-luna`:
   `reasoning_effort: none, low, medium, high`). Pendiente decidir las listas de
   `gpt-5.4-mini`, `gpt-5.6-luna` y `gpt-6-luna` contra la documentación de OpenAI.
-
-- **El editor no ofrece campos según el modelo.** `model_params` solo se edita en la pestaña
-  JSON y `temperature` se muestra aunque el modelo no la acepte. El editor ya recibe la lista
-  de modelos; faltaría incluir `supportsTemperature` y `allowedParams` en el contexto del
-  editor y pintar un selector por parámetro, deshabilitando `temperature` cuando no aplica.
