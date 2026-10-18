@@ -133,4 +133,18 @@ describe('AgentsTab — capacidades del modelo', () => {
 
     expect(latest.agents?.ventas?.model_params).toBeUndefined();
   });
+
+  it('borrar un agente pide confirmación antes de quitarlo', async () => {
+    render(<Harness agent={{ model: 'gpt-6-luna' }} />);
+
+    await userEvent.click(screen.getByRole('button', { name: /deleteButton/ }));
+
+    // Hasta confirmar, el agente sigue en el config.
+    expect(latest.agents?.ventas).toBeDefined();
+    expect(screen.getByText(/confirmDeleteBody ventas/)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'confirmDeleteButton' }));
+
+    expect(latest.agents?.ventas).toBeUndefined();
+  });
 });

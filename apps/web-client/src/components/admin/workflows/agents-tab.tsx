@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { AnimatePresence } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import { Search, Plus, Trash2, ChevronRight, AlertTriangle } from 'lucide-react';
 import { PromptEditor } from './prompt-editor';
+import { Modal } from '@/components/ui/modal';
 import {
   deleteAtPath,
   nodesReferencingAgent,
@@ -49,6 +51,8 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
   const [selected, setSelected] = useState(agentKeys[0] ?? '');
   const [filter, setFilter] = useState('');
   const [renaming, setRenaming] = useState('');
+  // Agente pendiente de confirmar su borrado (el botón ya no borra de inmediato).
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   // `useState` solo corre al montar, así que editar `agents` desde la pestaña de JSON
   // crudo dejaba la selección apuntando a un agente inexistente y el panel vacío sin
@@ -155,14 +159,21 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
     setSelected(name);
   };
 
+  /** Si algún nodo usa el agente no se puede borrar; si no, se pide confirmación. */
   const handleDelete = (key: string) => {
     const referencing = nodesReferencingAgent(config, key);
     if (referencing.length) {
       toast.error(t('cannotDeleteInUse', { nodes: referencing.join(', ') }));
       return;
     }
-    onChange(deleteAtPath(config, ['agents', key]));
-    setSelected(agentKeys.find((k) => k !== key) ?? '');
+    setDeleteConfirm(key);
+  };
+
+  const confirmDelete = () => {
+    if (!deleteConfirm) return;
+    onChange(deleteAtPath(config, ['agents', deleteConfirm]));
+    setSelected(agentKeys.find((k) => k !== deleteConfirm) ?? '');
+    setDeleteConfirm(null);
   };
 
   if (agentKeys.length === 0) {
@@ -444,6 +455,42 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
           {t('selectAgentPrompt')}
         </div>
       )}
+
+      <AnimatePresence>
+        {deleteConfirm && (
+          <Modal
+            isOpen={!!deleteConfirm}
+            onClose={() => setDeleteConfirm(null)}
+            title={t('confirmDeleteTitle')}
+          >
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 rounded-xl border border-[var(--danger-banner-border)] bg-[var(--danger-banner-bg)] p-4 text-[var(--danger-text-adaptive)]">
+                <AlertTriangle size={24} />
+                <p className="text-sm font-medium">
+                  {t('confirmDeleteBody', { name: deleteConfirm })}
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  className="flex-1 rounded-xl bg-surface-secondary px-4 py-2 font-medium text-text-primary transition-colors hover:bg-surface-elevated"
+                  onClick={() => setDeleteConfirm(null)}
+                >
+                  {t('cancel')}
+                </button>
+                <button
+                  type="button"
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-danger px-4 py-2 font-medium text-brand-white transition-colors hover:bg-danger-600"
+                  onClick={confirmDelete}
+                >
+                  {t('confirmDeleteButton')}
+                </button>
+              </div>
+            </div>
+          </Modal>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
