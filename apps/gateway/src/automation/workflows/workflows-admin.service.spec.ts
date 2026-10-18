@@ -83,6 +83,62 @@ describe('WorkflowsAdminService', () => {
     service = module.get(WorkflowsAdminService);
   });
 
+  describe('getEditorContext', () => {
+    it('una sola fila por modelo (la vigente) y con sus capacidades', async () => {
+      // findMany llega por provider, modelName y effectiveFrom desc: la vigente primero.
+      prisma.llmModel.findMany.mockResolvedValue([
+        {
+          id: 'sonnet',
+          modelName: 'claude-sonnet-5-5',
+          provider: 'anthropic',
+          tier: 'STANDARD',
+          effectiveTo: null,
+          supportsTemperature: false,
+          allowedParams: {},
+        },
+        {
+          id: 'luna-nuevo',
+          modelName: 'gpt-6-luna',
+          provider: 'openai',
+          tier: 'BASIC',
+          effectiveTo: null,
+          supportsTemperature: true,
+          allowedParams: { reasoning_effort: ['none', 'low'] },
+        },
+        {
+          id: 'luna-viejo',
+          modelName: 'gpt-6-luna',
+          provider: 'openai',
+          tier: 'BASIC',
+          effectiveTo: new Date('2026-01-01'),
+          supportsTemperature: true,
+          allowedParams: {},
+        },
+      ]);
+
+      const { models } = await service.getEditorContext();
+
+      expect(models).toEqual([
+        {
+          id: 'sonnet',
+          modelName: 'claude-sonnet-5-5',
+          provider: 'anthropic',
+          tier: 'STANDARD',
+          supportsTemperature: false,
+          allowedParams: {},
+        },
+        {
+          id: 'luna-nuevo',
+          modelName: 'gpt-6-luna',
+          provider: 'openai',
+          tier: 'BASIC',
+          supportsTemperature: true,
+          allowedParams: { reasoning_effort: ['none', 'low'] },
+        },
+      ]);
+    });
+  });
+
   describe('updateConfig', () => {
     const current = (version = 9, config = validConfig()) => ({
       id: 'wf-1',

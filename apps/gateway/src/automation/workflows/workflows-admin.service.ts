@@ -16,6 +16,7 @@ import { AdminAnalyticsService } from '@/billing/analytics/analytics.service';
 import { WorkflowConfigValidator } from './workflow-config.validator';
 import { assertMaxTokensWithinCategory, touchesCategoryCeiling } from './category-token-ceiling';
 import { configSizeBytes, diffConfigs, hashConfig } from './workflow-config.utils';
+import { currentRowPerModel, toCapabilities } from '../llm-models/model-capabilities';
 import {
   CloneWorkflowDto,
   CreateWorkflowAdminDto,
@@ -73,7 +74,7 @@ export class WorkflowsAdminService {
    * activos, que son los únicos que la validación aceptará al guardar.
    */
   async getEditorContext() {
-    const [nodeCatalog, models] = await Promise.all([
+    const [nodeCatalog, rows] = await Promise.all([
       this.agentsService.getNodeCatalog('pipeline').catch((error) => {
         // Sin motor el editor sigue siendo usable: pierde ayudas, no la edición.
         this.logger.warn(`Node catalog unavailable: ${(error as Error).message}`);
@@ -81,10 +82,29 @@ export class WorkflowsAdminService {
       }),
       this.prisma.llmModel.findMany({
         where: { isActive: true },
-        select: { id: true, modelName: true, provider: true, tier: true },
-        orderBy: [{ provider: 'asc' }, { modelName: 'asc' }],
+        select: {
+          id: true,
+          modelName: true,
+          provider: true,
+          tier: true,
+          effectiveTo: true,
+          supportsTemperature: true,
+          allowedParams: true,
+        },
+        // effectiveFrom desc primero: `currentRowPerModel` se queda con la fila vigente.
+        orderBy: [{ provider: 'asc' }, { modelName: 'asc' }, { effectiveFrom: 'desc' }],
       }),
     ]);
+
+    // La tabla versiona precios: sin esto, un modelo con cambio de precio salía duplicado
+    // en el selector. Con sus capacidades, el editor muestra solo lo que cada modelo acepta.
+    const models = currentRowPerModel(rows).map((row) => ({
+      id: row.id,
+      modelName: row.modelName,
+      provider: row.provider,
+      tier: row.tier,
+      ...toCapabilities(row),
+    }));
 
     return { nodeCatalog, models };
   }

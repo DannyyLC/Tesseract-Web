@@ -3,6 +3,7 @@ import { InvalidWorkflowConfigException } from '@/platform/common/exceptions';
 import { PrismaService } from '@/platform/database/prisma.service';
 import { AgentsService } from '../agents/agents.service';
 import { errorMessage } from '@/platform/common/utils/error-message';
+import { capabilitiesByModel, type ModelCapabilities } from '../llm-models/model-capabilities';
 
 /**
  * Validación del `config` de un workflow. Vive aparte de WorkflowsService porque la
@@ -291,54 +292,4 @@ interface RawAgentModelConfig {
   fallbacks?: string[];
   temperature?: unknown;
   model_params?: unknown;
-}
-
-interface ModelCapabilities {
-  supportsTemperature: boolean;
-  allowedParams: Record<string, string[]>;
-}
-
-/**
- * Capacidades por nombre de modelo. La tabla versiona precios (varias filas por
- * `modelName`): se toma la fila vigente más reciente y, si ninguna lo está, la más
- * reciente — `findMany` llega ordenado por `effectiveFrom` desc.
- */
-function capabilitiesByModel(
-  rows: {
-    modelName: string;
-    effectiveTo?: Date | null;
-    supportsTemperature?: boolean;
-    allowedParams?: unknown;
-  }[],
-): Map<string, ModelCapabilities> {
-  const now = new Date();
-  const chosen = new Map<string, { current: boolean; capabilities: ModelCapabilities }>();
-
-  for (const row of rows) {
-    const current = !row.effectiveTo || row.effectiveTo >= now;
-    const previous = chosen.get(row.modelName);
-    if (previous && (previous.current || !current)) continue;
-
-    chosen.set(row.modelName, {
-      current,
-      capabilities: {
-        supportsTemperature: row.supportsTemperature !== false,
-        allowedParams: toAllowedParams(row.allowedParams),
-      },
-    });
-  }
-
-  return new Map(Array.from(chosen, ([name, { capabilities }]) => [name, capabilities]));
-}
-
-/** `allowedParams` viene de una columna JSON: lo que no tenga la forma esperada se ignora. */
-function toAllowedParams(raw: unknown): Record<string, string[]> {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
-  const result: Record<string, string[]> = {};
-  for (const [param, values] of Object.entries(raw)) {
-    if (Array.isArray(values)) {
-      result[param] = values.filter((v): v is string => typeof v === 'string');
-    }
-  }
-  return result;
 }
