@@ -35,7 +35,7 @@ async function seedModels() {
 
   // 2. Upsert de modelos, enlazando por llmCategoryId.
   for (const model of llmModels) {
-    const { category, ...modelData } = model;
+    const { category, supportsTemperature = true, allowedParams = {}, ...modelData } = model;
     const llmCategoryId = categoryIdByName.get(category) ?? null;
     await prisma.llmModel.upsert({
       where: {
@@ -47,6 +47,8 @@ async function seedModels() {
       },
       create: {
         ...modelData,
+        supportsTemperature,
+        allowedParams,
         llmCategoryId,
         effectiveFrom: MODEL_EFFECTIVE_FROM,
         isActive: true,
@@ -59,6 +61,8 @@ async function seedModels() {
         outputPricePer1m: model.outputPricePer1m,
         contextWindow: model.contextWindow,
         recommendedMaxTokens: model.recommendedMaxTokens,
+        supportsTemperature,
+        allowedParams,
         isActive: true,
         currency: 'USD',
         effectiveTo: null,

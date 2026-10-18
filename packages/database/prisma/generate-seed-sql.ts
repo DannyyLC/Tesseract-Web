@@ -75,14 +75,17 @@ function buildSql(): string {
     push(
       `INSERT INTO "llm_models" (` +
         `"id", "provider", "modelName", "tier", "llmCategoryId", "inputPricePer1m", ` +
-        `"outputPricePer1m", "contextWindow", "recommendedMaxTokens", "effectiveFrom", ` +
-        `"effectiveTo", "isActive", "currency", "createdAt", "updatedAt")` +
+        `"outputPricePer1m", "contextWindow", "recommendedMaxTokens", "supportsTemperature", ` +
+        `"allowedParams", "effectiveFrom", "effectiveTo", "isActive", "currency", "createdAt", ` +
+        `"updatedAt")` +
         `\nVALUES (` +
         `gen_random_uuid(), ${sqlString(model.provider)}, ${sqlString(model.modelName)}, ` +
         `${sqlString(model.tier)}, ` +
         `(SELECT "id" FROM "llm_model_categories" WHERE "name" = ${sqlString(model.category)}), ` +
         `${model.inputPricePer1m}, ${model.outputPricePer1m}, ${model.contextWindow}, ` +
-        `${model.recommendedMaxTokens}, ${sqlTimestamp(MODEL_EFFECTIVE_FROM)}, NULL, true, ` +
+        `${model.recommendedMaxTokens}, ${model.supportsTemperature ?? true}, ` +
+        `${sqlString(JSON.stringify(model.allowedParams ?? {}))}::jsonb, ` +
+        `${sqlTimestamp(MODEL_EFFECTIVE_FROM)}, NULL, true, ` +
         `'USD', now(), now())` +
         `\nON CONFLICT ("provider", "modelName", "effectiveFrom") DO UPDATE SET` +
         `\n  "tier" = EXCLUDED."tier",` +
@@ -91,6 +94,8 @@ function buildSql(): string {
         `\n  "outputPricePer1m" = EXCLUDED."outputPricePer1m",` +
         `\n  "contextWindow" = EXCLUDED."contextWindow",` +
         `\n  "recommendedMaxTokens" = EXCLUDED."recommendedMaxTokens",` +
+        `\n  "supportsTemperature" = EXCLUDED."supportsTemperature",` +
+        `\n  "allowedParams" = EXCLUDED."allowedParams",` +
         `\n  "isActive" = true,` +
         `\n  "currency" = 'USD',` +
         `\n  "effectiveTo" = NULL,` +

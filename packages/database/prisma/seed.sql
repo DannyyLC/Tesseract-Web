@@ -15,14 +15,10 @@ INSERT INTO "llm_model_categories" ("id", "name", "isActive", "createdAt", "upda
 VALUES (gen_random_uuid(), 'chat', true, now(), now())
 ON CONFLICT ("name") DO UPDATE SET "isActive" = true, "updatedAt" = now();
 
-INSERT INTO "llm_model_categories" ("id", "name", "isActive", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), 'reasoning', true, now(), now())
-ON CONFLICT ("name") DO UPDATE SET "isActive" = true, "updatedAt" = now();
-
 -- Modelos LLM
 
-INSERT INTO "llm_models" ("id", "provider", "modelName", "tier", "llmCategoryId", "inputPricePer1m", "outputPricePer1m", "contextWindow", "recommendedMaxTokens", "effectiveFrom", "effectiveTo", "isActive", "currency", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), 'openai', 'gpt-5.4-mini', 'BASIC', (SELECT "id" FROM "llm_model_categories" WHERE "name" = 'chat'), 0.75, 4.5, 400000, 128000, TIMESTAMP '2026-01-01 00:00:00.000', NULL, true, 'USD', now(), now())
+INSERT INTO "llm_models" ("id", "provider", "modelName", "tier", "llmCategoryId", "inputPricePer1m", "outputPricePer1m", "contextWindow", "recommendedMaxTokens", "supportsTemperature", "allowedParams", "effectiveFrom", "effectiveTo", "isActive", "currency", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), 'openai', 'gpt-6-luna', 'BASIC', (SELECT "id" FROM "llm_model_categories" WHERE "name" = 'chat'), 0.1, 0.5, 1050000, 128000, true, '{"reasoning_effort":[]}'::jsonb, TIMESTAMP '2026-01-01 00:00:00.000', NULL, true, 'USD', now(), now())
 ON CONFLICT ("provider", "modelName", "effectiveFrom") DO UPDATE SET
   "tier" = EXCLUDED."tier",
   "llmCategoryId" = EXCLUDED."llmCategoryId",
@@ -30,13 +26,15 @@ ON CONFLICT ("provider", "modelName", "effectiveFrom") DO UPDATE SET
   "outputPricePer1m" = EXCLUDED."outputPricePer1m",
   "contextWindow" = EXCLUDED."contextWindow",
   "recommendedMaxTokens" = EXCLUDED."recommendedMaxTokens",
+  "supportsTemperature" = EXCLUDED."supportsTemperature",
+  "allowedParams" = EXCLUDED."allowedParams",
   "isActive" = true,
   "currency" = 'USD',
   "effectiveTo" = NULL,
   "updatedAt" = now();
 
-INSERT INTO "llm_models" ("id", "provider", "modelName", "tier", "llmCategoryId", "inputPricePer1m", "outputPricePer1m", "contextWindow", "recommendedMaxTokens", "effectiveFrom", "effectiveTo", "isActive", "currency", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), 'openai', 'gpt-5.6-luna', 'STANDARD', (SELECT "id" FROM "llm_model_categories" WHERE "name" = 'chat'), 1, 6, 1050000, 128000, TIMESTAMP '2026-01-01 00:00:00.000', NULL, true, 'USD', now(), now())
+INSERT INTO "llm_models" ("id", "provider", "modelName", "tier", "llmCategoryId", "inputPricePer1m", "outputPricePer1m", "contextWindow", "recommendedMaxTokens", "supportsTemperature", "allowedParams", "effectiveFrom", "effectiveTo", "isActive", "currency", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), 'openai', 'gpt-6.1-sol', 'STANDARD', (SELECT "id" FROM "llm_model_categories" WHERE "name" = 'chat'), 2, 10, 1050000, 128000, true, '{"reasoning_effort":["low","medium","high","xhigh"]}'::jsonb, TIMESTAMP '2026-01-01 00:00:00.000', NULL, true, 'USD', now(), now())
 ON CONFLICT ("provider", "modelName", "effectiveFrom") DO UPDATE SET
   "tier" = EXCLUDED."tier",
   "llmCategoryId" = EXCLUDED."llmCategoryId",
@@ -44,13 +42,15 @@ ON CONFLICT ("provider", "modelName", "effectiveFrom") DO UPDATE SET
   "outputPricePer1m" = EXCLUDED."outputPricePer1m",
   "contextWindow" = EXCLUDED."contextWindow",
   "recommendedMaxTokens" = EXCLUDED."recommendedMaxTokens",
+  "supportsTemperature" = EXCLUDED."supportsTemperature",
+  "allowedParams" = EXCLUDED."allowedParams",
   "isActive" = true,
   "currency" = 'USD',
   "effectiveTo" = NULL,
   "updatedAt" = now();
 
-INSERT INTO "llm_models" ("id", "provider", "modelName", "tier", "llmCategoryId", "inputPricePer1m", "outputPricePer1m", "contextWindow", "recommendedMaxTokens", "effectiveFrom", "effectiveTo", "isActive", "currency", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), 'openai', 'gpt-4o-mini', 'BASIC', (SELECT "id" FROM "llm_model_categories" WHERE "name" = 'chat'), 0.15, 0.6, 128000, 100000, TIMESTAMP '2026-01-01 00:00:00.000', NULL, true, 'USD', now(), now())
+INSERT INTO "llm_models" ("id", "provider", "modelName", "tier", "llmCategoryId", "inputPricePer1m", "outputPricePer1m", "contextWindow", "recommendedMaxTokens", "supportsTemperature", "allowedParams", "effectiveFrom", "effectiveTo", "isActive", "currency", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), 'openai', 'gpt-5.4-mini', 'BASIC', (SELECT "id" FROM "llm_model_categories" WHERE "name" = 'chat'), 0.75, 4.5, 400000, 128000, true, '{"reasoning_effort":[]}'::jsonb, TIMESTAMP '2026-01-01 00:00:00.000', NULL, true, 'USD', now(), now())
 ON CONFLICT ("provider", "modelName", "effectiveFrom") DO UPDATE SET
   "tier" = EXCLUDED."tier",
   "llmCategoryId" = EXCLUDED."llmCategoryId",
@@ -58,13 +58,15 @@ ON CONFLICT ("provider", "modelName", "effectiveFrom") DO UPDATE SET
   "outputPricePer1m" = EXCLUDED."outputPricePer1m",
   "contextWindow" = EXCLUDED."contextWindow",
   "recommendedMaxTokens" = EXCLUDED."recommendedMaxTokens",
+  "supportsTemperature" = EXCLUDED."supportsTemperature",
+  "allowedParams" = EXCLUDED."allowedParams",
   "isActive" = true,
   "currency" = 'USD',
   "effectiveTo" = NULL,
   "updatedAt" = now();
 
-INSERT INTO "llm_models" ("id", "provider", "modelName", "tier", "llmCategoryId", "inputPricePer1m", "outputPricePer1m", "contextWindow", "recommendedMaxTokens", "effectiveFrom", "effectiveTo", "isActive", "currency", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), 'openai', 'gpt-4o', 'STANDARD', (SELECT "id" FROM "llm_model_categories" WHERE "name" = 'chat'), 2.5, 10, 128000, 100000, TIMESTAMP '2026-01-01 00:00:00.000', NULL, true, 'USD', now(), now())
+INSERT INTO "llm_models" ("id", "provider", "modelName", "tier", "llmCategoryId", "inputPricePer1m", "outputPricePer1m", "contextWindow", "recommendedMaxTokens", "supportsTemperature", "allowedParams", "effectiveFrom", "effectiveTo", "isActive", "currency", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), 'openai', 'gpt-5.6-luna', 'STANDARD', (SELECT "id" FROM "llm_model_categories" WHERE "name" = 'chat'), 0.2, 1.2, 1050000, 128000, true, '{"reasoning_effort":[]}'::jsonb, TIMESTAMP '2026-01-01 00:00:00.000', NULL, true, 'USD', now(), now())
 ON CONFLICT ("provider", "modelName", "effectiveFrom") DO UPDATE SET
   "tier" = EXCLUDED."tier",
   "llmCategoryId" = EXCLUDED."llmCategoryId",
@@ -72,13 +74,15 @@ ON CONFLICT ("provider", "modelName", "effectiveFrom") DO UPDATE SET
   "outputPricePer1m" = EXCLUDED."outputPricePer1m",
   "contextWindow" = EXCLUDED."contextWindow",
   "recommendedMaxTokens" = EXCLUDED."recommendedMaxTokens",
+  "supportsTemperature" = EXCLUDED."supportsTemperature",
+  "allowedParams" = EXCLUDED."allowedParams",
   "isActive" = true,
   "currency" = 'USD',
   "effectiveTo" = NULL,
   "updatedAt" = now();
 
-INSERT INTO "llm_models" ("id", "provider", "modelName", "tier", "llmCategoryId", "inputPricePer1m", "outputPricePer1m", "contextWindow", "recommendedMaxTokens", "effectiveFrom", "effectiveTo", "isActive", "currency", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), 'openai', 'gpt-4o-2024-11-20', 'STANDARD', (SELECT "id" FROM "llm_model_categories" WHERE "name" = 'chat'), 2.5, 10, 128000, 100000, TIMESTAMP '2026-01-01 00:00:00.000', NULL, true, 'USD', now(), now())
+INSERT INTO "llm_models" ("id", "provider", "modelName", "tier", "llmCategoryId", "inputPricePer1m", "outputPricePer1m", "contextWindow", "recommendedMaxTokens", "supportsTemperature", "allowedParams", "effectiveFrom", "effectiveTo", "isActive", "currency", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), 'anthropic', 'claude-haiku-5-5', 'BASIC', (SELECT "id" FROM "llm_model_categories" WHERE "name" = 'chat'), 0.1, 0.5, 1000000, 128000, false, '{}'::jsonb, TIMESTAMP '2026-01-01 00:00:00.000', NULL, true, 'USD', now(), now())
 ON CONFLICT ("provider", "modelName", "effectiveFrom") DO UPDATE SET
   "tier" = EXCLUDED."tier",
   "llmCategoryId" = EXCLUDED."llmCategoryId",
@@ -86,13 +90,15 @@ ON CONFLICT ("provider", "modelName", "effectiveFrom") DO UPDATE SET
   "outputPricePer1m" = EXCLUDED."outputPricePer1m",
   "contextWindow" = EXCLUDED."contextWindow",
   "recommendedMaxTokens" = EXCLUDED."recommendedMaxTokens",
+  "supportsTemperature" = EXCLUDED."supportsTemperature",
+  "allowedParams" = EXCLUDED."allowedParams",
   "isActive" = true,
   "currency" = 'USD',
   "effectiveTo" = NULL,
   "updatedAt" = now();
 
-INSERT INTO "llm_models" ("id", "provider", "modelName", "tier", "llmCategoryId", "inputPricePer1m", "outputPricePer1m", "contextWindow", "recommendedMaxTokens", "effectiveFrom", "effectiveTo", "isActive", "currency", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), 'openai', 'gpt-4-turbo', 'PREMIUM', (SELECT "id" FROM "llm_model_categories" WHERE "name" = 'chat'), 10, 30, 128000, 100000, TIMESTAMP '2026-01-01 00:00:00.000', NULL, true, 'USD', now(), now())
+INSERT INTO "llm_models" ("id", "provider", "modelName", "tier", "llmCategoryId", "inputPricePer1m", "outputPricePer1m", "contextWindow", "recommendedMaxTokens", "supportsTemperature", "allowedParams", "effectiveFrom", "effectiveTo", "isActive", "currency", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), 'anthropic', 'claude-sonnet-5-5', 'STANDARD', (SELECT "id" FROM "llm_model_categories" WHERE "name" = 'chat'), 2, 10, 1000000, 128000, false, '{}'::jsonb, TIMESTAMP '2026-01-01 00:00:00.000', NULL, true, 'USD', now(), now())
 ON CONFLICT ("provider", "modelName", "effectiveFrom") DO UPDATE SET
   "tier" = EXCLUDED."tier",
   "llmCategoryId" = EXCLUDED."llmCategoryId",
@@ -100,13 +106,15 @@ ON CONFLICT ("provider", "modelName", "effectiveFrom") DO UPDATE SET
   "outputPricePer1m" = EXCLUDED."outputPricePer1m",
   "contextWindow" = EXCLUDED."contextWindow",
   "recommendedMaxTokens" = EXCLUDED."recommendedMaxTokens",
+  "supportsTemperature" = EXCLUDED."supportsTemperature",
+  "allowedParams" = EXCLUDED."allowedParams",
   "isActive" = true,
   "currency" = 'USD',
   "effectiveTo" = NULL,
   "updatedAt" = now();
 
-INSERT INTO "llm_models" ("id", "provider", "modelName", "tier", "llmCategoryId", "inputPricePer1m", "outputPricePer1m", "contextWindow", "recommendedMaxTokens", "effectiveFrom", "effectiveTo", "isActive", "currency", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), 'openai', 'o1', 'PREMIUM', (SELECT "id" FROM "llm_model_categories" WHERE "name" = 'reasoning'), 15, 60, 200000, 150000, TIMESTAMP '2026-01-01 00:00:00.000', NULL, true, 'USD', now(), now())
+INSERT INTO "llm_models" ("id", "provider", "modelName", "tier", "llmCategoryId", "inputPricePer1m", "outputPricePer1m", "contextWindow", "recommendedMaxTokens", "supportsTemperature", "allowedParams", "effectiveFrom", "effectiveTo", "isActive", "currency", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), 'anthropic', 'claude-opus-5-5', 'PREMIUM', (SELECT "id" FROM "llm_model_categories" WHERE "name" = 'chat'), 4, 20, 1000000, 128000, false, '{}'::jsonb, TIMESTAMP '2026-01-01 00:00:00.000', NULL, true, 'USD', now(), now())
 ON CONFLICT ("provider", "modelName", "effectiveFrom") DO UPDATE SET
   "tier" = EXCLUDED."tier",
   "llmCategoryId" = EXCLUDED."llmCategoryId",
@@ -114,90 +122,8 @@ ON CONFLICT ("provider", "modelName", "effectiveFrom") DO UPDATE SET
   "outputPricePer1m" = EXCLUDED."outputPricePer1m",
   "contextWindow" = EXCLUDED."contextWindow",
   "recommendedMaxTokens" = EXCLUDED."recommendedMaxTokens",
-  "isActive" = true,
-  "currency" = 'USD',
-  "effectiveTo" = NULL,
-  "updatedAt" = now();
-
-INSERT INTO "llm_models" ("id", "provider", "modelName", "tier", "llmCategoryId", "inputPricePer1m", "outputPricePer1m", "contextWindow", "recommendedMaxTokens", "effectiveFrom", "effectiveTo", "isActive", "currency", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), 'openai', 'o1-mini', 'STANDARD', (SELECT "id" FROM "llm_model_categories" WHERE "name" = 'reasoning'), 3, 12, 128000, 100000, TIMESTAMP '2026-01-01 00:00:00.000', NULL, true, 'USD', now(), now())
-ON CONFLICT ("provider", "modelName", "effectiveFrom") DO UPDATE SET
-  "tier" = EXCLUDED."tier",
-  "llmCategoryId" = EXCLUDED."llmCategoryId",
-  "inputPricePer1m" = EXCLUDED."inputPricePer1m",
-  "outputPricePer1m" = EXCLUDED."outputPricePer1m",
-  "contextWindow" = EXCLUDED."contextWindow",
-  "recommendedMaxTokens" = EXCLUDED."recommendedMaxTokens",
-  "isActive" = true,
-  "currency" = 'USD',
-  "effectiveTo" = NULL,
-  "updatedAt" = now();
-
-INSERT INTO "llm_models" ("id", "provider", "modelName", "tier", "llmCategoryId", "inputPricePer1m", "outputPricePer1m", "contextWindow", "recommendedMaxTokens", "effectiveFrom", "effectiveTo", "isActive", "currency", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), 'anthropic', 'claude-3-haiku-20240307', 'BASIC', (SELECT "id" FROM "llm_model_categories" WHERE "name" = 'chat'), 0.25, 1.25, 200000, 150000, TIMESTAMP '2026-01-01 00:00:00.000', NULL, true, 'USD', now(), now())
-ON CONFLICT ("provider", "modelName", "effectiveFrom") DO UPDATE SET
-  "tier" = EXCLUDED."tier",
-  "llmCategoryId" = EXCLUDED."llmCategoryId",
-  "inputPricePer1m" = EXCLUDED."inputPricePer1m",
-  "outputPricePer1m" = EXCLUDED."outputPricePer1m",
-  "contextWindow" = EXCLUDED."contextWindow",
-  "recommendedMaxTokens" = EXCLUDED."recommendedMaxTokens",
-  "isActive" = true,
-  "currency" = 'USD',
-  "effectiveTo" = NULL,
-  "updatedAt" = now();
-
-INSERT INTO "llm_models" ("id", "provider", "modelName", "tier", "llmCategoryId", "inputPricePer1m", "outputPricePer1m", "contextWindow", "recommendedMaxTokens", "effectiveFrom", "effectiveTo", "isActive", "currency", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), 'anthropic', 'claude-3-5-sonnet-20241022', 'STANDARD', (SELECT "id" FROM "llm_model_categories" WHERE "name" = 'chat'), 3, 15, 200000, 150000, TIMESTAMP '2026-01-01 00:00:00.000', NULL, true, 'USD', now(), now())
-ON CONFLICT ("provider", "modelName", "effectiveFrom") DO UPDATE SET
-  "tier" = EXCLUDED."tier",
-  "llmCategoryId" = EXCLUDED."llmCategoryId",
-  "inputPricePer1m" = EXCLUDED."inputPricePer1m",
-  "outputPricePer1m" = EXCLUDED."outputPricePer1m",
-  "contextWindow" = EXCLUDED."contextWindow",
-  "recommendedMaxTokens" = EXCLUDED."recommendedMaxTokens",
-  "isActive" = true,
-  "currency" = 'USD',
-  "effectiveTo" = NULL,
-  "updatedAt" = now();
-
-INSERT INTO "llm_models" ("id", "provider", "modelName", "tier", "llmCategoryId", "inputPricePer1m", "outputPricePer1m", "contextWindow", "recommendedMaxTokens", "effectiveFrom", "effectiveTo", "isActive", "currency", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), 'anthropic', 'claude-3-opus-20240229', 'PREMIUM', (SELECT "id" FROM "llm_model_categories" WHERE "name" = 'chat'), 15, 75, 200000, 150000, TIMESTAMP '2026-01-01 00:00:00.000', NULL, true, 'USD', now(), now())
-ON CONFLICT ("provider", "modelName", "effectiveFrom") DO UPDATE SET
-  "tier" = EXCLUDED."tier",
-  "llmCategoryId" = EXCLUDED."llmCategoryId",
-  "inputPricePer1m" = EXCLUDED."inputPricePer1m",
-  "outputPricePer1m" = EXCLUDED."outputPricePer1m",
-  "contextWindow" = EXCLUDED."contextWindow",
-  "recommendedMaxTokens" = EXCLUDED."recommendedMaxTokens",
-  "isActive" = true,
-  "currency" = 'USD',
-  "effectiveTo" = NULL,
-  "updatedAt" = now();
-
-INSERT INTO "llm_models" ("id", "provider", "modelName", "tier", "llmCategoryId", "inputPricePer1m", "outputPricePer1m", "contextWindow", "recommendedMaxTokens", "effectiveFrom", "effectiveTo", "isActive", "currency", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), 'google', 'gemini-1.5-flash', 'BASIC', (SELECT "id" FROM "llm_model_categories" WHERE "name" = 'chat'), 0.075, 0.3, 1000000, 800000, TIMESTAMP '2026-01-01 00:00:00.000', NULL, true, 'USD', now(), now())
-ON CONFLICT ("provider", "modelName", "effectiveFrom") DO UPDATE SET
-  "tier" = EXCLUDED."tier",
-  "llmCategoryId" = EXCLUDED."llmCategoryId",
-  "inputPricePer1m" = EXCLUDED."inputPricePer1m",
-  "outputPricePer1m" = EXCLUDED."outputPricePer1m",
-  "contextWindow" = EXCLUDED."contextWindow",
-  "recommendedMaxTokens" = EXCLUDED."recommendedMaxTokens",
-  "isActive" = true,
-  "currency" = 'USD',
-  "effectiveTo" = NULL,
-  "updatedAt" = now();
-
-INSERT INTO "llm_models" ("id", "provider", "modelName", "tier", "llmCategoryId", "inputPricePer1m", "outputPricePer1m", "contextWindow", "recommendedMaxTokens", "effectiveFrom", "effectiveTo", "isActive", "currency", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), 'google', 'gemini-1.5-pro', 'STANDARD', (SELECT "id" FROM "llm_model_categories" WHERE "name" = 'chat'), 1.25, 5, 2000000, 1500000, TIMESTAMP '2026-01-01 00:00:00.000', NULL, true, 'USD', now(), now())
-ON CONFLICT ("provider", "modelName", "effectiveFrom") DO UPDATE SET
-  "tier" = EXCLUDED."tier",
-  "llmCategoryId" = EXCLUDED."llmCategoryId",
-  "inputPricePer1m" = EXCLUDED."inputPricePer1m",
-  "outputPricePer1m" = EXCLUDED."outputPricePer1m",
-  "contextWindow" = EXCLUDED."contextWindow",
-  "recommendedMaxTokens" = EXCLUDED."recommendedMaxTokens",
+  "supportsTemperature" = EXCLUDED."supportsTemperature",
+  "allowedParams" = EXCLUDED."allowedParams",
   "isActive" = true,
   "currency" = 'USD',
   "effectiveTo" = NULL,
@@ -284,10 +210,25 @@ ON CONFLICT ("toolName") DO UPDATE SET
 
 DELETE FROM "tool_functions"
 WHERE "toolCatalogId" = (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'human_handoff')
-  AND "functionName" NOT IN ('request_human_handoff');
+  AND "functionName" NOT IN ('request_human_handoff', 'activate_human_intervention');
 
 INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "displayNameEn", "descriptionEn", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
 VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'human_handoff'), 'request_human_handoff', 'Solicitar intervencion humana', 'Marca la conversacion para Human in the Loop y notifica a miembros de la organizacion.', 'Request human intervention', 'Flags the conversation for Human in the Loop and notifies the organization members.', 'mdi:account-arrow-up-outline', 'escalation', 'SAFE', ARRAY[]::text[], true, false, now(), now())
+ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
+  "displayName" = EXCLUDED."displayName",
+  "description" = EXCLUDED."description",
+  "displayNameEn" = EXCLUDED."displayNameEn",
+  "descriptionEn" = EXCLUDED."descriptionEn",
+  "icon" = EXCLUDED."icon",
+  "category" = EXCLUDED."category",
+  "dangerLevel" = EXCLUDED."dangerLevel",
+  "oauthScopes" = EXCLUDED."oauthScopes",
+  "isActive" = true,
+  "isInBeta" = false,
+  "updatedAt" = now();
+
+INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "displayNameEn", "descriptionEn", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'human_handoff'), 'activate_human_intervention', 'Activar intervencion humana (determinista)', 'Igual que "Solicitar intervencion humana", pero invocada desde un nodo del workflow en vez de por decision del LLM: pausa la IA de inmediato y notifica al equipo.', 'Activate human intervention (deterministic)', 'Same as "Request human intervention", but triggered from a workflow node instead of by the LLM: pauses the AI immediately and notifies the team.', 'mdi:account-arrow-up-outline', 'escalation', 'SAFE', ARRAY[]::text[], true, false, now(), now())
 ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "displayName" = EXCLUDED."displayName",
   "description" = EXCLUDED."description",
@@ -321,6 +262,39 @@ WHERE "toolCatalogId" = (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'sen
 
 INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "displayNameEn", "descriptionEn", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
 VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'send_bulk_whatsapp'), 'send_bulk_whatsapp', 'Enviar mensajes masivos', 'Envia mensajes de plantilla de WhatsApp a una lista de destinatarios. El numero remitente siempre es determinado por el sistema.', 'Send bulk messages', 'Sends WhatsApp template messages to a list of recipients. The sender number is always set by the system.', 'mdi:whatsapp', 'write', 'WARNING', ARRAY[]::text[], true, false, now(), now())
+ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
+  "displayName" = EXCLUDED."displayName",
+  "description" = EXCLUDED."description",
+  "displayNameEn" = EXCLUDED."displayNameEn",
+  "descriptionEn" = EXCLUDED."descriptionEn",
+  "icon" = EXCLUDED."icon",
+  "category" = EXCLUDED."category",
+  "dangerLevel" = EXCLUDED."dangerLevel",
+  "oauthScopes" = EXCLUDED."oauthScopes",
+  "isActive" = true,
+  "isInBeta" = false,
+  "updatedAt" = now();
+
+INSERT INTO "tool_catalog" ("id", "toolName", "displayName", "description", "displayNameEn", "descriptionEn", "provider", "category", "icon", "isActive", "isInBeta", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), 'http_request', 'HTTP Request', 'Consulta cualquier API REST. La URL base, los métodos permitidos y los headers viven en la configuración de la instancia; el modelo solo elige el path y los parámetros.', 'HTTP Request', 'Calls any REST API. The base URL, allowed methods and headers live in the instance configuration; the model only chooses the path and the parameters.', 'none', 'utility', 'mdi:api', true, false, now(), now())
+ON CONFLICT ("toolName") DO UPDATE SET
+  "displayName" = EXCLUDED."displayName",
+  "description" = EXCLUDED."description",
+  "displayNameEn" = EXCLUDED."displayNameEn",
+  "descriptionEn" = EXCLUDED."descriptionEn",
+  "provider" = EXCLUDED."provider",
+  "category" = EXCLUDED."category",
+  "icon" = EXCLUDED."icon",
+  "isActive" = EXCLUDED."isActive",
+  "isInBeta" = EXCLUDED."isInBeta",
+  "updatedAt" = now();
+
+DELETE FROM "tool_functions"
+WHERE "toolCatalogId" = (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'http_request')
+  AND "functionName" NOT IN ('http_request');
+
+INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "displayNameEn", "descriptionEn", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
+VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'http_request'), 'http_request', 'Petición HTTP', 'Ejecuta una petición HTTP (GET, POST, PUT, PATCH o DELETE) contra la API configurada y devuelve la respuesta.', 'HTTP request', 'Executes an HTTP request (GET, POST, PUT, PATCH or DELETE) against the configured API and returns the response.', 'mdi:api', 'read', 'WARNING', ARRAY[]::text[], true, false, now(), now())
 ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "displayName" = EXCLUDED."displayName",
   "description" = EXCLUDED."description",

@@ -17,6 +17,10 @@ export type LlmModelSeed = {
   outputPricePer1m: number;
   contextWindow: number;
   recommendedMaxTokens: number;
+  /** Default `true` (el de la columna). Los Claude 5.5 rechazan cualquier temperature. */
+  supportsTemperature?: boolean;
+  /** `model_params` aceptados: `{ param: [valores] }`, lista vacía = cualquier valor. */
+  allowedParams?: Record<string, string[]>;
 };
 
 export type ToolFunctionSeed = {
@@ -53,8 +57,35 @@ export type NotificationSeed = {
 };
 
 export const llmModels: LlmModelSeed[] = [
-  // Modelos base: son los que referencian rgm.json y workflow-config.json.
-  // Sin ellos en la BD, validateModels() rechaza el workflow al guardarlo.
+  // Catálogo vigente (octubre 2026). Sin modelos con fecha de retiro: gpt-4o, gpt-4o-mini,
+  // gpt-4-turbo, o1, Claude 3 y Gemini 1.5 ya no se siembran; un seed que los incluyera los
+  // reactivaría (el upsert pone isActive = true).
+  //
+  // gpt-5.4-mini y gpt-5.6-luna siguen porque los usan workflows de clientes (rgm.json y
+  // workflow-config.json); sin ellos en la BD el validador rechaza esos workflows al guardar.
+  {
+    provider: 'openai',
+    modelName: 'gpt-6-luna',
+    tier: 'BASIC',
+    category: 'chat',
+    inputPricePer1m: 0.1,
+    outputPricePer1m: 0.5,
+    contextWindow: 1050000,
+    recommendedMaxTokens: 128000,
+    allowedParams: { reasoning_effort: [] },
+  },
+  {
+    provider: 'openai',
+    modelName: 'gpt-6.1-sol',
+    tier: 'STANDARD',
+    category: 'chat',
+    inputPricePer1m: 2.0,
+    outputPricePer1m: 10.0,
+    contextWindow: 1050000,
+    recommendedMaxTokens: 128000,
+    // No acepta "none" (verificado contra OpenAI en octubre 2026).
+    allowedParams: { reasoning_effort: ['low', 'medium', 'high', 'xhigh'] },
+  },
   {
     provider: 'openai',
     modelName: 'gpt-5.4-mini',
@@ -64,126 +95,51 @@ export const llmModels: LlmModelSeed[] = [
     outputPricePer1m: 4.5,
     contextWindow: 400000,
     recommendedMaxTokens: 128000,
+    allowedParams: { reasoning_effort: [] },
   },
   {
     provider: 'openai',
     modelName: 'gpt-5.6-luna',
     tier: 'STANDARD',
     category: 'chat',
-    inputPricePer1m: 1.0,
-    outputPricePer1m: 6.0,
+    inputPricePer1m: 0.2,
+    outputPricePer1m: 1.2,
     contextWindow: 1050000,
     recommendedMaxTokens: 128000,
-  },
-  {
-    provider: 'openai',
-    modelName: 'gpt-4o-mini',
-    tier: 'BASIC',
-    category: 'chat',
-    inputPricePer1m: 0.15,
-    outputPricePer1m: 0.6,
-    contextWindow: 128000,
-    recommendedMaxTokens: 100000,
-  },
-  {
-    provider: 'openai',
-    modelName: 'gpt-4o',
-    tier: 'STANDARD',
-    category: 'chat',
-    inputPricePer1m: 2.5,
-    outputPricePer1m: 10.0,
-    contextWindow: 128000,
-    recommendedMaxTokens: 100000,
-  },
-  {
-    provider: 'openai',
-    modelName: 'gpt-4o-2024-11-20',
-    tier: 'STANDARD',
-    category: 'chat',
-    inputPricePer1m: 2.5,
-    outputPricePer1m: 10.0,
-    contextWindow: 128000,
-    recommendedMaxTokens: 100000,
-  },
-  {
-    provider: 'openai',
-    modelName: 'gpt-4-turbo',
-    tier: 'PREMIUM',
-    category: 'chat',
-    inputPricePer1m: 10.0,
-    outputPricePer1m: 30.0,
-    contextWindow: 128000,
-    recommendedMaxTokens: 100000,
-  },
-  {
-    provider: 'openai',
-    modelName: 'o1',
-    tier: 'PREMIUM',
-    category: 'reasoning',
-    inputPricePer1m: 15.0,
-    outputPricePer1m: 60.0,
-    contextWindow: 200000,
-    recommendedMaxTokens: 150000,
-  },
-  {
-    provider: 'openai',
-    modelName: 'o1-mini',
-    tier: 'STANDARD',
-    category: 'reasoning',
-    inputPricePer1m: 3.0,
-    outputPricePer1m: 12.0,
-    contextWindow: 128000,
-    recommendedMaxTokens: 100000,
+    allowedParams: { reasoning_effort: [] },
   },
   {
     provider: 'anthropic',
-    modelName: 'claude-3-haiku-20240307',
+    modelName: 'claude-haiku-5-5',
     tier: 'BASIC',
     category: 'chat',
-    inputPricePer1m: 0.25,
-    outputPricePer1m: 1.25,
-    contextWindow: 200000,
-    recommendedMaxTokens: 150000,
-  },
-  {
-    provider: 'anthropic',
-    modelName: 'claude-3-5-sonnet-20241022',
-    tier: 'STANDARD',
-    category: 'chat',
-    inputPricePer1m: 3.0,
-    outputPricePer1m: 15.0,
-    contextWindow: 200000,
-    recommendedMaxTokens: 150000,
-  },
-  {
-    provider: 'anthropic',
-    modelName: 'claude-3-opus-20240229',
-    tier: 'PREMIUM',
-    category: 'chat',
-    inputPricePer1m: 15.0,
-    outputPricePer1m: 75.0,
-    contextWindow: 200000,
-    recommendedMaxTokens: 150000,
-  },
-  {
-    provider: 'google',
-    modelName: 'gemini-1.5-flash',
-    tier: 'BASIC',
-    category: 'chat',
-    inputPricePer1m: 0.075,
-    outputPricePer1m: 0.3,
+    inputPricePer1m: 0.1,
+    outputPricePer1m: 0.5,
     contextWindow: 1000000,
-    recommendedMaxTokens: 800000,
+    recommendedMaxTokens: 128000,
+    supportsTemperature: false,
   },
   {
-    provider: 'google',
-    modelName: 'gemini-1.5-pro',
+    provider: 'anthropic',
+    modelName: 'claude-sonnet-5-5',
     tier: 'STANDARD',
     category: 'chat',
-    inputPricePer1m: 1.25,
-    outputPricePer1m: 5.0,
-    contextWindow: 2000000,
-    recommendedMaxTokens: 1500000,
+    inputPricePer1m: 2.0,
+    outputPricePer1m: 10.0,
+    contextWindow: 1000000,
+    recommendedMaxTokens: 128000,
+    supportsTemperature: false,
+  },
+  {
+    provider: 'anthropic',
+    modelName: 'claude-opus-5-5',
+    tier: 'PREMIUM',
+    category: 'chat',
+    inputPricePer1m: 4.0,
+    outputPricePer1m: 20.0,
+    contextWindow: 1000000,
+    recommendedMaxTokens: 128000,
+    supportsTemperature: false,
   },
 ];
 
