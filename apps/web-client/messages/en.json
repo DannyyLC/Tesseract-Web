@@ -2912,7 +2912,9 @@
         "unlinkMessage": "The workflow will stop receiving \"{name}\" on its next run.",
         "staleReferences": "The config still references \"{name}\". The agent no longer receives it; remove it from the config or link it again:",
         "dismiss": "Got it",
-        "pagerSummary": "Page {page} of {totalPages} · {total, plural, one {# integration} other {# integrations}}"
+        "pagerSummary": "Page {page} of {totalPages} · {total, plural, one {# integration} other {# integrations}}",
+        "copyId": "Copy id",
+        "idCopied": "Id copied"
       }
     },
     "WorkflowMetrics": {

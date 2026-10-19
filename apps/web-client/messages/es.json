@@ -2912,7 +2912,9 @@
         "unlinkMessage": "El workflow dejará de recibir «{name}» en su próxima ejecución.",
         "staleReferences": "El config todavía nombra «{name}». El agente ya no la recibe; quítala del config o vuelve a vincularla:",
         "dismiss": "Entendido",
-        "pagerSummary": "Página {page} de {totalPages} · {total, plural, one {# integración} other {# integraciones}}"
+        "pagerSummary": "Página {page} de {totalPages} · {total, plural, one {# integración} other {# integraciones}}",
+        "copyId": "Copiar id",
+        "idCopied": "Id copiado"
       }
     },
     "WorkflowMetrics": {

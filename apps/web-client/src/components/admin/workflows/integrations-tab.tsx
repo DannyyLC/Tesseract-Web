@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import { AlertTriangle, CheckCircle2, Link2, Loader2, Search, Unlink } from 'lucide-react';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
+import { CopyButton } from '@/components/ui/copy-button';
 import { DynamicIcon } from '@/components/ui/dynamic-icon';
 import { LogoLoader } from '@/components/ui/logo-loader';
 import { PagePager } from '@/components/ui/page-pager';
@@ -193,6 +194,16 @@ export function IntegrationsTab({ workflow }: Props) {
                       {t(`status.${tool.status}`)}
                     </span>
                     <span>{t('workflowsCount', { count: tool.workflowCount })}</span>
+                  </p>
+                  <p className="mt-1 flex min-w-0 items-center gap-1.5 text-[11px] text-text-tertiary">
+                    <span className="truncate font-mono">{tool.id}</span>
+                    <CopyButton
+                      text={tool.id}
+                      size={12}
+                      title={t('copyId')}
+                      successMessage={t('idCopied')}
+                      className="shrink-0 hover:text-text-primary"
+                    />
                   </p>
                   {tool.linked && (
                     <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-success-600">
