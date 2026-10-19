@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { ConflictException, NotFoundException } from '@nestjs/common';
-import { WorkflowVersionSource } from '@tesseract/database';
+import { Prisma, WorkflowVersionSource } from '@tesseract/database';
 import { WorkflowsAdminService } from './workflows-admin.service';
 import { WorkflowConfigValidator } from './workflow-config.validator';
 import { PrismaService } from '@/platform/database/prisma.service';
@@ -452,6 +452,195 @@ describe('WorkflowsAdminService', () => {
           expect.objectContaining({ id: 'tool-uuid-2' }),
         ]),
       );
+    });
+  });
+
+  describe('integraciones del workflow', () => {
+    const WF = 'wf-1';
+    const ORG = 'org-a';
+    const TOOL = 'tool-1';
+
+    const scope = (overrides: Record<string, unknown> = {}) => ({
+      id: WF,
+      organizationId: ORG,
+      deletedAt: null,
+      organization: { name: 'Cliente A', deletedAt: null },
+      ...overrides,
+    });
+
+    const notFoundError = () =>
+      new Prisma.PrismaClientKnownRequestError('Record not found', {
+        code: 'P2025',
+        clientVersion: 'test',
+      });
+
+    beforeEach(() => {
+      prisma.workflow.findUnique.mockResolvedValue(scope());
+      prisma.workflow.update.mockResolvedValue({ id: WF, config: {} });
+      prisma.tenantTool = {
+        findMany: jest.fn().mockResolvedValue([]),
+        count: jest.fn().mockResolvedValue(0),
+        findFirst: jest.fn().mockResolvedValue({ id: TOOL }),
+      };
+    });
+
+    describe('listIntegrations', () => {
+      it('acota siempre a la organización del workflow', async () => {
+        await service.listIntegrations(WF, { search: 'hub', filter: 'linked' });
+
+        const { where } = prisma.tenantTool.findMany.mock.calls[0][0];
+        expect(where.organizationId).toBe(ORG);
+        expect(where.deletedAt).toBeNull();
+        expect(where.AND).toEqual(expect.arrayContaining([{ workflows: { some: { id: WF } } }]));
+        expect(prisma.tenantTool.count).toHaveBeenCalledWith({ where });
+      });
+
+      it('ignora un organizationId colado en el query', async () => {
+        await service.listIntegrations(WF, { organizationId: 'org-b' } as never);
+
+        const { where } = prisma.tenantTool.findMany.mock.calls[0][0];
+        expect(where.organizationId).toBe(ORG);
+        expect(JSON.stringify(where)).not.toContain('org-b');
+      });
+
+      it('marca cuáles están vinculadas a este workflow', async () => {
+        prisma.tenantTool.findMany.mockResolvedValue([
+          { id: 't1', workflows: [{ id: WF }], _count: { workflows: 2 } },
+          { id: 't2', workflows: [], _count: { workflows: 0 } },
+        ]);
+        prisma.tenantTool.count.mockResolvedValue(2);
+
+        const result = await service.listIntegrations(WF, {});
+
+        expect(result.organization).toEqual({ id: ORG, name: 'Cliente A' });
+        expect(result.data).toEqual([
+          { id: 't1', linked: true, workflowCount: 2 },
+          { id: 't2', linked: false, workflowCount: 0 },
+        ]);
+      });
+
+      it('filtra las no vinculadas', async () => {
+        await service.listIntegrations(WF, { filter: 'unlinked' });
+
+        const { where } = prisma.tenantTool.findMany.mock.calls[0][0];
+        expect(where.AND).toEqual([{ workflows: { none: { id: WF } } }]);
+      });
+
+      it('404 si el workflow no existe', async () => {
+        prisma.workflow.findUnique.mockResolvedValue(null);
+        await expect(service.listIntegrations(WF, {})).rejects.toThrow(NotFoundException);
+      });
+    });
+
+    describe('linkIntegration', () => {
+      it('vincula repitiendo la organización dentro del connect', async () => {
+        const result = await service.linkIntegration(WF, TOOL, ACTOR);
+
+        expect(prisma.tenantTool.findFirst).toHaveBeenCalledWith({
+          where: { id: TOOL, organizationId: ORG, deletedAt: null },
+          select: { id: true },
+        });
+        expect(prisma.workflow.update).toHaveBeenCalledWith({
+          where: { id: WF, organizationId: ORG, deletedAt: null },
+          data: {
+            tenantTools: { connect: { id: TOOL, organizationId: ORG, deletedAt: null } },
+          },
+          select: { id: true },
+        });
+        expect(result).toEqual({ workflowId: WF, toolId: TOOL, linked: true });
+      });
+
+      it('404 y sin escribir si la tool es de otra organización o está borrada', async () => {
+        prisma.tenantTool.findFirst.mockResolvedValue(null);
+
+        await expect(service.linkIntegration(WF, TOOL, ACTOR)).rejects.toThrow(
+          'Integración no encontrada en la organización del workflow',
+        );
+        expect(prisma.workflow.update).not.toHaveBeenCalled();
+      });
+
+      it('404 si la tool deja de cumplir el filtro entre la verificación y la escritura', async () => {
+        prisma.workflow.update.mockRejectedValue(notFoundError());
+
+        await expect(service.linkIntegration(WF, TOOL, ACTOR)).rejects.toThrow(NotFoundException);
+      });
+
+      it('no traduce errores que no son de registro inexistente', async () => {
+        const boom = new Error('conexión caída');
+        prisma.workflow.update.mockRejectedValue(boom);
+
+        await expect(service.linkIntegration(WF, TOOL, ACTOR)).rejects.toBe(boom);
+      });
+
+      it('404 si el workflow no existe', async () => {
+        prisma.workflow.findUnique.mockResolvedValue(null);
+        await expect(service.linkIntegration(WF, TOOL, ACTOR)).rejects.toThrow(
+          'Workflow no encontrado',
+        );
+      });
+
+      it('409 si el workflow está borrado', async () => {
+        prisma.workflow.findUnique.mockResolvedValue(scope({ deletedAt: new Date() }));
+
+        await expect(service.linkIntegration(WF, TOOL, ACTOR)).rejects.toThrow(ConflictException);
+        expect(prisma.workflow.update).not.toHaveBeenCalled();
+      });
+
+      it('409 si la organización está borrada', async () => {
+        prisma.workflow.findUnique.mockResolvedValue(
+          scope({ organization: { name: 'Cliente A', deletedAt: new Date() } }),
+        );
+
+        await expect(service.linkIntegration(WF, TOOL, ACTOR)).rejects.toThrow(ConflictException);
+      });
+    });
+
+    describe('unlinkIntegration', () => {
+      it('desvincula acotando a la organización, aunque la tool esté borrada', async () => {
+        await service.unlinkIntegration(WF, TOOL, ACTOR);
+
+        expect(prisma.tenantTool.findFirst).toHaveBeenCalledWith({
+          where: { id: TOOL, organizationId: ORG },
+          select: { id: true },
+        });
+        expect(prisma.workflow.update).toHaveBeenCalledWith({
+          where: { id: WF, organizationId: ORG },
+          data: { tenantTools: { disconnect: { id: TOOL, organizationId: ORG } } },
+          select: { config: true },
+        });
+      });
+
+      it('404 y sin escribir si la tool es de otra organización', async () => {
+        prisma.tenantTool.findFirst.mockResolvedValue(null);
+
+        await expect(service.unlinkIntegration(WF, TOOL, ACTOR)).rejects.toThrow(NotFoundException);
+        expect(prisma.workflow.update).not.toHaveBeenCalled();
+      });
+
+      it('permite desvincular de un workflow borrado', async () => {
+        prisma.workflow.findUnique.mockResolvedValue(scope({ deletedAt: new Date() }));
+
+        await expect(service.unlinkIntegration(WF, TOOL, ACTOR)).resolves.toMatchObject({
+          linked: false,
+        });
+      });
+
+      it('avisa dónde sigue nombrándola el config', async () => {
+        prisma.workflow.update.mockResolvedValue({
+          config: {
+            agents: { general: { tools: [TOOL, 'otra'] }, ventas: { tools: [{ id: TOOL }] } },
+            graph: { nodes: [{ id: 'cal', type: 'tool', config: { tool_instance: TOOL } }] },
+          },
+        });
+
+        const result = await service.unlinkIntegration(WF, TOOL, ACTOR);
+
+        expect(result.stillReferencedIn).toEqual([
+          'agents.general.tools',
+          'agents.ventas.tools',
+          'graph.nodes[0] (cal)',
+        ]);
+      });
     });
   });
 });

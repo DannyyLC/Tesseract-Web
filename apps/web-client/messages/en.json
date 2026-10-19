@@ -2846,6 +2846,7 @@
         "graph": "Graph",
         "media": "Media",
         "json": "JSON",
+        "integrations": "Integrations",
         "test": "Test",
         "settings": "Settings",
         "history": "History",
@@ -2880,7 +2881,39 @@
       "cancel": "Cancel",
       "saving": "Saving…",
       "discardModalTitle": "Discard changes",
-      "discardModalMessage": "You're about to lose {count} unsaved change(s) in this workflow. This cannot be undone."
+      "discardModalMessage": "You're about to lose {count} unsaved change(s) in this workflow. This cannot be undone.",
+      "integrations": {
+        "title": "{organization} integrations",
+        "subtitle": "Only integrations from this workflow's organization are shown. Linking is saved right away and skips the draft; for an agent to use it, its id must also be in the config.",
+        "deletedWorkflow": "This workflow is deleted: you can only unlink.",
+        "searchPlaceholder": "Search by integration name or type",
+        "filterLabel": "Filter integrations",
+        "filters": {
+          "all": "All",
+          "linked": "Linked",
+          "unlinked": "Not linked"
+        },
+        "loading": "Loading integrations…",
+        "empty": "This organization has no integrations.",
+        "noResults": "No results for this filter.",
+        "status": {
+          "CONNECTED": "Connected",
+          "ERROR": "Error",
+          "EXPIRED_AUTH": "Authorization expired",
+          "DISCONNECTED": "Disconnected"
+        },
+        "workflowsCount": "{count, plural, =0 {No workflows} one {# workflow} other {# workflows}}",
+        "linkedLabel": "Linked to this workflow",
+        "link": "Link",
+        "unlink": "Unlink",
+        "linked": "\"{name}\" linked",
+        "unlinked": "\"{name}\" unlinked",
+        "unlinkTitle": "Unlink integration",
+        "unlinkMessage": "The workflow will stop receiving \"{name}\" on its next run.",
+        "staleReferences": "The config still references \"{name}\". The agent no longer receives it; remove it from the config or link it again:",
+        "dismiss": "Got it",
+        "pagerSummary": "Page {page} of {totalPages} · {total, plural, one {# integration} other {# integrations}}"
+      }
     },
     "WorkflowMetrics": {
       "compare": "Compare",

@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Put,
@@ -22,6 +23,7 @@ import {
   CloneWorkflowDto,
   CreateWorkflowAdminDto,
   QueryVersionsDto,
+  QueryWorkflowIntegrationsAdminDto,
   QueryWorkflowsAdminDto,
   RestoreVersionDto,
   UpdateWorkflowConfigDto,
@@ -159,6 +161,47 @@ export class WorkflowsAdminController {
       .setData(result)
       .setMessage(result.changed ? 'Versión restaurada' : 'La versión ya era la vigente')
       .build();
+  }
+
+  // La organización de las integraciones sale del workflow, nunca del request: estas
+  // rutas no aceptan `organizationId` y el servicio lo repite en cada WHERE.
+
+  @Get(':id/integrations')
+  @ApiOperation({ summary: 'Integraciones de la organización del workflow, con su vínculo' })
+  async listIntegrations(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: QueryWorkflowIntegrationsAdminDto,
+  ): Promise<ApiResponse> {
+    const result = await this.workflowsAdminService.listIntegrations(id, query);
+    return new ApiResponseBuilder().setData(result).build();
+  }
+
+  @Post(':id/integrations/:toolId')
+  @ApiOperation({ summary: 'Vincular una integración de la misma organización' })
+  async linkIntegration(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('toolId', ParseUUIDPipe) toolId: string,
+    @CurrentUser() user: UserPayload,
+  ): Promise<ApiResponse> {
+    const result = await this.workflowsAdminService.linkIntegration(id, toolId, {
+      id: user?.sub,
+      email: user?.email,
+    });
+    return new ApiResponseBuilder().setData(result).setMessage('Integración vinculada').build();
+  }
+
+  @Delete(':id/integrations/:toolId')
+  @ApiOperation({ summary: 'Desvincular una integración del workflow' })
+  async unlinkIntegration(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('toolId', ParseUUIDPipe) toolId: string,
+    @CurrentUser() user: UserPayload,
+  ): Promise<ApiResponse> {
+    const result = await this.workflowsAdminService.unlinkIntegration(id, toolId, {
+      id: user?.sub,
+      email: user?.email,
+    });
+    return new ApiResponseBuilder().setData(result).setMessage('Integración desvinculada').build();
   }
 
   @Post()

@@ -14,6 +14,7 @@ import type {
   CreateWorkflowAdminInput,
   SaveConfigInput,
   WorkflowConfig,
+  WorkflowIntegrationsQuery,
 } from '@/lib/api/endpoints/automation/workflows/workflows-admin-api';
 import type { AdminOrganizationsQuery } from '@/lib/api/endpoints/identity/organizations/organizations-admin-api';
 import WorkflowsAdminTestStream from '@/lib/api/endpoints/automation/workflows/workflows-admin-test-stream';
@@ -112,6 +113,42 @@ export function useVersionDiff(id: string, versionId: string | null) {
     queryFn: id && versionId ? async () => api().diffVersion(id, versionId) : skipToken,
     retry: false,
   });
+}
+
+/** Integraciones de la organización del workflow (la organización la resuelve el servidor). */
+export function useAdminWorkflowIntegrations(id: string, query: WorkflowIntegrationsQuery) {
+  return useQuery({
+    queryKey: [KEY, 'integrations', id, query],
+    queryFn: async () => api().listIntegrations(id, query),
+    enabled: !!id,
+    retry: false,
+    placeholderData: (previous) => previous,
+  });
+}
+
+/**
+ * Vincular o desvincular no cambia `version`, así que refrescar el detalle no pisa el
+ * borrador (el editor lo protege por versión cargada) y sí actualiza `tenantTools`, que
+ * usan Agents, Nodes y el lint de Graph para resolver nombres.
+ */
+export function useWorkflowIntegrationMutations(id: string) {
+  const queryClient = useQueryClient();
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: [KEY, 'integrations', id] });
+    queryClient.invalidateQueries({ queryKey: [KEY, 'detail', id] });
+  };
+
+  const link = useMutation({
+    mutationFn: async (toolId: string) => api().linkIntegration(id, toolId),
+    onSuccess: invalidate,
+  });
+
+  const unlink = useMutation({
+    mutationFn: async (toolId: string) => api().unlinkIntegration(id, toolId),
+    onSuccess: invalidate,
+  });
+
+  return { link, unlink };
 }
 
 export function useAdminWorkflowMutations() {

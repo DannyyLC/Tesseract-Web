@@ -18,6 +18,7 @@ import {
   Image as ImageIcon,
   ListChecks,
   Loader2,
+  Plug,
   Save,
   SlidersHorizontal,
   AlertTriangle,
@@ -46,6 +47,7 @@ import { HistoryTab } from '@/components/admin/workflows/history-tab';
 import { SettingsTab } from '@/components/admin/workflows/settings-tab';
 import { TestTab } from '@/components/admin/workflows/test-tab';
 import { MetricsTab } from '@/components/admin/workflows/metrics/metrics-tab';
+import { IntegrationsTab } from '@/components/admin/workflows/integrations-tab';
 import { useApiErrorMessage } from '@/hooks/shared/use-api-error-message';
 import {
   btnDangerGhost,
@@ -67,13 +69,14 @@ type TabId =
   | 'graph'
   | 'media'
   | 'json'
+  | 'integrations'
   | 'test'
   | 'settings'
   | 'history'
   | 'metrics';
 
 /** Pestañas que no tocan `draft` (ver `showConfigFooter` más abajo). */
-const NON_DRAFT_TABS: TabId[] = ['settings', 'history', 'test', 'metrics'];
+const NON_DRAFT_TABS: TabId[] = ['integrations', 'settings', 'history', 'test', 'metrics'];
 
 const draftKey = (id: string, version: number) => `wf-draft:${id}:${version}`;
 
@@ -126,6 +129,7 @@ function WorkflowEditor() {
     { id: 'graph', label: t('tabs.graph'), icon: GitBranch },
     { id: 'media', label: t('tabs.media'), icon: ImageIcon },
     { id: 'json', label: t('tabs.json'), icon: FileJson },
+    { id: 'integrations', label: t('tabs.integrations'), icon: Plug },
     { id: 'test', label: t('tabs.test'), icon: FlaskConical },
     { id: 'settings', label: t('tabs.settings'), icon: SlidersHorizontal },
     { id: 'history', label: t('tabs.history'), icon: History },
@@ -420,6 +424,7 @@ function WorkflowEditor() {
       {tab === 'json' && (
         <RawJsonTab config={draft} onChange={handleChange} workflowName={workflow.name} />
       )}
+      {tab === 'integrations' && <IntegrationsTab workflow={workflow} />}
       {tab === 'test' && <TestTab workflow={workflow} />}
       {tab === 'settings' && <SettingsTab workflow={workflow} />}
       {tab === 'history' && (

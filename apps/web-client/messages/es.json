@@ -2846,6 +2846,7 @@
         "graph": "Grafo",
         "media": "Media",
         "json": "JSON",
+        "integrations": "Integraciones",
         "test": "Probar",
         "settings": "Ajustes",
         "history": "Historial",
@@ -2880,7 +2881,39 @@
       "cancel": "Cancelar",
       "saving": "Guardando…",
       "discardModalTitle": "Descartar cambios",
-      "discardModalMessage": "Vas a perder {count} cambio(s) sin guardar en este workflow. No se puede deshacer."
+      "discardModalMessage": "Vas a perder {count} cambio(s) sin guardar en este workflow. No se puede deshacer.",
+      "integrations": {
+        "title": "Integraciones de {organization}",
+        "subtitle": "Solo se muestran integraciones de la organización de este workflow. Vincular escribe al instante y no pasa por el borrador; para que un agente la use, su id también tiene que estar en el config.",
+        "deletedWorkflow": "Este workflow está eliminado: solo se puede desvincular.",
+        "searchPlaceholder": "Buscar por nombre o tipo de integración",
+        "filterLabel": "Filtrar integraciones",
+        "filters": {
+          "all": "Todas",
+          "linked": "Vinculadas",
+          "unlinked": "Sin vincular"
+        },
+        "loading": "Cargando integraciones…",
+        "empty": "Esta organización no tiene integraciones.",
+        "noResults": "Sin resultados para este filtro.",
+        "status": {
+          "CONNECTED": "Conectada",
+          "ERROR": "Con error",
+          "EXPIRED_AUTH": "Autorización vencida",
+          "DISCONNECTED": "Desconectada"
+        },
+        "workflowsCount": "{count, plural, =0 {Sin workflows} one {# workflow} other {# workflows}}",
+        "linkedLabel": "Vinculada a este workflow",
+        "link": "Vincular",
+        "unlink": "Desvincular",
+        "linked": "«{name}» vinculada",
+        "unlinked": "«{name}» desvinculada",
+        "unlinkTitle": "Desvincular integración",
+        "unlinkMessage": "El workflow dejará de recibir «{name}» en su próxima ejecución.",
+        "staleReferences": "El config todavía nombra «{name}». El agente ya no la recibe; quítala del config o vuelve a vincularla:",
+        "dismiss": "Entendido",
+        "pagerSummary": "Página {page} de {totalPages} · {total, plural, one {# integración} other {# integraciones}}"
+      }
     },
     "WorkflowMetrics": {
       "compare": "Comparar",

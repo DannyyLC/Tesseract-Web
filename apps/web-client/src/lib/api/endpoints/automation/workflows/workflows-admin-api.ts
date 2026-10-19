@@ -133,6 +133,46 @@ export interface AdminWorkflowsQuery {
   limit?: number;
 }
 
+export type WorkflowIntegrationFilter = 'all' | 'linked' | 'unlinked';
+
+/**
+ * Sin `organizationId` a propósito: el servidor lo toma del workflow y rechaza (400) el
+ * campo si llega. Así esta pestaña no puede listar integraciones de otro cliente.
+ */
+export interface WorkflowIntegrationsQuery {
+  search?: string;
+  filter?: WorkflowIntegrationFilter;
+  page?: number;
+  limit?: number;
+}
+
+export interface AdminWorkflowIntegration {
+  id: string;
+  displayName: string;
+  status: string;
+  isConnected: boolean;
+  connectionError: string | null;
+  toolCatalog: { toolName: string; displayName: string; provider: string | null; icon: string | null };
+  /** Vinculada a ESTE workflow. */
+  linked: boolean;
+  /** Workflows vivos de la organización que la usan. */
+  workflowCount: number;
+}
+
+export interface WorkflowIntegrationsPage {
+  organization: { id: string; name: string };
+  data: AdminWorkflowIntegration[];
+  meta: { total: number; page: number; limit: number; totalPages: number };
+}
+
+export interface UnlinkIntegrationResult {
+  workflowId: string;
+  toolId: string;
+  linked: false;
+  /** Rutas del config que siguen nombrando la integración ya desvinculada. */
+  stillReferencedIn: string[];
+}
+
 export interface SaveConfigInput {
   config: WorkflowConfig;
   expectedVersion: number;
@@ -328,6 +368,35 @@ class WorkflowsAdminApi {
     const result = await this.apiRequestManager.post<
       ApiResponse<{ id: string; deletedAt: string | null }>
     >(`${WorkflowsAdminApi.BASE_URL}/${id}/restore`, {});
+    return unwrapData(result);
+  }
+
+  public async listIntegrations(
+    id: string,
+    query: WorkflowIntegrationsQuery = {},
+  ): Promise<WorkflowIntegrationsPage> {
+    const params = new URLSearchParams();
+    if (query.search) params.set('search', query.search);
+    if (query.filter && query.filter !== 'all') params.set('filter', query.filter);
+    params.set('page', String(query.page ?? 1));
+    params.set('limit', String(query.limit ?? DEFAULT_PAGE_SIZE));
+    const result = await this.apiRequestManager.get<ApiResponse<WorkflowIntegrationsPage>>(
+      `${WorkflowsAdminApi.BASE_URL}/${id}/integrations?${params.toString()}`,
+    );
+    return unwrapData(result);
+  }
+
+  public async linkIntegration(id: string, toolId: string): Promise<void> {
+    await this.apiRequestManager.post<ApiResponse<unknown>>(
+      `${WorkflowsAdminApi.BASE_URL}/${id}/integrations/${toolId}`,
+      {},
+    );
+  }
+
+  public async unlinkIntegration(id: string, toolId: string): Promise<UnlinkIntegrationResult> {
+    const result = await this.apiRequestManager.delete<ApiResponse<UnlinkIntegrationResult>>(
+      `${WorkflowsAdminApi.BASE_URL}/${id}/integrations/${toolId}`,
+    );
     return unwrapData(result);
   }
 

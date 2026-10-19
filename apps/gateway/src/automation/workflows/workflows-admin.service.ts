@@ -21,6 +21,7 @@ import {
   CloneWorkflowDto,
   CreateWorkflowAdminDto,
   QueryVersionsDto,
+  QueryWorkflowIntegrationsAdminDto,
   QueryWorkflowsAdminDto,
   UpdateWorkflowMetaDto,
 } from './dto/admin';
@@ -31,6 +32,8 @@ import { WorkflowConfig } from './dto/create-workflow.dto';
  * Configurable con WORKFLOW_VERSIONS_TO_KEEP por si un cliente necesita más historia.
  */
 const DEFAULT_VERSIONS_TO_KEEP = 30;
+
+const INTEGRATION_NOT_FOUND = 'Integración no encontrada en la organización del workflow';
 
 interface Actor {
   id?: string;
@@ -682,6 +685,192 @@ export class WorkflowsAdminService {
     );
 
     return { workflow, toolReferences };
+  }
+
+  // ==========================================================
+  // Integraciones (tenant tools) vinculadas al workflow
+  // ==========================================================
+  //
+  // La organización NUNCA viene del cliente: se lee del workflow y se repite en cada
+  // WHERE, también dentro del `connect`. Así una integración de otro cliente no se puede
+  // listar ni vincular aunque alguien mande su UUID a mano.
+
+  async listIntegrations(workflowId: string, query: QueryWorkflowIntegrationsAdminDto) {
+    const scope = await this.loadWorkflowScope(workflowId);
+    const { search, filter = 'all', page = 1, limit = DEFAULT_PAGE_SIZE } = query;
+
+    const conditions: Prisma.TenantToolWhereInput[] = [];
+    if (search) {
+      conditions.push({
+        OR: [
+          { displayName: { contains: search, mode: 'insensitive' } },
+          { toolCatalog: { displayName: { contains: search, mode: 'insensitive' } } },
+        ],
+      });
+    }
+    if (filter === 'linked') conditions.push({ workflows: { some: { id: workflowId } } });
+    if (filter === 'unlinked') conditions.push({ workflows: { none: { id: workflowId } } });
+
+    // El filtro de organización va como campo propio y el resto en AND: nada del query
+    // puede reemplazarlo.
+    const where: Prisma.TenantToolWhereInput = {
+      organizationId: scope.organizationId,
+      deletedAt: null,
+      ...(conditions.length > 0 && { AND: conditions }),
+    };
+
+    const [rows, total] = await Promise.all([
+      this.prisma.tenantTool.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: [{ displayName: 'asc' }, { id: 'asc' }],
+        select: {
+          id: true,
+          displayName: true,
+          status: true,
+          isConnected: true,
+          connectionError: true,
+          toolCatalog: {
+            select: { toolName: true, displayName: true, provider: true, icon: true },
+          },
+          _count: { select: { workflows: { where: { deletedAt: null } } } },
+          // Solo para saber si ESTE workflow la tiene; no expone otros workflows.
+          workflows: { where: { id: workflowId }, select: { id: true } },
+        },
+      }),
+      this.prisma.tenantTool.count({ where }),
+    ]);
+
+    const data = rows.map(({ workflows, _count, ...tool }) => ({
+      ...tool,
+      linked: workflows.length > 0,
+      workflowCount: _count.workflows,
+    }));
+
+    return {
+      organization: { id: scope.organizationId, name: scope.organizationName },
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
+  }
+
+  async linkIntegration(workflowId: string, toolId: string, actor: Actor) {
+    const scope = await this.loadWorkflowScope(workflowId);
+    if (scope.deletedAt || scope.organizationDeletedAt) {
+      throw new ConflictException(
+        'No se pueden vincular integraciones a un workflow u organización eliminados',
+      );
+    }
+
+    await this.assertToolInWorkflowOrg(toolId, scope.organizationId);
+
+    try {
+      // El `connect` repite organización y soft delete: si entre la verificación y esta
+      // escritura la tool cambiara, Prisma no la encuentra y falla en lugar de vincularla.
+      await this.prisma.workflow.update({
+        where: { id: workflowId, organizationId: scope.organizationId, deletedAt: null },
+        data: {
+          tenantTools: {
+            connect: { id: toolId, organizationId: scope.organizationId, deletedAt: null },
+          },
+        },
+        select: { id: true },
+      });
+    } catch (error) {
+      throw this.toIntegrationNotFound(error);
+    }
+
+    this.logger.log(
+      `Integración ${toolId} vinculada al workflow ${workflowId} (org ${scope.organizationId}) ` +
+        `por userId=${actor.id} ${actor.email ?? ''}`,
+    );
+    return { workflowId, toolId, linked: true };
+  }
+
+  /**
+   * Desvincular se permite aunque el workflow esté borrado, para poder limpiarlo. Devuelve
+   * dónde sigue apareciendo la integración en el config: sin la relación el agente ya no
+   * la recibe, aunque el config la siga nombrando.
+   */
+  async unlinkIntegration(workflowId: string, toolId: string, actor: Actor) {
+    const scope = await this.loadWorkflowScope(workflowId);
+
+    // `disconnect` de algo no vinculado no falla en Prisma: sin esta verificación una tool
+    // ajena respondería 200 como si se hubiera desvinculado.
+    await this.assertToolInWorkflowOrg(toolId, scope.organizationId, { includeDeleted: true });
+
+    let config: unknown;
+    try {
+      ({ config } = await this.prisma.workflow.update({
+        where: { id: workflowId, organizationId: scope.organizationId },
+        data: {
+          tenantTools: {
+            disconnect: { id: toolId, organizationId: scope.organizationId },
+          },
+        },
+        select: { config: true },
+      }));
+    } catch (error) {
+      throw this.toIntegrationNotFound(error);
+    }
+
+    this.logger.log(
+      `Integración ${toolId} desvinculada del workflow ${workflowId} (org ${scope.organizationId}) ` +
+        `por userId=${actor.id} ${actor.email ?? ''}`,
+    );
+
+    const stillReferencedIn = this.collectToolReferences((config ?? {}) as Record<string, unknown>)
+      .filter((ref) => ref.id === toolId)
+      .map((ref) => ref.location);
+
+    return { workflowId, toolId, linked: false, stillReferencedIn };
+  }
+
+  private async loadWorkflowScope(workflowId: string) {
+    const workflow = await this.prisma.workflow.findUnique({
+      where: { id: workflowId },
+      select: {
+        id: true,
+        organizationId: true,
+        deletedAt: true,
+        organization: { select: { name: true, deletedAt: true } },
+      },
+    });
+    if (!workflow) throw new NotFoundException('Workflow no encontrado');
+
+    return {
+      organizationId: workflow.organizationId,
+      organizationName: workflow.organization.name,
+      deletedAt: workflow.deletedAt,
+      organizationDeletedAt: workflow.organization.deletedAt,
+    };
+  }
+
+  /**
+   * Misma respuesta para una tool de otra organización, una borrada o una inexistente: no
+   * debe poder distinguirse si un UUID pertenece a otro cliente.
+   */
+  private async assertToolInWorkflowOrg(
+    toolId: string,
+    organizationId: string,
+    { includeDeleted = false }: { includeDeleted?: boolean } = {},
+  ) {
+    const tool = await this.prisma.tenantTool.findFirst({
+      where: { id: toolId, organizationId, ...(!includeDeleted && { deletedAt: null }) },
+      select: { id: true },
+    });
+    if (!tool) throw new NotFoundException(INTEGRATION_NOT_FOUND);
+  }
+
+  private toIntegrationNotFound(error: unknown) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      ['P2025', 'P2018', 'P2017', 'P2016'].includes(error.code)
+    ) {
+      return new NotFoundException(INTEGRATION_NOT_FOUND);
+    }
+    return error;
   }
 
   /**
