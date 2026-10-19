@@ -124,18 +124,19 @@ export default function AdminAnnouncementsPage() {
             searchPlaceholder={t('orgSearchPlaceholder')}
           />
         </div>
-        <select
-          className={`${filterSelectClass} max-w-[200px]`}
+        {/* InfiniteSelect y no <select>: el menú nativo lo pinta el navegador y no sigue el
+            tema, a diferencia del filtro de organizaciones de al lado. */}
+        <InfiniteSelect
+          className="min-w-[180px] max-w-[200px]"
+          triggerClassName={filterSelectClass}
           value={status}
-          onChange={(e) => setStatus(e.target.value as AnnouncementStatus | '')}
-        >
-          <option value="">{t('allStatuses')}</option>
-          {Object.values(AnnouncementStatus).map((s) => (
-            <option key={s} value={s}>
-              {STATUS_LABEL[s]}
-            </option>
-          ))}
-        </select>
+          onChange={(value) => setStatus(value as AnnouncementStatus | '')}
+          options={[
+            { label: t('allStatuses'), value: '' },
+            ...Object.values(AnnouncementStatus).map((s) => ({ label: STATUS_LABEL[s], value: s })),
+          ]}
+          placeholder={t('allStatuses')}
+        />
       </div>
 
       <section>

@@ -24,6 +24,7 @@ import type { LlmCategory } from '@/lib/api/endpoints/automation/llm-models/llm-
 import { isToastHandled } from '@/lib/api/api-error';
 
 const TIERS: ModelTier[] = ['BASIC', 'STANDARD', 'PREMIUM'];
+const TIER_OPTIONS = TIERS.map((t) => ({ label: t, value: t }));
 
 import {
   btnPrimary,
@@ -180,6 +181,17 @@ export default function LlmModelsAdminPage() {
     { label: tt('allCategories'), value: '' },
     ...categories.map((c) => ({ label: c.name, value: c.id })),
   ];
+  // Opciones fijas, pero con el mismo InfiniteSelect que categorías: el menú de un <select>
+  // nativo lo pinta el navegador y no sigue el tema (ver components/ui/page-size-select.tsx).
+  const tierFilterOptions = [
+    { label: tt('allTiers'), value: '' },
+    ...TIERS.map((t) => ({ label: t, value: t })),
+  ];
+  const activeFilterOptions = [
+    { label: tt('statusActive'), value: 'active' },
+    { label: tt('statusInactive'), value: 'inactive' },
+    { label: tt('statusAll'), value: 'all' },
+  ];
 
   const { createModel, updateModel, supersedePricing, deactivateModel } = useLlmModelMutations();
 
@@ -216,18 +228,14 @@ export default function LlmModelsAdminPage() {
             onChange={(e) => setSearchFilter(e.target.value)}
           />
         </div>
-        <select
-          className={`${filterSelectClass} w-auto`}
+        <InfiniteSelect
+          className="min-w-[160px]"
+          triggerClassName={filterSelectClass}
           value={tierFilter}
-          onChange={(e) => setTierFilter(e.target.value as ModelTier | '')}
-        >
-          <option value="">{tt('allTiers')}</option>
-          {TIERS.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
+          onChange={(value) => setTierFilter(value as ModelTier | '')}
+          options={tierFilterOptions}
+          placeholder={tt('allTiers')}
+        />
         <InfiniteSelect
           className="min-w-[200px] flex-1"
           triggerClassName={filterSelectClass}
@@ -240,15 +248,14 @@ export default function LlmModelsAdminPage() {
           hasNextPage={hasNextCategoryPage}
           isFetchingNextPage={isFetchingNextCategoryPage}
         />
-        <select
-          className={`${filterSelectClass} w-auto`}
+        <InfiniteSelect
+          className="min-w-[160px]"
+          triggerClassName={filterSelectClass}
           value={activeFilter}
-          onChange={(e) => setActiveFilter(e.target.value as typeof activeFilter)}
-        >
-          <option value="active">{tt('statusActive')}</option>
-          <option value="inactive">{tt('statusInactive')}</option>
-          <option value="all">{tt('statusAll')}</option>
-        </select>
+          onChange={(value) => setActiveFilter(value as typeof activeFilter)}
+          options={activeFilterOptions}
+          placeholder={tt('statusActive')}
+        />
       </div>
 
       {/* Tabla */}
@@ -596,17 +603,12 @@ function CreateForm({
         </div>
         <div>
           <label className={labelClass}>{tt('tierLabel')}</label>
-          <select
-            className={inputClass}
+          <InfiniteSelect
+            triggerClassName={selectTriggerClass}
             value={f.tier}
-            onChange={(e) => setF({ ...f, tier: e.target.value as ModelTier })}
-          >
-            {TIERS.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
+            onChange={(value) => setF({ ...f, tier: value as ModelTier })}
+            options={TIER_OPTIONS}
+          />
         </div>
         <div className="flex h-full flex-col">
           <label className={labelClass}>{tt('categoryOptionalLabel')}</label>
@@ -779,17 +781,12 @@ function EditForm({
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className={labelClass}>{tt('tierLabel')}</label>
-          <select
-            className={inputClass}
+          <InfiniteSelect
+            triggerClassName={selectTriggerClass}
             value={f.tier}
-            onChange={(e) => setF({ ...f, tier: e.target.value as ModelTier })}
-          >
-            {TIERS.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
+            onChange={(value) => setF({ ...f, tier: value as ModelTier })}
+            options={TIER_OPTIONS}
+          />
         </div>
         <div className="flex h-full flex-col">
           <label className={labelClass}>{tt('categoryLabel')}</label>
