@@ -179,6 +179,9 @@ export class WorkflowsAdminService {
         organization: { select: { id: true, name: true, slug: true, plan: true } },
         tags: { select: { id: true, name: true } },
         tenantTools: {
+          // Igual que al ejecutar (WORKFLOW_FOR_EXECUTION): una tool borrada que sigue colgada
+          // de la relación no llega al agente, así que el editor no debe ofrecerla.
+          where: { deletedAt: null },
           select: {
             id: true,
             displayName: true,

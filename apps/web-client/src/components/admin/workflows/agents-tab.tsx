@@ -6,6 +6,7 @@ import { AnimatePresence } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import { Search, Plus, Trash2, ChevronRight, AlertTriangle } from 'lucide-react';
 import { PromptEditor } from './prompt-editor';
+import { AgentToolsPicker } from './agent-tools-picker';
 import { Modal } from '@/components/ui/modal';
 import {
   deleteAtPath,
@@ -76,11 +77,6 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
     );
   }, [agentKeys, agents, filter]);
 
-  const toolNames = useMemo(
-    () => new Map(tenantTools.map((tool) => [tool.id, tool.displayName])),
-    [tenantTools],
-  );
-
   /** Cada control escribe una ruta concreta; el resto del documento no se toca. */
   const setField = (field: string, value: unknown) =>
     onChange(setAtPath(config, ['agents', selected, field], value));
@@ -135,7 +131,8 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
       const stripped = stripIncompatible(next, selected, nextCaps);
       next = stripped.config;
       const removed = fieldNames(stripped.removed);
-      if (removed.length) toast.info(t('removedOnModelChange', { model, fields: removed.join(', ') }));
+      if (removed.length)
+        toast.info(t('removedOnModelChange', { model, fields: removed.join(', ') }));
     }
     onChange(next);
   };
@@ -384,6 +381,20 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
             </div>
           )}
 
+          {/* Antes del prompt: el prompt suele ser lo más largo y dejaba esto al fondo. */}
+          <AgentToolsPicker
+            key={selected}
+            tools={current.tools}
+            available={tenantTools}
+            onChange={(next) =>
+              onChange(
+                next
+                  ? setAtPath(config, ['agents', selected, 'tools'], next)
+                  : deleteAtPath(config, ['agents', selected, 'tools']),
+              )
+            }
+          />
+
           <PromptEditor
             value={current.system_prompt ?? ''}
             onChange={(v) => setField('system_prompt', v)}
@@ -427,27 +438,6 @@ export function AgentsTab({ config, onChange, models, tenantTools }: Props) {
                 ))}
               </div>
             </details>
-          )}
-
-          {Array.isArray(current.tools) && current.tools.length > 0 && (
-            <div className="rounded-xl border border-border p-4">
-              <span className="text-xs font-medium text-text-primary">
-                {t('toolsSummary', { count: current.tools.length })}
-              </span>
-              <ul className="mt-2 space-y-1">
-                {current.tools.map((tool, i) => {
-                  const id = typeof tool === 'string' ? tool : tool?.id;
-                  const known = id ? toolNames.get(id) : undefined;
-                  return (
-                    <li key={i} className="flex items-center gap-2 text-xs">
-                      <span className={known ? 'text-text-primary' : 'text-danger'}>
-                        {known ?? t('toolNotOwned', { id: id?.slice(0, 8) ?? '?' })}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
           )}
         </div>
       ) : (

@@ -5,7 +5,10 @@ import '@testing-library/jest-dom';
 import { toast } from 'sonner';
 import { AgentsTab } from './agents-tab';
 import type { WorkflowConfig } from '@/lib/workflow-config/config-edit';
-import type { EditorContext } from '@/lib/api/endpoints/automation/workflows/workflows-admin-api';
+import type {
+  AdminTenantTool,
+  EditorContext,
+} from '@/lib/api/endpoints/automation/workflows/workflows-admin-api';
 
 // Traductor de prueba: la clave seguida de los valores interpolados.
 jest.mock('next-intl', () => ({
@@ -53,7 +56,13 @@ const models: EditorContext['models'] = [
 
 let latest: WorkflowConfig;
 
-function Harness({ agent }: { agent: Record<string, unknown> }) {
+function Harness({
+  agent,
+  tenantTools = [],
+}: {
+  agent: Record<string, unknown>;
+  tenantTools?: AdminTenantTool[];
+}) {
   const [config, setConfig] = useState<WorkflowConfig>({
     type: 'agent',
     agents: { ventas: { system_prompt: 'SP', ...agent } },
@@ -67,7 +76,7 @@ function Harness({ agent }: { agent: Record<string, unknown> }) {
         setConfig(next);
       }}
       models={models}
-      tenantTools={[]}
+      tenantTools={tenantTools}
     />
   );
 }
@@ -90,9 +99,13 @@ describe('AgentsTab — capacidades del modelo', () => {
 
     expect(temperatureInput()).toBeEnabled();
     const select = screen.getByLabelText('reasoning_effort');
-    expect(
-      Array.from((select as HTMLSelectElement).options).map((o) => o.value),
-    ).toEqual(['', 'low', 'medium', 'high', 'xhigh']);
+    expect(Array.from((select as HTMLSelectElement).options).map((o) => o.value)).toEqual([
+      '',
+      'low',
+      'medium',
+      'high',
+      'xhigh',
+    ]);
 
     await userEvent.selectOptions(select, 'high');
 
@@ -123,7 +136,9 @@ describe('AgentsTab — capacidades del modelo', () => {
   });
 
   it('un config viejo con valores no aceptados se avisa y se quita solo al pedirlo', async () => {
-    render(<Harness agent={{ model: 'gpt-6.1-sol', model_params: { reasoning_effort: 'none' } }} />);
+    render(
+      <Harness agent={{ model: 'gpt-6.1-sol', model_params: { reasoning_effort: 'none' } }} />,
+    );
 
     // Abrir el editor no modifica el config.
     expect(latest.agents?.ventas?.model_params).toEqual({ reasoning_effort: 'none' });
@@ -146,5 +161,78 @@ describe('AgentsTab — capacidades del modelo', () => {
     await userEvent.click(screen.getByRole('button', { name: 'confirmDeleteButton' }));
 
     expect(latest.agents?.ventas).toBeUndefined();
+  });
+});
+
+const CALC = '0d8ab548-ab7a-4b74-88fa-703f8b99ce75';
+const CATALOG = 'e36e720e-05f3-423c-a5c8-c26720b52811';
+
+const linkedTool = (id: string, displayName: string, status = 'CONNECTED'): AdminTenantTool => ({
+  id,
+  displayName,
+  isConnected: status === 'CONNECTED',
+  status,
+  allowedFunctions: null,
+  toolCatalog: { id: `cat-${id}`, toolName: displayName, displayName, icon: null, functions: [] },
+});
+
+const linked = [linkedTool(CALC, 'Calculadora'), linkedTool(CATALOG, 'Catálogo')];
+
+describe('AgentsTab — tools del agente', () => {
+  it('solo ofrece las integraciones vinculadas y marca las asignadas', () => {
+    render(<Harness agent={{ model: 'gpt-6-luna', tools: [CALC] }} tenantTools={linked} />);
+
+    expect(screen.getByLabelText(/Calculadora/)).toBeChecked();
+    expect(screen.getByLabelText(/Catálogo/)).not.toBeChecked();
+    expect(screen.getByText('toolsAssigned 1 2')).toBeInTheDocument();
+  });
+
+  it('marcar agrega el id y desmarcar la última borra la clave', async () => {
+    render(<Harness agent={{ model: 'gpt-6-luna' }} tenantTools={linked} />);
+
+    await userEvent.click(screen.getByLabelText(/Catálogo/));
+    expect(latest.agents?.ventas?.tools).toEqual([CATALOG]);
+
+    await userEvent.click(screen.getByLabelText(/Catálogo/));
+    expect(latest.agents?.ventas).not.toHaveProperty('tools');
+  });
+
+  it('desmarcar y volver a marcar conserva una entrada con configuración propia', async () => {
+    const withConfig = { id: CALC, allowed_functions: ['sumar'] };
+    render(<Harness agent={{ model: 'gpt-6-luna', tools: [withConfig] }} tenantTools={linked} />);
+
+    await userEvent.click(screen.getByLabelText(/Calculadora/));
+    await userEvent.click(screen.getByLabelText(/Calculadora/));
+
+    expect(latest.agents?.ventas?.tools).toEqual([withConfig]);
+  });
+
+  it('lista aparte las del config que no están vinculadas y permite quitarlas', async () => {
+    const ajena = '11111111-2222-3333-4444-555555555555';
+    render(<Harness agent={{ model: 'gpt-6-luna', tools: [CALC, ajena] }} tenantTools={linked} />);
+
+    expect(screen.getByText('toolNotLinked 11111111')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /removeTool/ }));
+
+    expect(latest.agents?.ventas?.tools).toEqual([CALC]);
+  });
+
+  it('sin integraciones vinculadas lo explica en lugar de mostrar casillas', () => {
+    render(<Harness agent={{ model: 'gpt-6-luna', tools: [CALC] }} />);
+
+    expect(screen.getByText('noLinkedTools')).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(screen.getByText(/toolNotLinked/)).toBeInTheDocument();
+  });
+
+  it('avisa si una integración asignable no está conectada', () => {
+    render(
+      <Harness
+        agent={{ model: 'gpt-6-luna' }}
+        tenantTools={[linkedTool(CALC, 'Calculadora', 'EXPIRED_AUTH')]}
+      />,
+    );
+
+    expect(screen.getByText('toolNotConnected')).toBeInTheDocument();
   });
 });

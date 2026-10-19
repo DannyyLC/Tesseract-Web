@@ -3240,9 +3240,13 @@
       "removeNotAccepted": "Quitar",
       "promptPlaceholder": "Instrucciones del agente…",
       "signalToolsSummary": "signal_tools ({count})",
-      "toolsSummary": "tools ({count})",
-      "toolNotOwned": "{id}… (no pertenece a esta organización)",
-      "selectAgentPrompt": "Elige un agente de la lista."
+      "selectAgentPrompt": "Elige un agente de la lista.",
+      "toolsTitle": "Tools del agente",
+      "toolsAssigned": "{count} de {total} asignadas",
+      "noLinkedTools": "Este workflow no tiene integraciones vinculadas. Vincúlalas en la pestaña Integraciones para poder asignarlas aquí.",
+      "toolNotConnected": "Sin conexión: el agente no podrá usarla hasta reconectarla",
+      "toolNotLinked": "{id}… está en el config pero no vinculada al workflow; el agente no la recibe",
+      "removeTool": "Quitar"
     },
     "TestTab": {
       "statusCompleted": "✔ Completado",
