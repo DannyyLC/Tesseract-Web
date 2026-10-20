@@ -390,7 +390,7 @@ WHERE "toolCatalogId" = (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'goo
   AND "functionName" NOT IN ('check_calendar_availability', 'create_calendar_event', 'list_calendar_events', 'update_calendar_event', 'delete_calendar_event', 'get_calendar_event_details');
 
 INSERT INTO "tool_functions" ("id", "toolCatalogId", "functionName", "displayName", "description", "displayNameEn", "descriptionEn", "icon", "category", "dangerLevel", "oauthScopes", "isActive", "isInBeta", "createdAt", "updatedAt")
-VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'google_calendar'), 'check_calendar_availability', 'Verificar disponibilidad', 'Verifica si un horario esta disponible en el calendario.', 'Check availability', 'Checks whether a time slot is available on the calendar.', 'mdi:calendar-check-outline', 'read', 'SAFE', ARRAY['https://www.googleapis.com/auth/calendar.events.readonly']::text[], true, false, now(), now())
+VALUES (gen_random_uuid(), (SELECT "id" FROM "tool_catalog" WHERE "toolName" = 'google_calendar'), 'check_calendar_availability', 'Verificar disponibilidad', 'Verifica si un horario esta disponible en el calendario.', 'Check availability', 'Checks whether a time slot is available on the calendar.', 'mdi:calendar-check-outline', 'read', 'SAFE', ARRAY['https://www.googleapis.com/auth/calendar.events.freebusy']::text[], true, false, now(), now())
 ON CONFLICT ("toolCatalogId", "functionName") DO UPDATE SET
   "displayName" = EXCLUDED."displayName",
   "description" = EXCLUDED."description",

@@ -318,7 +318,7 @@ export const toolCatalogs: ToolCatalogSeed[] = [
         icon: 'mdi:calendar-check-outline',
         category: 'read',
         dangerLevel: 'SAFE',
-        oauthScopes: ['https://www.googleapis.com/auth/calendar.events.readonly'],
+        oauthScopes: ['https://www.googleapis.com/auth/calendar.events.freebusy'],
       },
       {
         functionName: 'create_calendar_event',
