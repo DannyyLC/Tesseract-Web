@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.11.17-slim
 
 ENV PYTHONUNBUFFERED=1 \
     POETRY_VERSION=2.4.1 \

@@ -1,7 +1,7 @@
 # ==========================================
 # 1. Base Stage: Install dependencies and build monorepo packages
 # ==========================================
-FROM node:22-alpine AS builder
+FROM node:22.23.4-alpine AS builder
 
 WORKDIR /app
 
@@ -43,7 +43,7 @@ RUN NODE_OPTIONS=--max-old-space-size=4096 pnpm --filter @tesseract/gateway buil
 # ==========================================
 # 2. Production Stage: Run the built application
 # ==========================================
-FROM node:22-alpine AS production
+FROM node:22.23.4-alpine AS production
 
 WORKDIR /app
 

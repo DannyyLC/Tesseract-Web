@@ -15,12 +15,20 @@ dependencies = [
     "psycopg2-binary (>=2.9.11,<3.0.0)",
     "redis (>=7.1.0,<8.0.0)",
     "python-dotenv (>=1.2.1,<2.0.0)",
-    "litellm (>=1.105.1,<2.0.0)",
+    "litellm (>=1.105.1,<1.107.0)",
     "langchain-community (>=0.4.1,<0.5.0)",
     "google-auth (<2.42.0)",
     "google-auth-oauthlib (>=1.2.3,<2.0.0)",
     "google-api-python-client (>=2.187.0,<3.0.0)",
-    "pytz (>=2025.2,<2026.0)"
+    "pytz (>=2025.2,<2026.0)",
+    # Topes temporales: el resolvedor tomaría versiones con menos de 3 días en PyPI (la
+    # 1.7.0 de langchain-core salió el 22-oct). Tras litellm 1.107.0 (malware, 21-oct)
+    # no se aceptan versiones tan frescas. langchain-core >=1.6.12 ya trae los parches
+    # de serialización; subir los topes cuando las versiones nuevas tengan unos días.
+    "langchain-core (>=1.6.12,<1.6.13)",
+    "langsmith (>=0.14.9,<0.14.12)",
+    "httpx2 (>=2.0.0,<2.15.0)",
+    "langchain-protocol (>=0.0.17,<0.0.20)"
 ]
 
 
