@@ -4,6 +4,9 @@ import type { NextConfig } from 'next';
 const withNextIntl = createNextIntlPlugin();
 
 const nextConfig: NextConfig = {
+  // Sin esto, `next dev` crea y vuelve a crear un AGENTS.md en apps/web-client cuando detecta
+  // un agente de IA. Las instrucciones del repo viven en el CLAUDE.md de la raíz.
+  agentRules: false,
   compiler: {
     // `no-console` en eslint es solo un aviso, y los avisos se ignoran: así llegó a
     // producción un console.log que imprimía las invitaciones pendientes completas en
