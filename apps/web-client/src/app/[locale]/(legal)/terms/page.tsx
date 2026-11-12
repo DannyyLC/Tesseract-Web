@@ -2,12 +2,16 @@ import React from 'react';
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import LegalToc from '../_components/legal-toc';
+import { CREDIT_TOPUP_LIMITS } from '@tesseract/types';
 import { fetchOveragePriceLabel } from '@/lib/billing/fetch-overage-price';
 
+/** Separador de miles con coma en ambos idiomas, como el resto de cifras del documento. */
+const formatCredits = (n: number) => n.toLocaleString('es-MX');
+
 export const metadata: Metadata = {
-  title: 'Términos y Condiciones · Fractal',
+  title: 'Términos y Condiciones · Tesseract',
   description:
-    'Términos y Condiciones de Servicio de la Plataforma de Automatización de Workflows con IA de Fractal.',
+    'Términos y Condiciones de Tesseract, la plataforma de automatización de workflows con IA de Fractal.',
 };
 
 function Section({
@@ -169,6 +173,24 @@ export default async function TermsPage() {
                     {overagePrice
                       ? t.rich('s4Cost2Text', { bold, price: overagePrice })
                       : t.rich('s4Cost2TextNoPrice', { bold })}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-[var(--surface-secondary)] text-xs font-bold text-[var(--text-primary)]">
+                  3
+                </div>
+                <div>
+                  <p className="font-medium text-[var(--text-primary)]">{t('s4Cost3Title')}</p>
+                  <p className="text-sm">
+                    {/* Los límites salen de la misma constante que valida el checkout, para que
+                        el documento no prometa un rango distinto al que acepta el sistema. */}
+                    {t.rich('s4Cost3Text', {
+                      bold,
+                      min: formatCredits(CREDIT_TOPUP_LIMITS.min),
+                      max: formatCredits(CREDIT_TOPUP_LIMITS.max),
+                      step: formatCredits(CREDIT_TOPUP_LIMITS.step),
+                    })}
                   </p>
                 </div>
               </div>

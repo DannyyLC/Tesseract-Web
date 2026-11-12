@@ -4,9 +4,9 @@ import { getTranslations } from 'next-intl/server';
 import LegalToc from '../_components/legal-toc';
 
 export const metadata: Metadata = {
-  title: 'Políticas · Fractal',
+  title: 'Políticas · Tesseract',
   description:
-    'Políticas de cancelación, suspensión, niveles de servicio, soporte técnico y uso aceptable de Fractal.',
+    'Políticas de cancelación, suspensión, niveles de servicio, soporte técnico y uso aceptable de Tesseract, un producto de Fractal.',
 };
 
 function Section({
@@ -166,6 +166,12 @@ export default async function PoliciesPage() {
                   [t('s4Row3Label'), t('s4Row3Value')],
                   [t('s4Row4Label'), t('s4Row4Value')],
                 ]}
+              />
+            </SubSection>
+            <SubSection title={t('s4Sub3Title')}>
+              <p>{t('s4SevereIntro')}</p>
+              <BulletList
+                items={[t('s4Severe1'), t('s4Severe2'), t('s4Severe3'), t('s4Severe4')]}
               />
             </SubSection>
           </Section>
