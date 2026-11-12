@@ -4,7 +4,13 @@
     "en": "English"
   },
   "Home": {
-    "enterButton": "Sign In"
+    "enterButton": "Sign In",
+    "description": "A platform to automate workflows with AI agents, connected to your messaging channels and the tools you already use.",
+    "madeBy": "Tesseract is a Fractal product",
+    "privacyLink": "Privacy",
+    "termsLink": "Terms",
+    "policiesLink": "Policies",
+    "footerNavAriaLabel": "Legal documents"
   },
   "NotFound": {
     "label": "Error · Page not found",

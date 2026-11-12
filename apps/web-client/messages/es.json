@@ -4,7 +4,13 @@
     "en": "Ingles"
   },
   "Home": {
-    "enterButton": "Ingresar"
+    "enterButton": "Ingresar",
+    "description": "Plataforma para automatizar flujos de trabajo con agentes de IA, conectada a tus canales de mensajería y a las herramientas que ya usas.",
+    "madeBy": "Tesseract es un producto de Fractal",
+    "privacyLink": "Privacidad",
+    "termsLink": "Términos",
+    "policiesLink": "Políticas",
+    "footerNavAriaLabel": "Documentos legales"
   },
   "NotFound": {
     "label": "Error · Página no encontrada",
