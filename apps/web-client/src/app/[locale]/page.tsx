@@ -146,8 +146,9 @@ export default function Home() {
     <div
       style={{
         width: '100vw',
-        height: '100vh',
+        height: '100dvh',
         position: 'relative',
+        overflow: 'hidden',
         background: 'var(--brand-black)',
       }}
     >
@@ -179,6 +180,27 @@ export default function Home() {
           </Link>
         </div>
       </div>
+
+      {/* Pie: qué es Tesseract y enlaces legales. Google exige que la página principal explique
+          el propósito de la app y enlace a su política de privacidad; va discreto y anclado
+          abajo para no mover el título ni competir con el teseracto. */}
+      <footer className="animate-fade-in-slow absolute inset-x-0 bottom-0 z-10 px-6 pb-6 text-center text-xs text-brand-white">
+        <p className="mx-auto max-w-xl leading-relaxed opacity-40">{t('description')}</p>
+        <div className="mt-3 flex flex-col items-center gap-2 sm:flex-row sm:justify-center sm:gap-6">
+          <span className="opacity-50">{t('madeBy')}</span>
+          <nav aria-label={t('footerNavAriaLabel')} className="flex gap-5">
+            <Link href="/privacy" className="opacity-70 transition-opacity hover:opacity-100">
+              {t('privacyLink')}
+            </Link>
+            <Link href="/terms" className="opacity-70 transition-opacity hover:opacity-100">
+              {t('termsLink')}
+            </Link>
+            <Link href="/policies" className="opacity-70 transition-opacity hover:opacity-100">
+              {t('policiesLink')}
+            </Link>
+          </nav>
+        </div>
+      </footer>
 
       {/* Estilos globales rápidos para animación de entrada (puedes mover esto a tu globals.css) */}
       <style jsx global>{`

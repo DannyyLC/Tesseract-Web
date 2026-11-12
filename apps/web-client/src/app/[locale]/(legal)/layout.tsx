@@ -3,12 +3,11 @@
 import React from 'react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
-import { usePathname, useRouter, Link } from '@/i18n/routing';
+import { usePathname, Link } from '@/i18n/routing';
 
 export default function LegalLayout({ children }: { children: React.ReactNode }) {
   const t = useTranslations('LegalLayout');
   const pathname = usePathname();
-  const router = useRouter();
 
   const navLinks = [
     { href: '/terms', label: t('termsLabel') },
@@ -22,8 +21,8 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
       <header className="bg-[var(--background)]/90 sticky top-0 z-50 border-b border-[var(--border)] backdrop-blur-md">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           {/* Brand */}
-          <button
-            onClick={() => router.back()}
+          <Link
+            href="/"
             className="group flex items-center gap-2.5"
             aria-label={t('backAriaLabel')}
           >
@@ -43,7 +42,7 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
             <span className="hidden text-[var(--text-tertiary)] sm:inline">
               {t('legalSection')}
             </span>
-          </button>
+          </Link>
 
           {/* Legal section nav */}
           <nav className="flex items-center gap-1" aria-label={t('navAriaLabel')}>
@@ -73,7 +72,8 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
 
       {/* Footer */}
       <footer className="mt-24 border-t border-[var(--border)] pb-12 pt-8 text-center text-sm text-[var(--text-tertiary)]">
-        <p>{t('footer', { year: new Date().getFullYear() })}</p>
+        <p>{t('madeBy')}</p>
+        <p className="mt-1">{t('footer', { year: new Date().getFullYear() })}</p>
         <p className="mt-1">{t('jurisdiction')}</p>
       </footer>
     </div>
